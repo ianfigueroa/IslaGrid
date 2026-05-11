@@ -1,6 +1,6 @@
 import { ControlRoom } from "./(map)/_components/ControlRoom";
 import type { GridSnapshot } from "@/lib/supabase";
-import type { UpdateItem } from "./(map)/_components/UpdateTimeline";
+import type { UpdateItem, UpdateTier } from "./(map)/_components/UpdateTimeline";
 import { DEMO_MODE, demoSnapshot, demoUpdates } from "@/lib/demo";
 import { getServerSupabase } from "@/lib/supabase";
 
@@ -14,6 +14,14 @@ interface UpdateRow {
   category: string | null;
   text: string;
   url: string | null;
+}
+
+function classifyTier(row: UpdateRow): UpdateTier {
+  if (row.source.startsWith("social.")) return "unverified";
+  if (row.category === "planned-work") return "planned";
+  if (row.source.endsWith("/avisos") || row.category === "announcement") return "announcement";
+  if (row.source.startsWith("community")) return "community";
+  return "official";
 }
 
 async function fetchInitial(): Promise<{
@@ -41,7 +49,7 @@ async function fetchInitial(): Promise<{
     const updates: UpdateItem[] = (feed ?? []).map((r: UpdateRow) => ({
       id: r.id,
       ts: r.ts,
-      source: r.source.startsWith("community") ? "community" : "official",
+      source: classifyTier(r),
       category: r.category ?? undefined,
       text: r.text,
       url: r.url ?? undefined,
