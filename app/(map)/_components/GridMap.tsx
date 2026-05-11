@@ -64,7 +64,18 @@ export type ActiveLayerKey =
   | "grid-now"
   | "generation"
   | "infrastructure"
-  | "planned-work";
+  | "planned-work"
+  | "outage-risk";
+
+// Heuristic risk band → fill color (always warmer than grid status to avoid
+// confusion between "status" and "risk").
+const RISK_FILL: Record<string, string> = {
+  low:      "#65a30d",
+  elevated: "#eab308",
+  high:     "#ea580c",
+  severe:   "#dc2626",
+  unknown:  "#525252",
+};
 
 interface Props {
   onSelectMunicipality?: (id: string, name: string) => void;
@@ -176,16 +187,20 @@ export function GridMap({
     }
   }, [theme]);
 
-  // Active-layer changes -> visibility flips
+  // Active-layer changes -> visibility flips + risk overlay refresh
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     applyLayerVisibility(map);
+    if (activeLayers.has("outage-risk")) {
+      void loadRiskInto(map);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
 
   function applyLayerVisibility(map: MlMap) {
     const showMuni = activeLayers.has("municipalities");
+    const showRisk = activeLayers.has("outage-risk");
     const showPlants = activeLayers.has("generation") || activeLayers.has("infrastructure");
     const showSubs = activeLayers.has("infrastructure");
 
@@ -193,10 +208,55 @@ export function GridMap({
       if (!map.getLayer(id)) return;
       map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     };
-    setVis("municipalities-fill", showMuni);
-    setVis("municipalities-outline", showMuni);
+    // Risk overrides municipality status fill when active.
+    setVis("municipalities-fill", showMuni && !showRisk);
+    setVis("municipalities-outline", showMuni || showRisk);
+    setVis("municipalities-risk", showRisk);
     setVis("osm-plants", showPlants);
     setVis("osm-substations", showSubs);
+  }
+
+  async function loadRiskInto(map: MlMap) {
+    if (map.getLayer("municipalities-risk")) return;
+    try {
+      const res = await fetch("/api/risk/municipalities", { cache: "no-store" });
+      if (!res.ok) return;
+      const { items } = (await res.json()) as {
+        items: Array<{ municipality_id: string; band: string }>;
+      };
+      const byId = new Map(items.map((r) => [r.municipality_id, r.band]));
+      if (!map.getSource("municipalities")) return;
+      // Use the same source but write feature state for `band`.
+      for (const [id, band] of byId) {
+        map.setFeatureState({ source: "municipalities", id }, { band });
+      }
+      map.addLayer(
+        {
+          id: "municipalities-risk",
+          type: "fill",
+          source: "municipalities",
+          paint: {
+            "fill-color": [
+              "match",
+              ["coalesce", ["feature-state", "band"], "unknown"],
+              "low",      RISK_FILL.low,
+              "elevated", RISK_FILL.elevated,
+              "high",     RISK_FILL.high,
+              "severe",   RISK_FILL.severe,
+              RISK_FILL.unknown,
+            ],
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false], 0.55,
+              0.42,
+            ],
+          },
+        },
+        "municipalities-outline",
+      );
+    } catch {
+      /* leave the layer off; the rail toggle stays available */
+    }
   }
 
   function addDataLayers(map: MlMap) {

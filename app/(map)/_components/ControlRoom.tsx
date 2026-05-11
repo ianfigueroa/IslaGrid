@@ -74,6 +74,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "generation",
         "infrastructure",
         "planned-work",
+        "outage-risk",
       ].includes(k),
     ),
   );

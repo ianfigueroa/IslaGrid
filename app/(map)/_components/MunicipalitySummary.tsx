@@ -1,11 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Wrench, AlertTriangle, Info as InfoIcon } from "lucide-react";
+import { ExternalLink, Wrench, AlertTriangle, Info as InfoIcon, TriangleAlert } from "lucide-react";
 import { StatusPill } from "./StatusPill";
 import { FreshnessChip } from "./FreshnessChip";
 import type { SourceId } from "@/lib/sources";
 import type { GridStatus } from "@/lib/supabase";
+
+interface RiskRow {
+  municipality_id: string;
+  ts: string;
+  risk_score: number;
+  band: "low" | "elevated" | "high" | "severe" | "unknown";
+  reasons: string[];
+  feature_freshness_s: number;
+  source: string;
+}
+
+const BAND_TONE: Record<RiskRow["band"], string> = {
+  low:      "border-ok/30 bg-ok-soft text-ok",
+  elevated: "border-warn/30 bg-warn-soft text-warn",
+  high:     "border-warn/40 bg-warn-soft text-warn",
+  severe:   "border-crit/40 bg-crit-soft text-crit",
+  unknown:  "border-line bg-surface-2 text-text-3",
+};
 
 interface PlannedWorkRow {
   id: string;
@@ -44,16 +62,27 @@ interface Props {
 
 export function MunicipalitySummary({ municipalityId }: Props) {
   const [data, setData] = useState<Summary | null>(null);
+  const [risk, setRisk] = useState<RiskRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
+    setRisk(null);
     setError(null);
-    fetch(`/api/municipalities/${encodeURIComponent(municipalityId)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((j) => {
-        if (!cancelled) setData(j as Summary);
+    void Promise.all([
+      fetch(`/api/municipalities/${encodeURIComponent(municipalityId)}`).then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+      ),
+      fetch("/api/risk/municipalities").then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([summary, riskResp]) => {
+        if (cancelled) return;
+        setData(summary as Summary);
+        const row = (riskResp as { items?: RiskRow[] } | null)?.items?.find(
+          (r) => r.municipality_id === municipalityId,
+        );
+        setRisk(row ?? null);
       })
       .catch((e) => {
         if (!cancelled) setError(String(e?.message ?? e));
@@ -105,6 +134,41 @@ export function MunicipalitySummary({ municipalityId }: Props) {
             </div>
           ) : null}
         </dl>
+      ) : null}
+
+      {risk ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-text-3">
+            <span>Outage risk · 6h horizon</span>
+            <span className="font-mono normal-case tracking-normal text-text-2">
+              IslaGrid heuristic
+            </span>
+          </div>
+          <div
+            className={`flex items-center justify-between rounded-md border px-2.5 py-1.5 ${BAND_TONE[risk.band]}`}
+          >
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
+              <TriangleAlert className="size-3.5" aria-hidden />
+              {risk.band}
+            </span>
+            <span className="font-mono text-sm tabular-nums">
+              {risk.risk_score.toFixed(0)} / 100
+            </span>
+          </div>
+          {risk.reasons.length > 0 ? (
+            <ul className="space-y-1 text-xs text-text-2">
+              {risk.reasons.slice(0, 3).map((r, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-1 inline-block size-1 shrink-0 rounded-full bg-text-3" aria-hidden />
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-[10px] text-text-3">
+            Estimated · features {Math.round(risk.feature_freshness_s / 60)} min old · not a prediction of certainty.
+          </p>
+        </div>
       ) : null}
 
       {data.notes.length > 0 ? (
