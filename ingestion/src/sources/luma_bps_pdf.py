@@ -13,6 +13,7 @@ This source is daily and informational; it doesn't drive `grid_snapshots`.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -25,8 +26,11 @@ import pdfplumber
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
-PAGE_URL = "https://lumapr.com/bps-monitoring/"
-SOURCE = "lumapr.com/bps"
+# Successor-operator swap: set LUMA_OPERATOR_HOST in env to redirect all
+# luma_* parsers without code changes. See docs/RUNBOOK.md.
+_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+PAGE_URL = f"https://{_HOST}/bps-monitoring/"
+SOURCE = f"{_HOST}/bps"
 
 log = logging.getLogger(__name__)
 
