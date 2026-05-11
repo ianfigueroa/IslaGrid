@@ -38,25 +38,38 @@ interface NominatimHit {
   display_name: string;
 }
 
+const NOMINATIM_TIMEOUT_MS = 8000;
+
 async function callNominatim(query: string): Promise<Geocoded | null> {
   const url = new URL(NOMINATIM_URL);
   url.searchParams.set("q", `${query}, Puerto Rico`);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "1");
   url.searchParams.set("countrycodes", "pr");
-  const res = await fetch(url.toString(), {
-    headers: { "User-Agent": USER_AGENT, "Accept-Language": "en,es" },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const rows = (await res.json()) as NominatimHit[];
-  const first = rows[0];
-  if (!first) return null;
-  const lat = parseFloat(first.lat);
-  const lon = parseFloat(first.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  if (!withinPR(lat, lon)) return null;
-  return { lat, lon, displayName: first.display_name, source: "nominatim" };
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), NOMINATIM_TIMEOUT_MS);
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": USER_AGENT, "Accept-Language": "en,es" },
+      cache: "no-store",
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return null;
+    const rows = (await res.json()) as NominatimHit[];
+    const first = rows[0];
+    if (!first) return null;
+    const lat = parseFloat(first.lat);
+    const lon = parseFloat(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (!withinPR(lat, lon)) return null;
+    return { lat, lon, displayName: first.display_name, source: "nominatim" };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") return null;
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function geocode(query: string): Promise<Geocoded | null> {

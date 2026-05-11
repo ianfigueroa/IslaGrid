@@ -8,9 +8,16 @@ import {
   recommendSystemSize,
 } from "@/lib/solar";
 import { pickActiveRate, seedRate } from "@/lib/rates";
+import { clientIp, hashIp } from "@/lib/client-ip";
+import { checkRate } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Bounds catch typos/abuse before they pollute the analytics table.
+const MONTHLY_KWH_MIN = 10;
+const MONTHLY_KWH_MAX = 10000;
+const SOLAR_HOURLY_LIMIT_PER_IP = 30;
 
 interface SubmitBody {
   address?: string;
@@ -30,10 +37,30 @@ export async function POST(req: Request) {
   }
 
   const monthlyKwh = Number(body.monthlyKwh);
-  if (!Number.isFinite(monthlyKwh) || monthlyKwh <= 0) {
+  if (
+    !Number.isFinite(monthlyKwh) ||
+    monthlyKwh < MONTHLY_KWH_MIN ||
+    monthlyKwh > MONTHLY_KWH_MAX
+  ) {
     return NextResponse.json(
-      { error: "monthlyKwh must be > 0" },
+      {
+        error: `monthlyKwh must be between ${MONTHLY_KWH_MIN} and ${MONTHLY_KWH_MAX} kWh.`,
+      },
       { status: 400 },
+    );
+  }
+
+  // Cheap IP rate limit (Redis-backed when configured). Stops a flood of
+  // distinct addresses from ballooning solar_assessments + geocode_cache.
+  const ipKey = `solar:${hashIp(clientIp(req), "REPORT_IP_SALT")}`;
+  const rate = await checkRate(ipKey, SOLAR_HOURLY_LIMIT_PER_IP, 3600);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error: "Hourly limit reached. Try again later.",
+        retry_after_seconds: rate.resetSeconds,
+      },
+      { status: 429 },
     );
   }
 
