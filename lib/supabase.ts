@@ -1,6 +1,19 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+/**
+ * True when the env points at a real Supabase project. False when the URL is
+ * missing or contains the literal "placeholder" — used by API routes to short
+ * circuit with an honest "supabase_unconfigured" reason instead of a stack
+ * trace.
+ */
+export function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return false;
+  if (url.includes("placeholder")) return false;
+  return true;
+}
+
 /** Browser client — uses the public anon key, respects RLS. */
 export function getBrowserSupabase() {
   return createBrowserClient(

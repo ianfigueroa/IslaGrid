@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSupabase } from "@/lib/supabase";
-import { DEMO_MODE, demoUpdates } from "@/lib/demo";
+import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { UpdateTier } from "@/app/(map)/_components/UpdateTimeline";
 
 interface UpdateRow {
@@ -12,10 +11,24 @@ interface UpdateRow {
   url: string | null;
 }
 
+interface Payload {
+  items: Array<{
+    id: string;
+    ts: string;
+    source: UpdateTier;
+    category?: string;
+    text: string;
+    url?: string;
+  }>;
+  reason?: "supabase_unconfigured" | "ingest_pending" | "supabase_error";
+  error?: string;
+}
+
 function classifyTier(row: UpdateRow): UpdateTier {
   if (row.source.startsWith("social.")) return "unverified";
   if (row.category === "planned-work") return "planned";
-  if (row.source.endsWith("/avisos") || row.category === "announcement") return "announcement";
+  if (row.source.endsWith("/avisos") || row.category === "announcement")
+    return "announcement";
   if (row.source.startsWith("community")) return "community";
   return "official";
 }
@@ -24,8 +37,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export async function GET() {
-  if (DEMO_MODE) {
-    return NextResponse.json({ items: demoUpdates(), note: "demo" });
+  if (!isSupabaseConfigured()) {
+    const body: Payload = { items: [], reason: "supabase_unconfigured" };
+    return NextResponse.json(body);
   }
 
   const supabase = getServerSupabase();
@@ -35,7 +49,14 @@ export async function GET() {
     .order("ts", { ascending: false })
     .limit(60);
 
-  if (error) return NextResponse.json({ items: [], error: error.message });
+  if (error) {
+    const body: Payload = {
+      items: [],
+      reason: "supabase_error",
+      error: error.message,
+    };
+    return NextResponse.json(body);
+  }
 
   const items = (data ?? []).map((r: UpdateRow) => ({
     id: r.id,
@@ -46,5 +67,9 @@ export async function GET() {
     url: r.url ?? undefined,
   }));
 
-  return NextResponse.json({ items });
+  const body: Payload = {
+    items,
+    reason: items.length === 0 ? "ingest_pending" : undefined,
+  };
+  return NextResponse.json(body);
 }

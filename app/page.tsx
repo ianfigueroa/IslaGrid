@@ -1,8 +1,7 @@
 import { ControlRoom } from "./(map)/_components/ControlRoom";
 import type { GridSnapshot } from "@/lib/supabase";
 import type { UpdateItem, UpdateTier } from "./(map)/_components/UpdateTimeline";
-import { DEMO_MODE, demoSnapshot, demoUpdates } from "@/lib/demo";
-import { getServerSupabase } from "@/lib/supabase";
+import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -19,7 +18,8 @@ interface UpdateRow {
 function classifyTier(row: UpdateRow): UpdateTier {
   if (row.source.startsWith("social.")) return "unverified";
   if (row.category === "planned-work") return "planned";
-  if (row.source.endsWith("/avisos") || row.category === "announcement") return "announcement";
+  if (row.source.endsWith("/avisos") || row.category === "announcement")
+    return "announcement";
   if (row.source.startsWith("community")) return "community";
   return "official";
 }
@@ -28,8 +28,8 @@ async function fetchInitial(): Promise<{
   snapshot: GridSnapshot | null;
   updates: UpdateItem[];
 }> {
-  if (DEMO_MODE) {
-    return { snapshot: demoSnapshot(), updates: demoUpdates() };
+  if (!isSupabaseConfigured()) {
+    return { snapshot: null, updates: [] };
   }
   try {
     const supabase = getServerSupabase();

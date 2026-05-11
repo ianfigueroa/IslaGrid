@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEMO_MODE } from "@/lib/demo";
-import { getServerSupabase } from "@/lib/supabase";
+import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -16,38 +15,16 @@ interface PredictionRow {
   feature_freshness_s: number;
 }
 
-const DEMO: PredictionRow[] = [
-  {
-    municipality_id: "san-juan",
-    horizon: "6h",
-    ts: new Date().toISOString(),
-    probability: 0.38,
-    confidence_band: "medium",
-    top_factors: [
-      { label: "Heavy precipitation expected", weight: 0.42 },
-      { label: "Planned work nearby in next 24h", weight: 1 },
-    ],
-    model_version: "heuristic:v1-20260511",
-    feature_freshness_s: 1800,
-  },
-  {
-    municipality_id: "ponce",
-    horizon: "6h",
-    ts: new Date().toISOString(),
-    probability: 0.61,
-    confidence_band: "medium",
-    top_factors: [
-      { label: "Active NWS watch", weight: 1 },
-      { label: "High wind forecast", weight: 0.55 },
-    ],
-    model_version: "heuristic:v1-20260511",
-    feature_freshness_s: 1300,
-  },
-];
+interface Payload {
+  items: PredictionRow[];
+  reason?: "supabase_unconfigured" | "ingest_pending" | "supabase_error";
+  error?: string;
+}
 
 export async function GET() {
-  if (DEMO_MODE) {
-    return NextResponse.json({ items: DEMO, demo: true });
+  if (!isSupabaseConfigured()) {
+    const body: Payload = { items: [], reason: "supabase_unconfigured" };
+    return NextResponse.json(body);
   }
   try {
     const supabase = getServerSupabase();
@@ -58,9 +35,20 @@ export async function GET() {
       )
       .eq("horizon", "6h");
     if (error) throw new Error(error.message);
-    return NextResponse.json({ items: (data ?? []) as PredictionRow[] });
+    const items = (data ?? []) as PredictionRow[];
+    const body: Payload = {
+      items,
+      reason: items.length === 0 ? "ingest_pending" : undefined,
+    };
+    return NextResponse.json(body);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "prediction fetch failed";
-    return NextResponse.json({ items: [] as PredictionRow[], error: message });
+    const message =
+      err instanceof Error ? err.message : "prediction fetch failed";
+    const body: Payload = {
+      items: [],
+      reason: "supabase_error",
+      error: message,
+    };
+    return NextResponse.json(body);
   }
 }
