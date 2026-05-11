@@ -65,7 +65,9 @@ export type ActiveLayerKey =
   | "generation"
   | "infrastructure"
   | "planned-work"
-  | "outage-risk";
+  | "outage-risk"
+  | "reports"
+  | "demand";
 
 // Heuristic risk band → fill color (always warmer than grid status to avoid
 // confusion between "status" and "risk").
@@ -77,9 +79,27 @@ const RISK_FILL: Record<string, string> = {
   unknown:  "#525252",
 };
 
+// Community-report confidence band → fill color. Always warmer than risk so
+// the two layers stay visually distinct when stacked.
+const REPORT_FILL: Record<string, string> = {
+  low:    "#fbbf24",
+  medium: "#f97316",
+  high:   "#dc2626",
+};
+
+// EXPERIMENTAL demand-pressure layer — see lib/demand.ts. Lime → red.
+const DEMAND_FILL: Record<string, string> = {
+  low:      "#a3e635",
+  moderate: "#facc15",
+  elevated: "#f97316",
+  peak:     "#dc2626",
+  unknown:  "#525252",
+};
+
 interface Props {
   onSelectMunicipality?: (id: string, name: string) => void;
   onSelectPlant?: (id: string, name: string, fuel?: string) => void;
+  onMapError?: (message: string) => void;
   activeLayers: Set<ActiveLayerKey>;
   theme: "dark" | "light";
 }
@@ -87,6 +107,7 @@ interface Props {
 export function GridMap({
   onSelectMunicipality,
   onSelectPlant,
+  onMapError,
   activeLayers,
   theme,
 }: Props) {
@@ -95,10 +116,12 @@ export function GridMap({
   const themeRef = useRef(theme);
   const onSelMuniRef = useRef(onSelectMunicipality);
   const onSelPlantRef = useRef(onSelectPlant);
+  const onMapErrorRef = useRef(onMapError);
 
   themeRef.current = theme;
   onSelMuniRef.current = onSelectMunicipality;
   onSelPlantRef.current = onSelectPlant;
+  onMapErrorRef.current = onMapError;
 
   // One-time map setup
   useEffect(() => {
@@ -123,6 +146,15 @@ export function GridMap({
     map.on("load", () => {
       addDataLayers(map);
       applyLayerVisibility(map);
+    });
+
+    map.on("error", (ev) => {
+      // MapLibre's typed payload uses { error: Error }
+      const err = (ev as { error?: { message?: string } }).error;
+      const msg = err?.message ?? "Map render error";
+      // eslint-disable-next-line no-console
+      console.error("[GridMap]", msg);
+      onMapErrorRef.current?.(msg);
     });
 
     map.on("click", "municipalities-fill", (e) => {
@@ -187,7 +219,7 @@ export function GridMap({
     }
   }, [theme]);
 
-  // Active-layer changes -> visibility flips + risk overlay refresh
+  // Active-layer changes -> visibility flips + overlay loads
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -195,25 +227,131 @@ export function GridMap({
     if (activeLayers.has("outage-risk")) {
       void loadRiskInto(map);
     }
+    if (activeLayers.has("reports")) {
+      void loadReportsInto(map);
+    }
+    if (activeLayers.has("demand")) {
+      void loadDemandInto(map);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
 
   function applyLayerVisibility(map: MlMap) {
     const showMuni = activeLayers.has("municipalities");
     const showRisk = activeLayers.has("outage-risk");
+    const showDemand = activeLayers.has("demand");
     const showPlants = activeLayers.has("generation") || activeLayers.has("infrastructure");
     const showSubs = activeLayers.has("infrastructure");
+    const showReports = activeLayers.has("reports");
 
     const setVis = (id: string, visible: boolean) => {
       if (!map.getLayer(id)) return;
       map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     };
-    // Risk overrides municipality status fill when active.
-    setVis("municipalities-fill", showMuni && !showRisk);
-    setVis("municipalities-outline", showMuni || showRisk);
+    // Risk + demand both override municipality status fill; demand only wins
+    // when risk isn't active so the rail order maps to a clear priority.
+    const showStatus = showMuni && !showRisk && !showDemand;
+    setVis("municipalities-fill", showStatus);
+    setVis("municipalities-outline", showMuni || showRisk || showDemand);
     setVis("municipalities-risk", showRisk);
+    setVis("municipalities-demand", showDemand && !showRisk);
     setVis("osm-plants", showPlants);
     setVis("osm-substations", showSubs);
+    setVis("reports-hex-fill", showReports);
+    setVis("reports-hex-stroke", showReports);
+  }
+
+  async function loadDemandInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/demand/municipalities", { cache: "no-store" });
+      if (!res.ok) throw new Error(`/api/demand/municipalities ${res.status}`);
+      const json = (await res.json()) as {
+        items: Array<{ municipality_id: string; band: string }>;
+      };
+      if (!map.getSource("municipalities")) return;
+      for (const row of json.items) {
+        map.setFeatureState(
+          { source: "municipalities", id: row.municipality_id },
+          { demand_band: row.band },
+        );
+      }
+      if (map.getLayer("municipalities-demand")) return;
+      map.addLayer(
+        {
+          id: "municipalities-demand",
+          type: "fill",
+          source: "municipalities",
+          paint: {
+            "fill-color": [
+              "match",
+              ["coalesce", ["feature-state", "demand_band"], "unknown"],
+              "low",      DEMAND_FILL.low,
+              "moderate", DEMAND_FILL.moderate,
+              "elevated", DEMAND_FILL.elevated,
+              "peak",     DEMAND_FILL.peak,
+              DEMAND_FILL.unknown,
+            ],
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false], 0.55,
+              0.42,
+            ],
+          },
+        },
+        "municipalities-outline",
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] demand load failed", err);
+      onMapErrorRef.current?.("Demand heatmap failed to load.");
+    }
+  }
+
+  async function loadReportsInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/reports/aggregate", { cache: "no-store" });
+      if (!res.ok) throw new Error(`/api/reports/aggregate ${res.status}`);
+      const fc = await res.json();
+      if (!fc || !Array.isArray(fc.features)) return;
+      const existing = map.getSource("reports") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+        return;
+      }
+      map.addSource("reports", { type: "geojson", data: fc });
+      map.addLayer({
+        id: "reports-hex-fill",
+        type: "fill",
+        source: "reports",
+        paint: {
+          "fill-color": [
+            "match",
+            ["coalesce", ["get", "band"], "low"],
+            "low",    REPORT_FILL.low,
+            "medium", REPORT_FILL.medium,
+            "high",   REPORT_FILL.high,
+            REPORT_FILL.low,
+          ],
+          "fill-opacity": 0.35,
+        },
+      });
+      map.addLayer({
+        id: "reports-hex-stroke",
+        type: "line",
+        source: "reports",
+        paint: {
+          "line-color": "#facc15",
+          "line-opacity": 0.5,
+          "line-width": 0.8,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] reports load failed", err);
+      onMapErrorRef.current?.("Community reports failed to load.");
+    }
   }
 
   async function loadRiskInto(map: MlMap) {
@@ -262,7 +400,10 @@ export function GridMap({
   function addDataLayers(map: MlMap) {
     // Municipality polygons
     void fetch("/api/municipalities")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error(`/api/municipalities ${r.status}`);
+        return r.json();
+      })
       .then((fc) => {
         if (!fc || map.getSource("municipalities")) return;
         map.addSource("municipalities", { type: "geojson", data: fc, promoteId: "id" });
@@ -334,11 +475,18 @@ export function GridMap({
 
         applyLayerVisibility(map);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("[GridMap] municipalities fetch failed", err);
+        onMapErrorRef.current?.("Municipality boundaries failed to load.");
+      });
 
     // Power infrastructure (community-mapped OSM data via /api/plants)
     void fetch("/api/plants")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error(`/api/plants ${r.status}`);
+        return r.json();
+      })
       .then((fc) => {
         if (!fc || !fc.features || map.getSource("osm-power")) return;
 
@@ -412,7 +560,11 @@ export function GridMap({
 
         applyLayerVisibility(map);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("[GridMap] plants fetch failed", err);
+        onMapErrorRef.current?.("Power infrastructure failed to load.");
+      });
   }
 
   return (

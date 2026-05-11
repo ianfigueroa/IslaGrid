@@ -52,10 +52,11 @@ interface Summary {
   population: number | null;
   status: GridStatus;
   planned_work: PlannedWorkRow[];
-  source: "lumapr.com" | "datos.pr.gov" | "demo";
+  source: "lumapr.com" | "datos.pr.gov" | "no_data";
   source_label: "official" | "estimated" | "community" | "unverified";
-  as_of: string;
+  as_of: string | null;
   notes: string[];
+  reason?: "supabase_unconfigured" | "ingest_pending" | "supabase_error";
 }
 
 function fmtTime(iso: string | null): string {
@@ -133,7 +134,7 @@ export function MunicipalitySummary({ municipalityId }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill status={data.status} />
-        <FreshnessChip asOf={data.as_of} source={sourceId} />
+        {data.as_of ? <FreshnessChip asOf={data.as_of} source={sourceId} /> : null}
       </div>
 
       {data.population != null ? (
@@ -288,10 +289,18 @@ export function MunicipalitySummary({ municipalityId }: Props) {
         )}
       </div>
 
-      <p className="border-t border-line pt-3 text-[10px] text-text-3">
-        Data joined from LUMA Planned Work, OpenStreetMap administrative boundaries, and the
-        grid status heuristic. Informational — not for operational decisions.
-      </p>
+      <div className="border-t border-line pt-3">
+        <a
+          href={`/m/${encodeURIComponent(data.id)}`}
+          className="inline-flex items-center gap-1 text-xs text-text-2 underline-offset-2 hover:text-text hover:underline"
+        >
+          View full scorecard for {data.name} →
+        </a>
+        <p className="mt-2 text-[10px] text-text-3">
+          Data joined from LUMA Planned Work, OpenStreetMap administrative boundaries, and the
+          grid status heuristic. Informational — not for operational decisions.
+        </p>
+      </div>
     </div>
   );
 }
