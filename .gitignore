@@ -1,0 +1,58 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next
+.next/
+out/
+build/
+
+# misc
+.DS_Store
+*.pem
+*.log
+.idea/
+.vscode/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# python ingestion
+ingestion/.venv/
+ingestion/__pycache__/
+ingestion/**/__pycache__/
+ingestion/**/*.pyc
+ingestion/.pytest_cache/
+ingestion/.mypy_cache/
+
+# supabase
+supabase/.branches/
+supabase/.temp/
+
+# raw data (never check in)
+raw/
+*.dump
+
+# test/screenshot artifacts at repo root
+/*.png
+/*.jpeg
+/*.jpg
+.playwright-mcp/
