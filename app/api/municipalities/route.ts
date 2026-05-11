@@ -1,13 +1,18 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { DEMO_MODE } from "@/lib/demo";
-import { getServerSupabase } from "@/lib/supabase";
+import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const revalidate = 300; // 5 min
 
-type Status = "normal" | "watch" | "strained" | "critical" | "stale" | "unknown";
+type Status =
+  | "normal"
+  | "watch"
+  | "strained"
+  | "critical"
+  | "stale"
+  | "unknown";
 
 interface MunicipalityProps {
   id: string;
@@ -21,44 +26,42 @@ interface MunicipalityProps {
   last_planned_work_ts: string | null;
 }
 
-const DEMO_STATUS_BY_FIPS: Record<string, Status> = {
-  "72127": "watch",     // San Juan
-  "72013": "watch",     // Bayamón
-  "72031": "strained",  // Carolina
-  "72061": "watch",     // Guaynabo
-  "72113": "watch",     // Ponce
-  "72005": "watch",     // Aguadilla
-  "72147": "strained",  // Vieques (typical outage island)
-  "72049": "critical",  // Culebra
-  "72097": "watch",     // Mayagüez
-  "72057": "watch",     // Guayama
-};
+function statusForCount(count: number): Status {
+  if (count >= 5) return "strained";
+  if (count >= 3) return "watch";
+  if (count >= 1) return "normal";
+  return "unknown";
+}
 
 export async function GET() {
-  const file = path.join(process.cwd(), "public", "geo", "pr-municipalities.geojson");
+  const file = path.join(
+    process.cwd(),
+    "public",
+    "geo",
+    "pr-municipalities.geojson",
+  );
   const raw = await fs.readFile(file, "utf8");
   const fc = JSON.parse(raw) as {
     type: "FeatureCollection";
     features: Array<{
       type: "Feature";
       id: string | number;
-      properties: { id: string; name: string; fips: string | null; population: number | null };
+      properties: {
+        id: string;
+        name: string;
+        fips: string | null;
+        population: number | null;
+      };
       geometry: GeoJSON.Geometry;
     }>;
   };
 
-  // Default everything to "normal"
-  const statusByFips = new Map<string, Status>();
-  const plannedByFips = new Map<string, { count: number; latest: string | null }>();
+  const plannedByFips = new Map<
+    string,
+    { count: number; latest: string | null }
+  >();
 
-  if (DEMO_MODE) {
-    for (const [fips, s] of Object.entries(DEMO_STATUS_BY_FIPS)) {
-      statusByFips.set(fips, s);
-    }
-    plannedByFips.set("72127", { count: 3, latest: new Date(Date.now() - 1000 * 60 * 18).toISOString() });
-    plannedByFips.set("72031", { count: 1, latest: new Date(Date.now() - 1000 * 60 * 95).toISOString() });
-    plannedByFips.set("72147", { count: 2, latest: new Date(Date.now() - 1000 * 60 * 220).toISOString() });
-  } else {
+  if (isSupabaseConfigured()) {
     try {
       const supa = await getServerSupabase();
       const { data } = await supa
@@ -74,13 +77,10 @@ export async function GET() {
           const ts = row.scraped_at ?? row.start_ts;
           if (ts && (!cur.latest || ts > cur.latest)) cur.latest = ts;
           plannedByFips.set(id, cur);
-          // 3+ active items = watch; 5+ = strained
-          const s = cur.count >= 5 ? "strained" : cur.count >= 3 ? "watch" : "normal";
-          statusByFips.set(id, s);
         }
       }
     } catch {
-      /* fall through with empty maps; map will render all-normal */
+      /* fall through with empty maps; map will render all-unknown */
     }
   }
 
@@ -94,7 +94,7 @@ export async function GET() {
         name: f.properties.name,
         fips: f.properties.fips,
         population: f.properties.population,
-        status: statusByFips.get(fips) ?? "normal",
+        status: statusForCount(planned?.count ?? 0),
         planned_work_count: planned?.count ?? 0,
         last_planned_work_ts: planned?.latest ?? null,
       };
@@ -104,7 +104,8 @@ export async function GET() {
 
   return NextResponse.json(enriched, {
     headers: {
-      "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      "Cache-Control":
+        "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
     },
   });
 }

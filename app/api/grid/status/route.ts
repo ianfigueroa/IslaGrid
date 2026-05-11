@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
-import { getServerSupabase, type GridSnapshot } from "@/lib/supabase";
-import { DEMO_MODE, demoSnapshot } from "@/lib/demo";
+import {
+  getServerSupabase,
+  isSupabaseConfigured,
+  type GridSnapshot,
+} from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
+interface Payload {
+  snapshot: GridSnapshot | null;
+  reason?: "supabase_unconfigured" | "ingest_pending" | "supabase_error";
+  error?: string;
+}
+
 export async function GET() {
-  // Local dev / Vercel preview without real Supabase: serve demo data so the
-  // UI can be evaluated. Production always points at a real Supabase URL.
-  if (DEMO_MODE) {
-    return NextResponse.json({ snapshot: demoSnapshot(), note: "demo" });
+  if (!isSupabaseConfigured()) {
+    const body: Payload = { snapshot: null, reason: "supabase_unconfigured" };
+    return NextResponse.json(body);
   }
 
   const supabase = getServerSupabase();
@@ -21,18 +29,24 @@ export async function GET() {
     .maybeSingle<GridSnapshot>();
 
   if (error) {
-    return NextResponse.json(
-      { snapshot: null, error: error.message },
-      { status: 200, headers: { "x-islagrid-source-error": "1" } },
-    );
+    const body: Payload = {
+      snapshot: null,
+      reason: "supabase_error",
+      error: error.message,
+    };
+    return NextResponse.json(body, {
+      headers: { "x-islagrid-source-error": "1" },
+    });
   }
 
-  return NextResponse.json(
-    { snapshot: data },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
-      },
+  const body: Payload = {
+    snapshot: data,
+    reason: data ? undefined : "ingest_pending",
+  };
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control":
+        "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
     },
-  );
+  });
 }

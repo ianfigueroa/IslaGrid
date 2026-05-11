@@ -18,6 +18,7 @@ export type SourceId =
   | "tiger-2024"
   | "nrel-pvrdb"
   | "preb"
+  | "preb-seed"
   | "social.x.unverified"
   | "islagrid-heuristic"
   | "islagrid-model";
@@ -100,6 +101,12 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     label: "official",
     display: "PREB",
     url: "https://energia.pr.gov",
+    freshnessSlo: 31536000,
+  },
+  "preb-seed": {
+    label: "estimated",
+    display: "PREB seed (frozen 2026 Q1)",
+    url: "https://energia.pr.gov/en/current-rate/",
     freshnessSlo: 31536000,
   },
   "social.x.unverified": {

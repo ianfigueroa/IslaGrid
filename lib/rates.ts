@@ -83,12 +83,22 @@ export function rowsToBreakdown(
   };
 }
 
-export function fallbackRate(
+/**
+ * Last-resort breakdown when neither real PREB ingestion (improvement C) nor
+ * the migration-seeded `preb_rates` rows are available. Tagged with the
+ * `preb-seed` source so the UI labels it accurately as "frozen seed" rather
+ * than live PREB data.
+ */
+export function seedRate(
   category: RateCategory,
   at: Date = new Date(),
 ): RateBreakdown {
-  return rowsToBreakdown(pickRows(FALLBACK_ROWS, at), category);
+  const rows = pickRows(FALLBACK_ROWS, at);
+  return { ...rowsToBreakdown(rows, category), source: "preb-seed" };
 }
+
+/** @deprecated Use `seedRate`. Kept as an alias to avoid breaking imports. */
+export const fallbackRate = seedRate;
 
 /**
  * Pick the active breakdown from a database row set. Returns null when no row
