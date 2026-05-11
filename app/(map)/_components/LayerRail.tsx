@@ -44,7 +44,7 @@ const LAYERS: LayerDef[] = [
   { key: "generation",     label: "Generation",     hint: "Plant output by fuel",       Icon: Zap,                  available: true  },
   { key: "infrastructure", label: "Infrastructure", hint: "Substations & plants (OSM)", Icon: Factory,              available: true  },
   { key: "planned-work",   label: "Planned work",   hint: "LUMA scheduled outages",     Icon: Wrench,               available: true  },
-  { key: "outage-risk",    label: "Outage risk",    hint: "Coming with weather feed",   Icon: TriangleAlert,        available: false },
+  { key: "outage-risk",    label: "Outage risk",    hint: "Weather + grid heuristic",   Icon: TriangleAlert,        available: true  },
   { key: "reports",        label: "Community",      hint: "Community-submitted reports",Icon: MessageSquareWarning, available: false },
   { key: "weather",        label: "Weather",        hint: "NWS PR alerts",              Icon: CloudRain,            available: false },
   { key: "solar",          label: "Solar lens",     hint: "Rooftop potential",          Icon: Sun,                  available: false },
