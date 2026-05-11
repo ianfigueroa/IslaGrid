@@ -15,6 +15,7 @@ export function StatusBar({ snapshot, onStatusClick }: Props) {
   const status = snapshot?.status ?? "unknown";
   const source = (snapshot?.source as "datos.pr.gov" | "lumapr.com") ?? "lumapr.com";
   const asOf = snapshot?.ts ?? new Date().toISOString();
+  const loading = snapshot == null;
 
   return (
     <header className="surface pointer-events-auto absolute inset-x-0 top-0 z-30 flex h-14 items-center gap-4 px-4">
@@ -33,18 +34,21 @@ export function StatusBar({ snapshot, onStatusClick }: Props) {
           value={snapshot?.current_demand_mw}
           asOf={asOf}
           source={source}
+          loading={loading}
         />
         <TelemetryCard
           label="Generation"
           value={snapshot?.total_generation_mw}
           asOf={asOf}
           source={source}
+          loading={loading}
         />
         <TelemetryCard
           label="Reserves"
           value={snapshot?.operational_reserve_mw}
           asOf={asOf}
           source={source}
+          loading={loading}
           tone={
             (snapshot?.operational_reserve_mw ?? 0) <
             (snapshot?.current_demand_mw ?? 0) * 0.05
@@ -57,6 +61,7 @@ export function StatusBar({ snapshot, onStatusClick }: Props) {
           value={snapshot?.next_hour_demand_mw}
           asOf={asOf}
           source={source}
+          loading={loading}
           tone="neutral"
         />
       </div>

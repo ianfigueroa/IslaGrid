@@ -10,6 +10,8 @@ interface Props {
   source?: SourceId;
   tone?: "default" | "warn" | "crit" | "ok" | "neutral";
   className?: string;
+  /** When true, render a shimmer skeleton in place of the value. */
+  loading?: boolean;
 }
 
 const TONE: Record<NonNullable<Props["tone"]>, string> = {
@@ -33,17 +35,26 @@ export function TelemetryCard({
   source,
   tone = "default",
   className,
+  loading,
 }: Props) {
   return (
     <div className={cn("flex min-w-[120px] flex-col justify-center gap-0.5 px-3", className)}>
       <span className="text-[9px] uppercase tracking-[0.14em] text-text-3 leading-none">
         {label}
       </span>
-      <span className={cn("fade-in font-mono text-base font-medium leading-tight tabular-nums", TONE[tone])} key={String(value)}>
-        {formatMw(value)}
-        <span className="ml-1 text-[10px] text-text-3">{unit}</span>
-      </span>
-      {asOf && source ? <FreshnessChip asOf={asOf} source={source} /> : null}
+      {loading ? (
+        <span
+          aria-busy="true"
+          aria-label={`${label} loading`}
+          className="mt-0.5 inline-block h-[1.1rem] w-16 animate-pulse rounded bg-surface-2"
+        />
+      ) : (
+        <span className={cn("fade-in font-mono text-base font-medium leading-tight tabular-nums", TONE[tone])} key={String(value)}>
+          {formatMw(value)}
+          <span className="ml-1 text-[10px] text-text-3">{unit}</span>
+        </span>
+      )}
+      {asOf && source && !loading ? <FreshnessChip asOf={asOf} source={source} /> : null}
     </div>
   );
 }
