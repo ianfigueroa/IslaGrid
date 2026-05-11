@@ -1,0 +1,46 @@
+name: refresh-osm
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        working-directory: ingestion
+        run: pip install -e .
+
+      - name: Fetch from Overpass + write public GeoJSON
+        working-directory: ingestion
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python -m src.sources.osm_infrastructure
+
+      - name: Commit refreshed GeoJSON
+        run: |
+          git config user.name "islagrid-bot"
+          git config user.email "bot@islagrid.local"
+          if git diff --quiet public/geo/osm-power-pr.geojson; then
+            echo "No changes."
+            exit 0
+          fi
+          git add public/geo/osm-power-pr.geojson
+          git commit -m "chore: refresh OSM power infrastructure"
+          git push

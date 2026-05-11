@@ -1,0 +1,38 @@
+name: freshness-check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe /api/grid/status
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+        run: |
+          if [ -z "$BASE" ]; then
+            echo "APP_BASE_URL not set; nothing to probe yet."
+            exit 0
+          fi
+          payload=$(curl -fsSL "$BASE/api/grid/status")
+          echo "$payload"
+          ts=$(echo "$payload" | python3 -c "import json,sys; d=json.load(sys.stdin); s=d.get('snapshot') or {}; print(s.get('ts') or '')")
+          if [ -z "$ts" ]; then
+            echo "::warning::No snapshot yet — pipeline may be cold-starting or upstream in maintenance."
+            exit 0
+          fi
+          now=$(date -u +%s)
+          then=$(date -u -d "$ts" +%s)
+          age=$((now - then))
+          echo "Snapshot age: ${age}s"
+          if [ "$age" -gt 900 ]; then
+            echo "::error::Snapshot is ${age}s old (> 15 min)."
+            exit 1
+          fi

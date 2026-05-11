@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Puerto Rico (bbox placeholder)" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-67.30, 17.85],
+          [-65.20, 17.85],
+          [-65.20, 18.55],
+          [-67.30, 18.55],
+          [-67.30, 17.85]
+        ]]
+      }
+    }
+  ]
+}
