@@ -1,0 +1,291 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@theme {
+  /* Default (dark) palette — warm achromatic, no AI-tech blue */
+  --color-bg: #0a0a0a;
+  --color-surface: #141414;
+  --color-surface-2: #1c1c1c;
+  --color-surface-3: #262626;
+  --color-line: #2a2a2a;
+  --color-line-2: #3a3a3a;
+
+  --color-text: #fafaf9;
+  --color-text-2: #a3a3a3;
+  --color-text-3: #737373;
+
+  /* Brand accent — warm gold, used SPARINGLY (logo, focus trace) */
+  --color-brand: #f5b942;
+  --color-brand-soft: rgba(245, 185, 66, 0.14);
+
+  /* Semantic status — emerald / amber / red. Used on data, not chrome. */
+  --color-ok: #10b981;
+  --color-ok-soft: rgba(16, 185, 129, 0.14);
+  --color-warn: #f59e0b;
+  --color-warn-soft: rgba(245, 158, 11, 0.16);
+  --color-crit: #ef4444;
+  --color-crit-soft: rgba(239, 68, 68, 0.16);
+  --color-stale: #737373;
+  --color-stale-soft: rgba(115, 115, 115, 0.18);
+
+  /* Map-only data palette (fuel colors kept warm/sober) */
+  --color-fuel-oil: #c2865a;
+  --color-fuel-gas: #d97706;
+  --color-fuel-coal: #6b7280;
+  --color-fuel-solar: #f5b942;
+  --color-fuel-wind: #94a3b8;
+  --color-fuel-hydro: #38bdf8;
+  --color-fuel-landfill: #84cc16;
+  --color-fuel-battery: #2dd4bf;
+  --color-fuel-unknown: #525252;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --font-sans: var(--font-fira-sans), system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+}
+
+/* Light theme override — warm parchment, never icy-blue */
+:root[data-theme="light"] {
+  --color-bg: #fafaf9;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f5f4;
+  --color-surface-3: #e7e5e4;
+  --color-line: #e7e5e4;
+  --color-line-2: #d6d3d1;
+
+  --color-text: #0a0a0a;
+  --color-text-2: #525252;
+  --color-text-3: #737373;
+
+  --color-brand: #b45309;
+  --color-brand-soft: rgba(180, 83, 9, 0.10);
+
+  --color-ok: #047857;
+  --color-ok-soft: rgba(4, 120, 87, 0.10);
+  --color-warn: #b45309;
+  --color-warn-soft: rgba(180, 83, 9, 0.10);
+  --color-crit: #b91c1c;
+  --color-crit-soft: rgba(185, 28, 28, 0.10);
+  --color-stale: #525252;
+  --color-stale-soft: rgba(82, 82, 82, 0.10);
+
+  --color-fuel-oil: #92400e;
+  --color-fuel-gas: #b45309;
+  --color-fuel-coal: #525252;
+  --color-fuel-solar: #b45309;
+  --color-fuel-wind: #475569;
+  --color-fuel-hydro: #0369a1;
+  --color-fuel-landfill: #4d7c0f;
+  --color-fuel-battery: #0f766e;
+  --color-fuel-unknown: #737373;
+}
+
+/* Tell the browser which mode each theme is */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+@layer base {
+  html, body {
+    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  [data-mono],
+  .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  :focus-visible {
+    outline: 1.5px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* MapLibre attribution: match our chrome */
+  .maplibregl-ctrl-attrib {
+    background: color-mix(in oklch, var(--color-surface) 92%, transparent) !important;
+    color: var(--color-text-3) !important;
+    font-size: 11px !important;
+    border: 1px solid var(--color-line) !important;
+  }
+  .maplibregl-ctrl-attrib a { color: var(--color-text-2) !important; }
+  .maplibregl-ctrl-group {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-line) !important;
+    box-shadow: none !important;
+  }
+  .maplibregl-ctrl-group button {
+    background: transparent !important;
+  }
+  .maplibregl-ctrl-group button:hover {
+    background: var(--color-surface-2) !important;
+  }
+  :root[data-theme="dark"] .maplibregl-ctrl-group button span {
+    filter: invert(0.92) brightness(1.1);
+  }
+
+  /* Map popup styled to match chrome */
+  .maplibregl-popup-content {
+    background: var(--color-surface) !important;
+    color: var(--color-text) !important;
+    border: 1px solid var(--color-line) !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
+  }
+  .maplibregl-popup-tip { border-top-color: var(--color-surface) !important; border-bottom-color: var(--color-surface) !important; }
+}
+
+@layer components {
+  /* Frosted surface — used by chrome panels */
+  .surface {
+    background: color-mix(in oklch, var(--color-surface) 88%, transparent);
+    border: 1px solid var(--color-line);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .surface-solid {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+  }
+
+  /* Status chips */
+  .chip-status-normal { background: var(--color-ok-soft); color: var(--color-ok); }
+  .chip-status-watch,
+  .chip-status-strained { background: var(--color-warn-soft); color: var(--color-warn); }
+  .chip-status-critical { background: var(--color-crit-soft); color: var(--color-crit); }
+  .chip-status-stale,
+  .chip-status-unknown { background: var(--color-stale-soft); color: var(--color-text-2); }
+
+  /* Soft hover for interactive cards */
+  .hover-surface {
+    transition: background-color 160ms ease-out, border-color 160ms ease-out;
+  }
+  .hover-surface:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-line-2);
+  }
+
+  /* Prose pages */
+  .prose-islagrid {
+    color: var(--color-text-2);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .prose-islagrid h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 24px;
+    line-height: 1.2;
+  }
+  .prose-islagrid h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-top: 36px;
+    margin-bottom: 12px;
+    line-height: 1.3;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .prose-islagrid h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+  .prose-islagrid p,
+  .prose-islagrid ul,
+  .prose-islagrid ol { margin-bottom: 14px; }
+  .prose-islagrid ul,
+  .prose-islagrid ol { padding-left: 1.4em; }
+  .prose-islagrid li { margin-bottom: 4px; }
+  .prose-islagrid a {
+    color: var(--color-brand);
+    text-underline-offset: 3px;
+    transition: opacity 150ms ease-out;
+  }
+  .prose-islagrid a:hover { text-decoration: underline; opacity: 0.85; }
+  .prose-islagrid code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--color-line);
+  }
+  .prose-islagrid table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .prose-islagrid th,
+  .prose-islagrid td {
+    border: 1px solid var(--color-line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose-islagrid th {
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .prose-islagrid hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    margin: 32px 0;
+  }
+  .prose-islagrid blockquote {
+    border-left: 2px solid var(--color-brand);
+    padding-left: 14px;
+    color: var(--color-text-2);
+    margin: 16px 0;
+  }
+  .prose-islagrid strong { color: var(--color-text); font-weight: 600; }
+  .prose-islagrid em { color: var(--color-text); font-style: italic; }
+
+  /* Pulse, only critical */
+  @keyframes islagrid-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .pulse-critical { animation: islagrid-pulse 1.4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .pulse-critical { animation: none; } }
+
+  /* Subtle data-refresh fade — used by TelemetryCard */
+  @keyframes islagrid-fade-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: none; }
+  }
+  .fade-in { animation: islagrid-fade-in 220ms ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+}
