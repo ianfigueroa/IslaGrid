@@ -42,7 +42,7 @@ export function demoUpdates() {
     {
       id: "demo-1",
       ts: new Date(t - 4 * 60_000).toISOString(),
-      source: "official" as const,
+      source: "planned" as const,
       category: "planned-work",
       text: "Planned work posted near Caguas: pole replacement, possible interruption 9:00 AM – 2:00 PM.",
       url: "https://lumapr.com/mejorasplanificadas/",
@@ -61,6 +61,14 @@ export function demoUpdates() {
       source: "model" as const,
       category: "heuristic",
       text: "Grid status reclassified from NORMAL → WATCH as forecast margin narrows below 10%.",
+    },
+    {
+      id: "demo-4",
+      ts: new Date(t - 9 * 60_000).toISOString(),
+      source: "unverified" as const,
+      category: "social",
+      text: "@LUMAEnergyPR: Cuadrillas atendiendo evento eléctrico en sector Buen Consejo, Río Piedras.",
+      url: "https://x.com/LUMAEnergyPR",
     },
   ];
 }

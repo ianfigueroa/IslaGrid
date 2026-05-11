@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase";
 import { DEMO_MODE, demoUpdates } from "@/lib/demo";
+import type { UpdateTier } from "@/app/(map)/_components/UpdateTimeline";
 
 interface UpdateRow {
   id: string;
@@ -9,6 +10,14 @@ interface UpdateRow {
   category: string | null;
   text: string;
   url: string | null;
+}
+
+function classifyTier(row: UpdateRow): UpdateTier {
+  if (row.source.startsWith("social.")) return "unverified";
+  if (row.category === "planned-work") return "planned";
+  if (row.source.endsWith("/avisos") || row.category === "announcement") return "announcement";
+  if (row.source.startsWith("community")) return "community";
+  return "official";
 }
 
 export const dynamic = "force-dynamic";
@@ -24,14 +33,14 @@ export async function GET() {
     .from("official_updates")
     .select("id, ts, source, category, text, url")
     .order("ts", { ascending: false })
-    .limit(40);
+    .limit(60);
 
   if (error) return NextResponse.json({ items: [], error: error.message });
 
   const items = (data ?? []).map((r: UpdateRow) => ({
     id: r.id,
     ts: r.ts,
-    source: r.source.startsWith("community") ? "community" : "official",
+    source: classifyTier(r),
     category: r.category ?? undefined,
     text: r.text,
     url: r.url ?? undefined,
