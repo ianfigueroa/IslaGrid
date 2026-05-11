@@ -11,6 +11,8 @@ import { UpdateTimeline, type UpdateItem } from "./UpdateTimeline";
 import { EmptyStateNote } from "./EmptyStateNote";
 import { GridStatusDetails } from "./GridStatusDetails";
 import { MunicipalitySummary } from "./MunicipalitySummary";
+import { MapErrorBanner } from "./MapErrorBanner";
+import { ReportSheet } from "./ReportSheet";
 import type { ActiveLayerKey } from "./GridMap";
 
 const GridMap = dynamic(() => import("./GridMap").then((m) => m.GridMap), {
@@ -41,6 +43,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       ]),
   );
   const [selection, setSelection] = useState<PanelSelection | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(async () => {
@@ -75,6 +78,8 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "infrastructure",
         "planned-work",
         "outage-risk",
+        "reports",
+        "demand",
       ].includes(k),
     ),
   );
@@ -84,6 +89,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       <GridMap
         theme={theme}
         activeLayers={mapLayers}
+        onMapError={(msg) => setMapError(msg)}
         onSelectMunicipality={(id, name) =>
           setSelection({
             kind: "municipality",
@@ -127,6 +133,8 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       <LayerRail active={activeLayers} onToggle={toggleLayer} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
       <UpdateTimeline items={updates} />
+      <ReportSheet enabled={activeLayers.has("reports")} />
+      <MapErrorBanner message={mapError} onDismiss={() => setMapError(null)} />
     </main>
   );
 }

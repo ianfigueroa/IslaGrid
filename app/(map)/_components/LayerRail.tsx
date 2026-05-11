@@ -3,16 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  BatteryCharging,
   Calculator,
   ChevronLeft,
   ChevronRight,
   CloudRain,
   Factory,
+  Flame,
   Info,
   Layers,
+  LifeBuoy,
   Map as MapIcon,
   MessageSquareWarning,
   Sun,
+  Sunrise,
   TriangleAlert,
   Wrench,
   Zap,
@@ -28,7 +32,8 @@ export type LayerKey =
   | "planned-work"
   | "reports"
   | "weather"
-  | "solar";
+  | "solar"
+  | "demand";
 
 interface LayerDef {
   key: LayerKey;
@@ -45,9 +50,12 @@ const LAYERS: LayerDef[] = [
   { key: "infrastructure", label: "Infrastructure", hint: "Substations & plants (OSM)", Icon: Factory,              available: true  },
   { key: "planned-work",   label: "Planned work",   hint: "LUMA scheduled outages",     Icon: Wrench,               available: true  },
   { key: "outage-risk",    label: "Outage risk",    hint: "Weather + grid heuristic",   Icon: TriangleAlert,        available: true  },
-  { key: "reports",        label: "Community",      hint: "Community-submitted reports",Icon: MessageSquareWarning, available: false },
+  { key: "demand",         label: "Demand (est.)",  hint: "Experimental pressure proxy",Icon: Flame,                available: true  },
+  { key: "reports",        label: "Community",      hint: "Community-submitted reports",Icon: MessageSquareWarning, available: true  },
   { key: "weather",        label: "Weather",        hint: "NWS PR alerts",              Icon: CloudRain,            available: false },
-  { key: "solar",          label: "Solar lens",     hint: "Rooftop potential",          Icon: Sun,                  available: false },
+  // Solar layer (rooftop heatmap) is gated on the NREL PVRDB ingest landing.
+  // The tool itself lives at /solar — see the footer link below.
+  { key: "solar",          label: "Solar lens",     hint: "Rooftop heatmap (soon)",     Icon: Sun,                  available: false },
 ];
 
 interface Props {
@@ -194,6 +202,54 @@ export function LayerRail({ active, onToggle }: Props) {
             )}
           >
             What&rsquo;s my bill?
+          </span>
+        </a>
+        <a
+          href="/solar"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text",
+          )}
+        >
+          <Sunrise className="size-3.5 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "truncate transition-opacity",
+              open ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            Is solar worth it?
+          </span>
+        </a>
+        <a
+          href="/battery"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text",
+          )}
+        >
+          <BatteryCharging className="size-3.5 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "truncate transition-opacity",
+              open ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            Battery sizing
+          </span>
+        </a>
+        <a
+          href="/disaster"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-warn transition-colors hover:bg-surface-2",
+          )}
+        >
+          <LifeBuoy className="size-3.5 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "truncate transition-opacity",
+              open ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            Disaster mode
           </span>
         </a>
         <a
