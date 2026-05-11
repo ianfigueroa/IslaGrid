@@ -8,10 +8,17 @@ interface Props {
   reset: () => void;
 }
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 export default function MapError({ error, reset }: Props) {
   useEffect(() => {
     // eslint-disable-next-line no-console
-    console.error("[IslaGrid map error]", error);
+    if (IS_DEV) console.error("[IslaGrid map error]", error);
+    else
+      console.error("[IslaGrid map error]", {
+        digest: error?.digest,
+        message: error?.message,
+      });
   }, [error]);
 
   return (
@@ -25,9 +32,9 @@ export default function MapError({ error, reset }: Props) {
         </div>
         <h1 className="mt-2 text-xl font-semibold">The grid map crashed.</h1>
         <p className="mt-3 text-sm text-text-2">
-          MapLibre or one of the data fetches threw an error during render.
-          You can try reloading the map — the rest of the site (bill estimator,
-          attribution, etc.) is unaffected.
+          {IS_DEV
+            ? "MapLibre or one of the data fetches threw an error during render. You can try reloading the map — the rest of the site (bill estimator, attribution, etc.) is unaffected."
+            : "The map didn't render. You can try reloading it — the rest of the site keeps working."}
         </p>
         {error?.digest ? (
           <p className="mt-3 font-mono text-[10px] text-text-3">

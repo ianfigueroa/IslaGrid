@@ -183,17 +183,15 @@ export async function loadScorecard(id: string): Promise<Scorecard | null> {
       .maybeSingle(),
   ]);
 
-  // Report count is computed against the public aggregate view so we never
-  // touch individual user data on a server-rendered page.
+  // Report count via the public aggregate view, scoped to this municipality
+  // by the `municipality_id` column added in migration 0014. Reports inserted
+  // before that migration have municipality_id NULL and are excluded.
   let reportCount24h = 0;
   try {
     const { data: agg } = await supa
       .from("community_reports_public")
-      .select("report_count, h3");
-    // Rough heuristic: include H3 cells whose centroid falls in this muni
-    // would need a spatial join we don't have here, so for the scorecard we
-    // surface island-wide H3 buckets as a count proxy. Improve when H3
-    // → municipality mapping ships.
+      .select("report_count")
+      .eq("municipality_id", muniId);
     reportCount24h = (agg ?? []).reduce(
       (s, r) => s + Number(r.report_count ?? 0),
       0,

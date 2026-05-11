@@ -58,10 +58,22 @@ export async function pvwatts(
   url.searchParams.set("azimuth", String(inputs.azimuth ?? 180));
   url.searchParams.set("timeframe", "monthly");
 
-  const res = await fetch(url.toString(), {
-    cache: "no-store",
-    headers: { Accept: "application/json" },
-  });
+  const PVWATTS_TIMEOUT_MS = 10000;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), PVWATTS_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") return null;
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) return null;
   const json = (await res.json()) as {
     outputs?: {

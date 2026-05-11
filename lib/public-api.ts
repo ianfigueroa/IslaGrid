@@ -9,23 +9,17 @@
  * Keyed tier: per-key limits from the api_keys table.
  */
 
-import { isIP } from "node:net";
 import { NextResponse } from "next/server";
 import { checkRate } from "./rate-limit";
 import { extractKey, lookupKey, recordUsage, type ApiKey } from "./api-keys";
+import { clientIp } from "./client-ip";
 
 const ANON_PER_MIN = 60;
 const ANON_PER_DAY = 1000;
 
 function ipFrom(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) {
-    const first = fwd.split(",")[0].trim();
-    if (isIP(first)) return first.toLowerCase();
-  }
-  const real = req.headers.get("x-real-ip");
-  if (real && isIP(real)) return real.toLowerCase();
-  return "anon:unknown";
+  const ip = clientIp(req);
+  return ip === "unknown" ? "anon:unknown" : ip;
 }
 
 interface PublicHandler {

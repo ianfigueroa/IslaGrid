@@ -7,11 +7,20 @@ interface Props {
   reset: () => void;
 }
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 export default function RootError({ error, reset }: Props) {
   useEffect(() => {
-    // Surface to whatever telemetry we wire up later. For now, console.
+    // In production we log only digest + message — never the stack — so the
+    // server logs don't accidentally fan out database column names, env-var
+    // hints, or third-party hostnames. Stack stays visible in dev.
     // eslint-disable-next-line no-console
-    console.error("[IslaGrid root error]", error);
+    if (IS_DEV) console.error("[IslaGrid root error]", error);
+    else
+      console.error("[IslaGrid root error]", {
+        digest: error?.digest,
+        message: error?.message,
+      });
   }, [error]);
 
   return (
@@ -24,9 +33,9 @@ export default function RootError({ error, reset }: Props) {
           IslaGrid hit an unexpected error.
         </h1>
         <p className="mt-3 text-sm text-text-2">
-          The crash has been logged. You can try again — if it keeps failing,
-          the underlying data source (LUMA, datos.pr.gov, or Supabase) may be
-          unavailable. Live ingestion always retries on its own schedule.
+          {IS_DEV
+            ? "The crash has been logged. You can try again — if it keeps failing, the underlying data source (LUMA, datos.pr.gov, or Supabase) may be unavailable. Live ingestion always retries on its own schedule."
+            : "The crash has been logged. You can try again — live ingestion always retries on its own schedule, so refreshing in a moment is usually enough."}
         </p>
         {error?.digest ? (
           <p className="mt-3 font-mono text-[10px] text-text-3">

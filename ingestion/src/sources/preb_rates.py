@@ -100,13 +100,29 @@ _NUM = r"(?:\$\s*)?(\d+(?:[.,]\d{1,5}))"
 _MONEY_OR_KWH = re.compile(rf"\b{_NUM}\s*(?:per\s*kWh|/?kWh|\$)?", re.IGNORECASE)
 
 
-def _find_number(text: str, *needles: str) -> float | None:
+# Magnitude sanity bounds. PR per-kWh components historically live in
+# $0.05..$0.30; fixed monthly customer charges in $2..$25. A parser hit
+# outside these windows almost certainly grabbed the wrong number from the
+# PDF (page header, footnote, fee table) and we refuse to insert it.
+_PER_KWH_MIN = 0.005
+_PER_KWH_MAX = 0.50
+_FIXED_MIN = 1.0
+_FIXED_MAX = 50.0
+
+
+def _find_number(
+    text: str,
+    needles: tuple[str, ...],
+    *,
+    kind: str,
+) -> float | None:
     """
     Look for a numeric value within a 240-char window after any of `needles`.
-    Returns None when no reliable hit is found — caller treats that as a
-    parse failure rather than guessing.
+    `kind` is "per_kwh" or "fixed" and drives the sanity bounds — a parser
+    hit outside the expected range returns None so we skip the insert.
     """
     lowered = text.lower()
+    bounds = (_PER_KWH_MIN, _PER_KWH_MAX) if kind == "per_kwh" else (_FIXED_MIN, _FIXED_MAX)
     for needle in needles:
         idx = lowered.find(needle.lower())
         if idx == -1:
@@ -116,9 +132,19 @@ def _find_number(text: str, *needles: str) -> float | None:
         if not m:
             continue
         try:
-            return float(m.group(1).replace(",", ""))
+            value = float(m.group(1).replace(",", ""))
         except ValueError:
             continue
+        if value < bounds[0] or value > bounds[1]:
+            log.warning(
+                "preb_rates: %s value %s outside expected range %s..%s — skipping",
+                needle,
+                value,
+                bounds[0],
+                bounds[1],
+            )
+            return None
+        return value
     return None
 
 
@@ -185,7 +211,8 @@ def parse_pdf(pdf_bytes: bytes) -> list[ParsedRate]:
         components: dict[str, float] = {}
         ok = True
         for key, terms in needles.items():
-            value = _find_number(text, *terms)
+            kind = "fixed" if key == "fixed_monthly" else "per_kwh"
+            value = _find_number(text, tuple(terms), kind=kind)
             if value is None:
                 ok = False
                 break
