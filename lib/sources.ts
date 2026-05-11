@@ -10,6 +10,7 @@ export type SourceId =
   | "lumapr.com"
   | "lumapr.com/bps"
   | "lumapr.com/planned-work"
+  | "lumapr.com/avisos"
   | "genera-pr.com"
   | "aeepr.maps.arcgis.com"
   | "api.weather.gov"
@@ -17,7 +18,9 @@ export type SourceId =
   | "tiger-2024"
   | "nrel-pvrdb"
   | "preb"
-  | "islagrid-heuristic";
+  | "social.x.unverified"
+  | "islagrid-heuristic"
+  | "islagrid-model";
 
 export interface SourceMeta {
   label: SourceLabel;
@@ -51,6 +54,12 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     display: "LUMA Planned Work",
     url: "https://lumapr.com/mejorasplanificadas/",
     freshnessSlo: 86400, // 24h
+  },
+  "lumapr.com/avisos": {
+    label: "official",
+    display: "LUMA Avisos",
+    url: "https://lumapr.com/avisos/",
+    freshnessSlo: 21600, // 6h
   },
   "genera-pr.com": {
     label: "official",
@@ -93,10 +102,21 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     url: "https://energia.pr.gov",
     freshnessSlo: 31536000,
   },
+  "social.x.unverified": {
+    label: "unverified",
+    display: "X / Twitter (unverified)",
+    url: "https://x.com/LUMAEnergyPR",
+    freshnessSlo: 3600, // 1h
+  },
   "islagrid-heuristic": {
     label: "estimated",
     display: "IslaGrid heuristic",
     freshnessSlo: 0,
+  },
+  "islagrid-model": {
+    label: "estimated",
+    display: "IslaGrid model prediction",
+    freshnessSlo: 1800, // 30 min
   },
 };
 

@@ -81,6 +81,23 @@ If the LUMA contract terminates and `lumapr.com` is taken down:
 
 The data model and UI do not need to change.
 
+### Operator-swap procedure (LUMA → successor)
+
+The `luma_*` parsers honor a single env var so a domain swap does not require a
+code change:
+
+```
+LUMA_OPERATOR_HOST=neweoperator.example.com   # no scheme, no trailing slash
+```
+
+- Set this in GitHub Actions repo secrets (used by all ingest workflows) and in
+  Vercel project env (read by API routes that display the source label).
+- The parsers compose URLs like `https://${LUMA_OPERATOR_HOST}/resumen-del-sistema/`.
+- If the successor uses different page slugs (likely), update the path constants
+  in each parser and add a new row to `docs/DATA_SOURCES.md`.
+- Update `lib/sources.ts` `display` and `url` fields so the freshness chips
+  attribute correctly.
+
 ### Vercel free-tier bandwidth (100 GB/mo) hits 80%
 
 - Action: check Vercel Web Analytics for an unusual traffic source.
@@ -104,6 +121,29 @@ python -m ingestion.src.pipeline.replay --source datos_pr_gov --since 2026-05-01
 The replay script downloads the raw bytes, runs the current parser, and `UPSERT`s into the table. Parser changes are always reversible because raw data is immutable.
 
 ---
+
+## AEE/PREPA ArcGIS endpoint discovery (one-time)
+
+The dashboard at
+`https://aeepr.maps.arcgis.com/apps/dashboards/1995c773fceb468db8b7f7d34899df94`
+hides its data behind FeatureServer/MapServer layers. To wire `aeepr_arcgis.py`:
+
+1. Open the dashboard in Chrome/Firefox with DevTools → Network panel filtered
+   on `FeatureServer` or `MapServer`.
+2. Click the dashboard's filters / widgets to trigger layer queries. Copy each
+   distinct `services*/rest/services/.../FeatureServer/<n>/query` URL.
+3. Set GitHub secret `AEEPR_LAYERS` to those URLs as a comma-separated list.
+4. The ingest workflow snapshots all layers daily; raw JSON lands in R2 at
+   `raw/aeepr.maps.arcgis.com/yyyy/mm/dd/`.
+5. Once layer schemas are known, update `aeepr_arcgis.py` to parse rows into
+   `outage_labels` (Phase 9 label source).
+
+## NREL developer.nrel.gov → developer.nlr.gov migration
+
+NREL is migrating their developer API domain to `developer.nlr.gov` on
+**2026-05-29**. The Solar Lens (Phase 11) is the only consumer. Before that
+date, search any new code for `developer.nrel.gov` and replace. Old domain
+will likely 301 for some window but plan to be off by 2026-06-15.
 
 ## On-call expectations (MVP)
 

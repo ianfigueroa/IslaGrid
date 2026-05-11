@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 
@@ -20,8 +21,10 @@ from selectolax.parser import HTMLParser
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
-URL = "https://lumapr.com/mejorasplanificadas/"
-SOURCE = "lumapr.com/planned-work"
+# Honor LUMA_OPERATOR_HOST so a successor operator can be swapped in via env.
+_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+URL = f"https://{_HOST}/mejorasplanificadas/"
+SOURCE = f"{_HOST}/planned-work"
 
 log = logging.getLogger(__name__)
 

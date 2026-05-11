@@ -10,6 +10,7 @@ snapshot `source_stale=True` instead of pretending we got numbers.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -20,8 +21,12 @@ from ..pipeline.risk import GridInputs, classify
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
-URL = "https://lumapr.com/resumen-del-sistema/"
-SOURCE = "lumapr.com"
+# If/when the operator contract transitions, set LUMA_OPERATOR_HOST to the
+# successor's domain (no scheme, no trailing slash). All luma_* parsers honor
+# this env var so swapping is a config-only change. See docs/RUNBOOK.md.
+_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+URL = f"https://{_HOST}/resumen-del-sistema/"
+SOURCE = _HOST
 
 LABELS = {
     "demand": ["Demanda Actual", "Current Demand"],
