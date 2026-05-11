@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  Calculator,
   ChevronLeft,
   ChevronRight,
   CloudRain,
@@ -178,7 +179,23 @@ export function LayerRail({ active, onToggle }: Props) {
         })}
       </div>
 
-      <div className="border-t border-line p-2">
+      <div className="border-t border-line p-2 space-y-0.5">
+        <a
+          href="/bill"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text",
+          )}
+        >
+          <Calculator className="size-3.5 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "truncate transition-opacity",
+              open ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            What&rsquo;s my bill?
+          </span>
+        </a>
         <a
           href="/attribution"
           className={cn(
