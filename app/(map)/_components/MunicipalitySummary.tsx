@@ -17,6 +17,16 @@ interface RiskRow {
   source: string;
 }
 
+interface PredictionRow {
+  municipality_id: string;
+  horizon: "1h" | "6h" | "12h" | "24h";
+  probability: number;
+  confidence_band: "low" | "medium" | "high";
+  top_factors: Array<{ label: string; weight: number }>;
+  model_version: string;
+  feature_freshness_s: number;
+}
+
 const BAND_TONE: Record<RiskRow["band"], string> = {
   low:      "border-ok/30 bg-ok-soft text-ok",
   elevated: "border-warn/30 bg-warn-soft text-warn",
@@ -63,26 +73,33 @@ interface Props {
 export function MunicipalitySummary({ municipalityId }: Props) {
   const [data, setData] = useState<Summary | null>(null);
   const [risk, setRisk] = useState<RiskRow | null>(null);
+  const [prediction, setPrediction] = useState<PredictionRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
     setRisk(null);
+    setPrediction(null);
     setError(null);
     void Promise.all([
       fetch(`/api/municipalities/${encodeURIComponent(municipalityId)}`).then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
       ),
       fetch("/api/risk/municipalities").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/predictions/outage").then((r) => (r.ok ? r.json() : null)),
     ])
-      .then(([summary, riskResp]) => {
+      .then(([summary, riskResp, predResp]) => {
         if (cancelled) return;
         setData(summary as Summary);
         const row = (riskResp as { items?: RiskRow[] } | null)?.items?.find(
           (r) => r.municipality_id === municipalityId,
         );
         setRisk(row ?? null);
+        const pred = (predResp as { items?: PredictionRow[] } | null)?.items?.find(
+          (p) => p.municipality_id === municipalityId,
+        );
+        setPrediction(pred ?? null);
       })
       .catch((e) => {
         if (!cancelled) setError(String(e?.message ?? e));
@@ -167,6 +184,40 @@ export function MunicipalitySummary({ municipalityId }: Props) {
           ) : null}
           <p className="text-[10px] text-text-3">
             Estimated · features {Math.round(risk.feature_freshness_s / 60)} min old · not a prediction of certainty.
+          </p>
+        </div>
+      ) : null}
+
+      {prediction ? (
+        <div className="space-y-1.5 rounded-md border border-line bg-surface-2 p-2.5">
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-text-3">
+            <span>Model prediction · {prediction.horizon}</span>
+            <span className="font-mono normal-case tracking-normal text-text-2">
+              {prediction.model_version.startsWith("heuristic")
+                ? "heuristic fallback"
+                : `model ${prediction.model_version.slice(0, 8)}`}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="font-mono text-xl tabular-nums text-text">
+              {(prediction.probability * 100).toFixed(0)}%
+            </span>
+            <span className="text-[10px] uppercase tracking-wider text-text-3">
+              confidence · {prediction.confidence_band}
+            </span>
+          </div>
+          {prediction.top_factors.length > 0 ? (
+            <ul className="space-y-1 text-xs text-text-2">
+              {prediction.top_factors.slice(0, 3).map((f, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-1 inline-block size-1 shrink-0 rounded-full bg-text-3" aria-hidden />
+                  <span>{f.label}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-[10px] text-text-3">
+            Estimated · features {Math.round(prediction.feature_freshness_s / 60)} min old · probability clipped to [5%, 95%].
           </p>
         </div>
       ) : null}
