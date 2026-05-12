@@ -6,6 +6,7 @@
 -- We use pg_cron when available; the function is the source of truth so it
 -- can also be run manually or from a GitHub Action if pg_cron isn't enabled.
 
+-- Note: api_request_log uses `ts` (not `created_at`) per migration 0012.
 create or replace function public.prune_api_request_log()
 returns void
 language sql
@@ -13,7 +14,7 @@ security definer
 set search_path = public
 as $$
   delete from public.api_request_log
-  where created_at < now() - interval '90 days';
+  where ts < now() - interval '90 days';
 $$;
 
 -- Schedule daily at 03:17 UTC if pg_cron is installed. Wrapped in DO so the
