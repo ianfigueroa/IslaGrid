@@ -31,19 +31,41 @@ The UI must label these as "uncertainty band" — never "95% confidence interval
 
 We need:
 
-- **At least 6 months** of `outage_events` rows alongside `weather_snapshots`, `grid_snapshots`, and (during storm season) `hurricane_forecasts`
-- **At least 200 distinct outage events** in the window (positive class). With our 78 municipalities × 24 hours/day this gives ~14k muni-hours; 200 positives is enough to start.
-- A clean **Wayback Machine** backfill of `miluma.lumapr.com/outages` snapshots covering the pre-archive period
+- **At least 6 months** of label history (positive examples come from `outage_events` + `eagle_i_outages` + `wayback_outage_history` combined)
+- **At least 200 distinct positive examples** in the window
+- Weather + grid feature coverage over the same window
 
 The scaffold at `ingestion/scripts/train_outage_risk.py` enforces those gates: it refuses to train until the data is there.
 
+## Training-data sources (all official, all public)
+
+| Source | Coverage | Resolution | Why we use it |
+|---|---|---|---|
+| **DOE EAGLE-I** (ORNL) | 2014-2022 | 15-min, US county-level | The academic standard; PR is included as state FIPS 72 |
+| **PREB filings** (energia.pr.gov) | 2021-present | Quarterly | Mandatory regulatory reports including SAIDI/SAIFI + event lists |
+| **Wayback Machine** snapshots | 2022-present | Whenever IA crawled the page | Fills the gap between EAGLE-I and our own archive |
+| Our own LUMA scrape (R2-archived) | 2026-present | 15-min cadence | Highest resolution + freshness |
+| **LUMA BPS PDFs** | 2021-present | Daily | Reserve/generation features |
+| **NWS observation archive** | rolling | Hourly | Weather features |
+| **NHC HURDAT2** | 1851-present | 6h advisories | Storm features |
+
+Three of these (EAGLE-I, PREB, Wayback) were added in Block 6 specifically because LUMA does not publish a historical outage dataset directly.
+
 ## Planned model architecture
 
-- **Algorithm**: XGBoost binary classifier (`objective="binary:logistic"`, `scale_pos_weight = neg/pos`, ~500 trees, depth 4)
-- **Time split**: 12mo train / 3mo calibrate / 3mo test, strictly temporal — random splits leak the future into training
-- **Calibration**: Isotonic regression fit on the calibrate fold's predicted probabilities vs actual labels
-- **Output**: a single `.joblib` bundle holding the booster, the calibrator, the feature schema, and the training-window metadata; uploaded to R2 under `models/outage_risk/<version>.joblib`
-- **Explainability**: SHAP values; top-3 features per prediction surfaced as `top_reasons`
+- **Boosters** (we benchmark both): **LightGBM** primary + **CatBoost** challenger on the same temporal split; whichever wins on the validation fold gets shipped. LightGBM is the standard in current power-outage prediction papers; CatBoost often edges it on tabular data with many categorical features (muni id, alert level, fuel type). XGBoost is fine but slightly behind both on this class of problem.
+- **Time split**: 60% train / 20% calibrate / 20% test, strictly temporal — random splits leak the future into training.
+- **Calibration**: Isotonic regression fit on the calibrate fold's predicted probabilities vs actual labels.
+- **Output**: a single `.joblib` bundle: `{booster: "lightgbm"|"catboost", model, calibrator, feature_schema, training_window, auc_test, ece_test}`. Uploaded to R2 under `models/outage_risk/<version>.joblib`.
+- **Explainability**: SHAP values; top-3 features per prediction surfaced as `top_reasons`.
+
+### Why not deep learning?
+
+We considered (and rejected for now):
+
+- **LSTM / Transformer on raw sequences**: tabular gradient-boosted trees beat them on power-outage benchmarks with the data sizes we'll have. Comes back on the table once we have years of high-frequency feeder-level data we don't have today.
+- **TabPFN** (foundation model for small tabular data): useful while data is small, but it caps at ~10k rows and needs a GPU at inference. The EAGLE-I backfill alone is millions of rows, so we're not in TabPFN's sweet spot.
+- **Spatiotemporal GNN**: would beat boosters by ~5-8% AUC if we had feeder-level grid topology, but that data is non-public.
 
 ## Honest accuracy expectations (once trained)
 
