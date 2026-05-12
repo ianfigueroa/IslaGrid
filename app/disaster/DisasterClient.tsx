@@ -1,8 +1,48 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BatteryCharging, Building2, MessageSquareWarning, RefreshCw, Wifi, WifiOff, Zap } from "lucide-react";
+import { AlertTriangle, BatteryCharging, Building2, Languages, MessageSquareWarning, RefreshCw, Wifi, WifiOff, Zap } from "lucide-react";
 import { SHELTERS, SHELTER_DISCLAIMER } from "@/lib/shelters";
+
+type Lang = "en" | "es";
+
+const STR = {
+  appTag: { en: "disaster", es: "emergencia" },
+  online: { en: "online", es: "en línea" },
+  offline: { en: "offline", es: "sin conexión" },
+  refresh: { en: "Refresh", es: "Actualizar" },
+  amIAtRisk: { en: "Am I at risk?", es: "¿Estoy en riesgo?" },
+  reasonsLead: { en: "Reasons", es: "Razones" },
+  noSnap: {
+    en: "No grid snapshot cached yet. Open this page once with a connection so it can save a copy for the next outage.",
+    es: "Aún no hay datos guardados. Abre esta página con conexión al menos una vez para que se guarde una copia para el próximo apagón.",
+  },
+  netError: { en: "Network error", es: "Error de red" },
+  cachedFrom: { en: "Showing cached snapshot from", es: "Mostrando datos guardados de hace" },
+  minAgo: { en: "min ago", es: "min" },
+  recentOutages: { en: "Recent outage events (48h)", es: "Eventos recientes (48 h)" },
+  noRecent: {
+    en: "No reported events in the last 48 hours.",
+    es: "No hay eventos reportados en las últimas 48 horas.",
+  },
+  quickActions: { en: "Quick actions", es: "Acciones rápidas" },
+  report: { en: "Report what you see", es: "Reportar lo que ves" },
+  batteryAdvice: { en: "Battery advice", es: "Guía de baterías" },
+  shelters: { en: "Refuges nearby", es: "Refugios cercanos" },
+  footer: {
+    en: "Disaster mode caches this page so it loads with no signal. Numbers may be stale — refresh when you get connectivity.",
+    es: "Este modo guarda la página para que cargue sin señal. Los datos pueden estar atrasados — actualiza cuando tengas conexión.",
+  },
+  numbersUnavailable: {
+    en: "Numbers temporarily unavailable.",
+    es: "Datos no disponibles temporalmente.",
+  },
+  toggleLang: { en: "Español", es: "English" },
+};
+
+function t(lang: Lang, key: keyof typeof STR): string {
+  return STR[key][lang];
+}
 
 interface SnapshotPayload {
   grid:
@@ -69,6 +109,34 @@ export function DisasterClient() {
   const [online, setOnline] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Spanish-first preference is persisted so users only set it once. Default
+  // to Spanish on PR-locale browsers (navigator.language starts with "es").
+  const [lang, setLang] = useState<Lang>("en");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("islagrid-disaster-lang");
+      if (stored === "en" || stored === "es") {
+        setLang(stored);
+        return;
+      }
+    } catch {
+      /* private mode */
+    }
+    if (typeof navigator !== "undefined" && navigator.language?.startsWith("es")) {
+      setLang("es");
+    }
+  }, []);
+
+  const toggleLang = () => {
+    const next = lang === "en" ? "es" : "en";
+    setLang(next);
+    try {
+      localStorage.setItem("islagrid-disaster-lang", next);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Register service worker for offline.
   useEffect(() => {
@@ -126,34 +194,43 @@ export function DisasterClient() {
         <div className="flex items-center gap-2">
           <Zap className="size-5 text-warn" aria-hidden />
           <span className="font-mono text-sm tracking-tight text-text">
-            IslaGrid<span className="text-text-3">/disaster</span>
+            IslaGrid<span className="text-text-3">/{t(lang, "appTag")}</span>
           </span>
         </div>
         <div className="flex items-center gap-2 text-[11px]">
           {online ? (
             <span className="inline-flex items-center gap-1 text-ok">
-              <Wifi className="size-3" aria-hidden /> online
+              <Wifi className="size-3" aria-hidden /> {t(lang, "online")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-warn">
-              <WifiOff className="size-3" aria-hidden /> offline
+              <WifiOff className="size-3" aria-hidden /> {t(lang, "offline")}
             </span>
           )}
           <button
             type="button"
+            onClick={toggleLang}
+            aria-label={`Switch language to ${STR.toggleLang[lang]}`}
+            className="inline-flex min-h-12 min-w-12 cursor-pointer items-center gap-1 rounded-md border border-line px-2 text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            <Languages className="size-3" aria-hidden />
+            <span className="font-mono text-[10px]">{lang === "en" ? "ES" : "EN"}</span>
+          </button>
+          <button
+            type="button"
             onClick={refresh}
             disabled={loading}
-            aria-label="Refresh"
-            className="cursor-pointer rounded-md border border-line p-1 text-text-2 transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-50"
+            aria-label={t(lang, "refresh")}
+            className="min-h-12 min-w-12 cursor-pointer rounded-md border border-line p-2 text-text-2 transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-50"
           >
-            <RefreshCw className={`size-3 ${loading ? "animate-spin" : ""}`} aria-hidden />
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden />
           </button>
         </div>
       </header>
 
       <section className="mt-4 surface rounded-xl p-4">
         <p className="text-[10px] font-mono uppercase tracking-wider text-text-3">
-          Am I at risk?
+          {t(lang, "amIAtRisk")}
         </p>
         {grid ? (
           <>
@@ -175,7 +252,7 @@ export function DisasterClient() {
             <p className="mt-1 text-xs text-text-2">
               {grid.current_demand_mw && grid.total_generation_mw
                 ? `Demand ${Math.round(grid.current_demand_mw).toLocaleString()} MW · Generation ${Math.round(grid.total_generation_mw).toLocaleString()} MW · Reserves ${Math.round(grid.operational_reserve_mw ?? 0).toLocaleString()} MW`
-                : "Numbers temporarily unavailable."}
+                : t(lang, "numbersUnavailable")}
             </p>
             {grid.status_reasons?.length > 0 ? (
               <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[11px] text-text-2">
@@ -189,17 +266,14 @@ export function DisasterClient() {
             </p>
           </>
         ) : (
-          <p className="mt-1 text-sm text-text-3">
-            No grid snapshot cached yet. Open this page once with a connection
-            so it can save a copy for the next outage.
-          </p>
+          <p className="mt-1 text-sm text-text-3">{t(lang, "noSnap")}</p>
         )}
         {error ? (
-          <p className="mt-2 text-[11px] text-warn">Network error: {error}</p>
+          <p className="mt-2 text-[11px] text-warn">{t(lang, "netError")}: {error}</p>
         ) : null}
         {cachedAgeMin != null && !online ? (
           <p className="mt-2 inline-block rounded-md border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] text-warn">
-            Showing cached snapshot from {cachedAgeMin} min ago
+            {t(lang, "cachedFrom")} {cachedAgeMin} {t(lang, "minAgo")}
           </p>
         ) : null}
       </section>
@@ -207,14 +281,14 @@ export function DisasterClient() {
       <section className="mt-4 surface rounded-xl p-4">
         <header className="flex items-center justify-between">
           <p className="text-[10px] font-mono uppercase tracking-wider text-text-3">
-            Recent outage events (48h)
+            {t(lang, "recentOutages")}
           </p>
           <span className="font-mono text-[10px] text-text-3">
             {recentOutages.length}
           </span>
         </header>
         {recentOutages.length === 0 ? (
-          <p className="mt-2 text-sm text-text-3">No reported events in the last 48 hours.</p>
+          <p className="mt-2 text-sm text-text-3">{t(lang, "noRecent")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
             {recentOutages.map((o) => (
@@ -236,29 +310,29 @@ export function DisasterClient() {
 
       <section className="mt-4 surface rounded-xl p-4">
         <p className="text-[10px] font-mono uppercase tracking-wider text-text-3">
-          Quick actions
+          {t(lang, "quickActions")}
         </p>
         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
           <a
-            href="/?layer=reports"
-            className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
+            href="/?layers=municipalities,reports"
+            className="flex min-h-12 items-center gap-2 rounded-md border border-line bg-surface p-3 text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
           >
             <MessageSquareWarning className="size-4 text-warn" aria-hidden />
-            Report what you see
+            {t(lang, "report")}
           </a>
           <a
             href="/battery"
-            className="flex items-center gap-2 rounded-md border border-line bg-surface p-3 text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
+            className="flex min-h-12 items-center gap-2 rounded-md border border-line bg-surface p-3 text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
           >
             <BatteryCharging className="size-4 text-brand" aria-hidden />
-            Battery advice
+            {t(lang, "batteryAdvice")}
           </a>
         </div>
       </section>
 
       <section className="mt-4 surface rounded-xl p-4">
         <p className="text-[10px] font-mono uppercase tracking-wider text-text-3">
-          Refuges nearby
+          {t(lang, "shelters")}
         </p>
         <ul className="mt-2 divide-y divide-line">
           {SHELTERS.map((s) => (
@@ -280,8 +354,7 @@ export function DisasterClient() {
       </section>
 
       <footer className="mt-6 text-center text-[10px] text-text-3">
-        Disaster mode caches this page so it loads with no signal. Numbers may
-        be stale — refresh when you get connectivity.
+        {t(lang, "footer")}
       </footer>
     </div>
   );

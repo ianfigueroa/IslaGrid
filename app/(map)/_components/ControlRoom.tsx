@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { GridSnapshot } from "@/lib/supabase";
-import { useTheme } from "@/lib/theme";
+import { isAutoTheme, suggestAutoTheme, useTheme } from "@/lib/theme";
 import { StatusBar } from "./StatusBar";
 import { LayerRail, useLayerUrlState, type LayerKey } from "./LayerRail";
 import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
@@ -30,7 +30,36 @@ interface Props {
 }
 
 export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
+
+  // Auto-theme: dark during night hours OR when a hurricane advisory is
+  // active. Only runs when the user hasn't explicitly pinned a theme
+  // (isAutoTheme()=true) — preserves user choice when they set it manually.
+  useEffect(() => {
+    if (!isAutoTheme()) return;
+    let cancelled = false;
+    async function pick() {
+      let hurricaneActive = false;
+      try {
+        const res = await fetch("/api/hurricanes/active", { cache: "no-store" });
+        if (res.ok) {
+          const json = (await res.json()) as { features?: unknown[] };
+          hurricaneActive = (json.features?.length ?? 0) > 0;
+        }
+      } catch {
+        /* no signal; fall through to time-based */
+      }
+      if (cancelled) return;
+      setTheme(suggestAutoTheme({ hurricaneActive }));
+    }
+    void pick();
+    // Re-evaluate hourly so it flips at 22:00 / 06:00 boundaries.
+    const t = setInterval(pick, 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [setTheme]);
   const [snapshot, setSnapshot] = useState<GridSnapshot | null>(initialSnapshot);
   const [updates] = useState<UpdateItem[]>(initialUpdates);
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
