@@ -62,6 +62,10 @@ create or replace function upsert_municipality(
 ) returns void
 language sql
 security definer
+-- Supabase installs PostGIS in the `extensions` schema. Without it on the
+-- search_path, st_geomfromgeojson / st_multi / etc. are not resolvable
+-- from a function defined in public. This is the fix for SQLSTATE 42883.
+set search_path = public, extensions, pg_catalog
 as $$
   insert into municipalities (id, name, geom, centroid_lon, centroid_lat)
   values (
