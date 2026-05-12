@@ -42,6 +42,9 @@ ingestion/**/__pycache__/
 ingestion/**/*.pyc
 ingestion/.pytest_cache/
 ingestion/.mypy_cache/
+ingestion/**/*.egg-info/
+ingestion/build/
+ingestion/dist/
 
 # supabase
 supabase/.branches/
