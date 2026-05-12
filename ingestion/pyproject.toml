@@ -22,7 +22,12 @@ ml = [
   "pandas>=2.2.2",
   "numpy>=1.26.4",
   "scikit-learn>=1.5.2",
-  "lightgbm>=4.5.0",
+  "xgboost>=2.1.0",
+  "joblib>=1.4.0",
+  "shap>=0.46.0",
+]
+hurricane = [
+  "tropycal>=1.2.0",
 ]
 
 [tool.ruff]
