@@ -22,7 +22,11 @@ ml = [
   "pandas>=2.2.2",
   "numpy>=1.26.4",
   "scikit-learn>=1.5.2",
-  "xgboost>=2.1.0",
+  # LightGBM is the primary booster; CatBoost is the challenger we benchmark
+  # against on the same time-split. Whichever wins on the validation fold
+  # gets the isotonic calibrator on top.
+  "lightgbm>=4.5.0",
+  "catboost>=1.2.7",
   "joblib>=1.4.0",
   "shap>=0.46.0",
 ]

@@ -16,6 +16,8 @@ export type SourceId =
   | "aeepr.maps.arcgis.com"
   | "api.weather.gov"
   | "nhc-hurdat"
+  | "eagle-i"
+  | "wayback:miluma.lumapr.com/outages"
   | "openstreetmap"
   | "tiger-2024"
   | "nrel-pvrdb"
@@ -94,6 +96,21 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     display: "NHC (HURDAT2 + advisories)",
     url: "https://www.nhc.noaa.gov/data/",
     freshnessSlo: 21600, // 6h — NHC advisory cadence
+  },
+  "eagle-i": {
+    label: "official",
+    display: "DOE EAGLE-I (ORNL)",
+    url: "https://figshare.com/articles/dataset/24237376",
+    // Historical archive; SLO is "static reference" — there's no expectation
+    // of freshness, so 10 years.
+    freshnessSlo: 31536000 * 10,
+  },
+  "wayback:miluma.lumapr.com/outages": {
+    label: "official",
+    display: "Internet Archive — LUMA outage map history",
+    url: "https://web.archive.org/web/*/miluma.lumapr.com/outages",
+    // Backfill source; SLO is again "static reference."
+    freshnessSlo: 31536000 * 5,
   },
   openstreetmap: {
     label: "community",
