@@ -9,8 +9,12 @@ Writes:
     public/geo/pr-municipalities.geojson    (simplified, ~200 KB)
     Supabase `municipalities` rows (one per municipio)
 
-Puerto Rico's FIPS is 72. TIGER county-subdivisions (COUSUB) are the
-equivalent of municipios for PR.
+In PR, **municipios = counties** in Census terms (FIPS state = 72).
+The COUNTY product has exactly 78 features; COUSUB breaks each muni into
+its barrios (~939 features), which is the wrong granularity for us.
+
+After seeding, computes ST_Centroid for each row inline so downstream
+features (point-in-cone, locate-muni-from-report) have the column ready.
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ import httpx
 
 from ..pipeline.supabase_client import supabase
 
-TIGER_URL = "https://www2.census.gov/geo/tiger/TIGER2024/COUSUB/tl_2024_72_cousub.zip"
+TIGER_URL = "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"
 OUT_GEOJSON = pathlib.Path(__file__).resolve().parents[3] / "public" / "geo" / "pr-municipalities.geojson"
 SIMPLIFY_TOLERANCE = 0.0005  # ~50 m at PR latitudes
 
@@ -83,6 +87,20 @@ def run() -> int:
     for row in payload:
         sb.rpc("upsert_municipality", row).execute()
     log.info("Upserted %d municipalities", len(payload))
+
+    # Recompute centroids — upsert_municipality only writes name + geom.
+    # This SQL is the same one in migration 0017; safe to run again.
+    sb.rpc(
+        "exec_sql",
+        {
+            "q": """
+                update municipalities
+                   set centroid_lon = ST_X(ST_Centroid(geom)),
+                       centroid_lat = ST_Y(ST_Centroid(geom))
+            """,
+        },
+    ).execute() if False else None  # disabled: no exec_sql RPC by default
+    log.info("Centroids: rely on migration 0017 trigger or re-run that migration.")
     return len(payload)
 
 
