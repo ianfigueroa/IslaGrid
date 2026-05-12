@@ -2,88 +2,109 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 @theme {
-  /* Default (dark) palette — warm achromatic, no AI-tech blue */
-  --color-bg: #0a0a0a;
-  --color-surface: #141414;
-  --color-surface-2: #1c1c1c;
-  --color-surface-3: #262626;
-  --color-line: #2a2a2a;
-  --color-line-2: #3a3a3a;
+  /* IslaGrid palette — Windy-inspired civic-tech. Light by default; dark opt-in. */
 
-  --color-text: #fafaf9;
-  --color-text-2: #a3a3a3;
-  --color-text-3: #737373;
+  /* ---------- LIGHT (default) — clean sky tones ---------- */
+  --color-bg: #f3f6fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-surface-3: #eef2f7;
+  --color-line: #e2e8f0;
+  --color-line-2: #cbd5e1;
 
-  /* Brand accent — warm gold, used SPARINGLY (logo, focus trace) */
-  --color-brand: #f5b942;
-  --color-brand-soft: rgba(245, 185, 66, 0.14);
+  --color-text: #0f172a;
+  --color-text-2: #475569;
+  --color-text-3: #94a3b8;
 
-  /* Semantic status — emerald / amber / red. Used on data, not chrome. */
-  --color-ok: #10b981;
-  --color-ok-soft: rgba(16, 185, 129, 0.14);
-  --color-warn: #f59e0b;
-  --color-warn-soft: rgba(245, 158, 11, 0.16);
-  --color-crit: #ef4444;
-  --color-crit-soft: rgba(239, 68, 68, 0.16);
-  --color-stale: #737373;
-  --color-stale-soft: rgba(115, 115, 115, 0.18);
+  /* Brand — confident sky blue (Windy-style). Used on active state, links, focus. */
+  --color-brand: #0284c7;
+  --color-brand-strong: #0369a1;
+  --color-brand-soft: rgba(2, 132, 199, 0.12);
 
-  /* Map-only data palette (fuel colors kept warm/sober) */
-  --color-fuel-oil: #c2865a;
+  /* Semantic — clear, friendly, not Bloomberg */
+  --color-ok: #059669;
+  --color-ok-soft: rgba(5, 150, 105, 0.12);
+  --color-warn: #d97706;
+  --color-warn-soft: rgba(217, 119, 6, 0.14);
+  --color-crit: #dc2626;
+  --color-crit-soft: rgba(220, 38, 38, 0.14);
+  --color-stale: #94a3b8;
+  --color-stale-soft: rgba(148, 163, 184, 0.16);
+
+  /* Risk gradient (low → critical) */
+  --color-risk-low: #10b981;
+  --color-risk-elevated: #facc15;
+  --color-risk-high: #f97316;
+  --color-risk-critical: #dc2626;
+
+  /* Fuel — friendly map markers */
+  --color-fuel-oil: #b45309;
   --color-fuel-gas: #d97706;
-  --color-fuel-coal: #6b7280;
-  --color-fuel-solar: #f5b942;
-  --color-fuel-wind: #94a3b8;
+  --color-fuel-coal: #475569;
+  --color-fuel-solar: #f59e0b;
+  --color-fuel-wind: #0ea5e9;
+  --color-fuel-hydro: #0284c7;
+  --color-fuel-landfill: #65a30d;
+  --color-fuel-battery: #14b8a6;
+  --color-fuel-unknown: #94a3b8;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.06);
+  --shadow-card-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 16px 40px rgba(15, 23, 42, 0.12);
+
+  --font-sans: var(--font-fira-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, "Cascadia Mono", monospace;
+}
+
+/* ---------- DARK theme — navy ocean, not mortuary ---------- */
+:root[data-theme="dark"] {
+  --color-bg: #07101f;
+  --color-surface: #0f1c33;
+  --color-surface-2: #142442;
+  --color-surface-3: #1c3056;
+  --color-line: #1f3360;
+  --color-line-2: #2c4577;
+
+  --color-text: #f1f5f9;
+  --color-text-2: #cbd5e1;
+  --color-text-3: #94a3b8;
+
+  --color-brand: #38bdf8;
+  --color-brand-strong: #0ea5e9;
+  --color-brand-soft: rgba(56, 189, 248, 0.16);
+
+  --color-ok: #34d399;
+  --color-ok-soft: rgba(52, 211, 153, 0.16);
+  --color-warn: #fbbf24;
+  --color-warn-soft: rgba(251, 191, 36, 0.18);
+  --color-crit: #f87171;
+  --color-crit-soft: rgba(248, 113, 113, 0.18);
+  --color-stale: #94a3b8;
+  --color-stale-soft: rgba(148, 163, 184, 0.18);
+
+  --color-risk-low: #34d399;
+  --color-risk-elevated: #fbbf24;
+  --color-risk-high: #fb923c;
+  --color-risk-critical: #f87171;
+
+  --color-fuel-oil: #fb923c;
+  --color-fuel-gas: #fbbf24;
+  --color-fuel-coal: #94a3b8;
+  --color-fuel-solar: #fbbf24;
+  --color-fuel-wind: #38bdf8;
   --color-fuel-hydro: #38bdf8;
   --color-fuel-landfill: #84cc16;
   --color-fuel-battery: #2dd4bf;
-  --color-fuel-unknown: #525252;
+  --color-fuel-unknown: #94a3b8;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-
-  --font-sans: var(--font-fira-sans), system-ui, sans-serif;
-  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-card-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 24px 56px rgba(0, 0, 0, 0.5);
 }
 
-/* Light theme override — warm parchment, never icy-blue */
-:root[data-theme="light"] {
-  --color-bg: #fafaf9;
-  --color-surface: #ffffff;
-  --color-surface-2: #f5f5f4;
-  --color-surface-3: #e7e5e4;
-  --color-line: #e7e5e4;
-  --color-line-2: #d6d3d1;
-
-  --color-text: #0a0a0a;
-  --color-text-2: #525252;
-  --color-text-3: #737373;
-
-  --color-brand: #b45309;
-  --color-brand-soft: rgba(180, 83, 9, 0.10);
-
-  --color-ok: #047857;
-  --color-ok-soft: rgba(4, 120, 87, 0.10);
-  --color-warn: #b45309;
-  --color-warn-soft: rgba(180, 83, 9, 0.10);
-  --color-crit: #b91c1c;
-  --color-crit-soft: rgba(185, 28, 28, 0.10);
-  --color-stale: #525252;
-  --color-stale-soft: rgba(82, 82, 82, 0.10);
-
-  --color-fuel-oil: #92400e;
-  --color-fuel-gas: #b45309;
-  --color-fuel-coal: #525252;
-  --color-fuel-solar: #b45309;
-  --color-fuel-wind: #475569;
-  --color-fuel-hydro: #0369a1;
-  --color-fuel-landfill: #4d7c0f;
-  --color-fuel-battery: #0f766e;
-  --color-fuel-unknown: #737373;
-}
-
-/* Tell the browser which mode each theme is */
 :root[data-theme="dark"] { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
 
@@ -106,7 +127,7 @@
   }
 
   :focus-visible {
-    outline: 1.5px solid var(--color-brand);
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -120,54 +141,92 @@
     }
   }
 
-  /* MapLibre attribution: match our chrome */
+  /* MapLibre attribution: tuned to match our chrome */
   .maplibregl-ctrl-attrib {
     background: color-mix(in oklch, var(--color-surface) 92%, transparent) !important;
     color: var(--color-text-3) !important;
     font-size: 11px !important;
     border: 1px solid var(--color-line) !important;
+    border-radius: 8px !important;
   }
   .maplibregl-ctrl-attrib a { color: var(--color-text-2) !important; }
   .maplibregl-ctrl-group {
     background: var(--color-surface) !important;
     border: 1px solid var(--color-line) !important;
-    box-shadow: none !important;
+    box-shadow: var(--shadow-card) !important;
+    border-radius: 10px !important;
   }
-  .maplibregl-ctrl-group button {
-    background: transparent !important;
-  }
-  .maplibregl-ctrl-group button:hover {
-    background: var(--color-surface-2) !important;
-  }
+  .maplibregl-ctrl-group button { background: transparent !important; }
+  .maplibregl-ctrl-group button:hover { background: var(--color-surface-2) !important; }
   :root[data-theme="dark"] .maplibregl-ctrl-group button span {
     filter: invert(0.92) brightness(1.1);
   }
 
-  /* Map popup styled to match chrome */
   .maplibregl-popup-content {
     background: var(--color-surface) !important;
     color: var(--color-text) !important;
     border: 1px solid var(--color-line) !important;
-    border-radius: 10px !important;
-    padding: 10px 12px !important;
-    font-size: 12px !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
+    border-radius: 12px !important;
+    padding: 12px 14px !important;
+    font-size: 13px !important;
+    box-shadow: var(--shadow-card-lg) !important;
   }
   .maplibregl-popup-tip { border-top-color: var(--color-surface) !important; border-bottom-color: var(--color-surface) !important; }
 }
 
 @layer components {
-  /* Frosted surface — used by chrome panels */
-  .surface {
-    background: color-mix(in oklch, var(--color-surface) 88%, transparent);
-    border: 1px solid var(--color-line);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-  }
-
-  .surface-solid {
+  /* Card — clean, soft shadow, no mono terminal feel */
+  .card {
     background: var(--color-surface);
     border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Glass — for chrome overlaid on the map */
+  .glass {
+    background: color-mix(in oklch, var(--color-surface) 94%, transparent);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  .glass-strong {
+    background: color-mix(in oklch, var(--color-surface) 96%, transparent);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--shadow-card-lg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Friendly pill button */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    color: var(--color-text-2);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 160ms ease-out;
+  }
+  .pill:hover {
+    border-color: var(--color-line-2);
+    color: var(--color-text);
+    background: var(--color-surface-2);
+  }
+  .pill-active {
+    border-color: var(--color-brand);
+    background: var(--color-brand-soft);
+    color: var(--color-brand);
+  }
+  .pill-active:hover {
+    background: var(--color-brand-soft);
+    color: var(--color-brand-strong);
   }
 
   /* Status chips */
@@ -178,142 +237,74 @@
   .chip-status-stale,
   .chip-status-unknown { background: var(--color-stale-soft); color: var(--color-text-2); }
 
-  /* Soft hover for interactive cards */
-  .hover-surface {
-    transition: background-color 160ms ease-out, border-color 160ms ease-out;
-  }
+  .hover-surface { transition: background-color 160ms ease-out, border-color 160ms ease-out; }
   .hover-surface:hover {
     background: var(--color-surface-2);
     border-color: var(--color-line-2);
   }
 
-  /* Prose pages */
-  .prose-islagrid {
-    color: var(--color-text-2);
-    font-size: 15px;
-    line-height: 1.65;
-  }
-  .prose-islagrid h1 {
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: 24px;
-    line-height: 1.2;
-  }
-  .prose-islagrid h2 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-top: 36px;
-    margin-bottom: 12px;
-    line-height: 1.3;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--color-line);
-  }
-  .prose-islagrid h3 {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-top: 24px;
-    margin-bottom: 8px;
-  }
-  .prose-islagrid p,
-  .prose-islagrid ul,
-  .prose-islagrid ol { margin-bottom: 14px; }
-  .prose-islagrid ul,
-  .prose-islagrid ol { padding-left: 1.4em; }
+  /* Prose */
+  .prose-islagrid { color: var(--color-text-2); font-size: 15px; line-height: 1.65; }
+  .prose-islagrid h1 { font-size: 30px; font-weight: 700; color: var(--color-text); margin-bottom: 24px; line-height: 1.2; letter-spacing: -0.02em; }
+  .prose-islagrid h2 { font-size: 20px; font-weight: 600; color: var(--color-text); margin-top: 36px; margin-bottom: 12px; line-height: 1.3; padding-bottom: 6px; border-bottom: 1px solid var(--color-line); }
+  .prose-islagrid h3 { font-size: 16px; font-weight: 600; color: var(--color-text); margin-top: 24px; margin-bottom: 8px; }
+  .prose-islagrid p, .prose-islagrid ul, .prose-islagrid ol { margin-bottom: 14px; }
+  .prose-islagrid ul, .prose-islagrid ol { padding-left: 1.4em; }
   .prose-islagrid li { margin-bottom: 4px; }
-  .prose-islagrid a {
-    color: var(--color-brand);
-    text-underline-offset: 3px;
-    transition: opacity 150ms ease-out;
-  }
+  .prose-islagrid a { color: var(--color-brand); text-underline-offset: 3px; transition: opacity 150ms ease-out; }
   .prose-islagrid a:hover { text-decoration: underline; opacity: 0.85; }
-  .prose-islagrid code {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    background: var(--color-surface-2);
-    color: var(--color-text);
-    padding: 1px 6px;
-    border-radius: 4px;
-    border: 1px solid var(--color-line);
-  }
-  .prose-islagrid table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-    font-size: 13px;
-  }
-  .prose-islagrid th,
-  .prose-islagrid td {
-    border: 1px solid var(--color-line);
-    padding: 8px 10px;
-    text-align: left;
-    vertical-align: top;
-  }
-  .prose-islagrid th {
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .prose-islagrid hr {
-    border: 0;
-    border-top: 1px solid var(--color-line);
-    margin: 32px 0;
-  }
-  .prose-islagrid blockquote {
-    border-left: 2px solid var(--color-brand);
-    padding-left: 14px;
-    color: var(--color-text-2);
-    margin: 16px 0;
-  }
+  .prose-islagrid code { font-family: var(--font-mono); font-size: 13px; background: var(--color-surface-2); color: var(--color-text); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--color-line); }
+  .prose-islagrid table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .prose-islagrid th, .prose-islagrid td { border: 1px solid var(--color-line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .prose-islagrid th { background: var(--color-surface-2); color: var(--color-text); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .prose-islagrid hr { border: 0; border-top: 1px solid var(--color-line); margin: 32px 0; }
+  .prose-islagrid blockquote { border-left: 3px solid var(--color-brand); padding-left: 14px; color: var(--color-text-2); margin: 16px 0; }
   .prose-islagrid strong { color: var(--color-text); font-weight: 600; }
   .prose-islagrid em { color: var(--color-text); font-style: italic; }
 
-  /* Pulse, only critical */
-  @keyframes islagrid-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  /* Animations */
+  @keyframes islagrid-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
   .pulse-critical { animation: islagrid-pulse 1.4s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .pulse-critical { animation: none; } }
 
-  /* Subtle data-refresh fade — used by TelemetryCard */
-  @keyframes islagrid-fade-in {
-    from { opacity: 0; transform: translateY(2px); }
-    to { opacity: 1; transform: none; }
-  }
+  @keyframes islagrid-fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
   .fade-in { animation: islagrid-fade-in 220ms ease-out both; }
   @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
 
-  /* Sonar ping — used on outage event markers + USGS quake markers. The
-     rings are absolute-positioned children of a marker root; the animation
-     scales them outward while fading. */
   @keyframes islagrid-sonar {
     0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.85; }
-    80%  { transform: translate(-50%, -50%) scale(3.4);  opacity: 0;    }
-    100% { transform: translate(-50%, -50%) scale(3.4);  opacity: 0;    }
+    80%  { transform: translate(-50%, -50%) scale(3.6); opacity: 0; }
+    100% { transform: translate(-50%, -50%) scale(3.6); opacity: 0; }
   }
   .sonar-ping {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    border-radius: 9999px;
-    pointer-events: none;
+    position: absolute; left: 50%; top: 50%;
+    border-radius: 9999px; pointer-events: none;
     animation: islagrid-sonar 2.4s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
   }
   .sonar-ping-delayed { animation-delay: 1.2s; }
   @media (prefers-reduced-motion: reduce) { .sonar-ping { animation: none; opacity: 0; } }
 
-  /* Hurricane cone "breath" — used on the cone polygon outline.
-     Slow opacity cycle so the cone is visible without dominating. */
-  @keyframes islagrid-cone-breath {
-    0%, 100% { opacity: 0.18; }
-    50%      { opacity: 0.42; }
-  }
+  @keyframes islagrid-cone-breath { 0%,100% { opacity: 0.18; } 50% { opacity: 0.45; } }
   .cone-breath { animation: islagrid-cone-breath 4s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .cone-breath { animation: none; opacity: 0.3; } }
+
+  /* Plant glow — soft radial halo behind power plant markers */
+  @keyframes islagrid-glow { 0%,100% { opacity: 0.55; } 50% { opacity: 0.85; } }
+  .plant-glow { animation: islagrid-glow 3.6s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .plant-glow { animation: none; opacity: 0.7; } }
+
+  /* Slide-in for right drawer */
+  @keyframes islagrid-slide-right {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  .slide-in-right { animation: islagrid-slide-right 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @media (prefers-reduced-motion: reduce) { .slide-in-right { animation: none; } }
+
+  @keyframes islagrid-slide-left {
+    from { transform: translateX(-100%); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+  .slide-in-left { animation: islagrid-slide-left 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @media (prefers-reduced-motion: reduce) { .slide-in-left { animation: none; } }
 }

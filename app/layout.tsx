@@ -38,15 +38,16 @@ export const viewport: Viewport = {
   colorScheme: "dark light",
 };
 
-// Bootstrap theme before paint — avoids the FOUC flash when reloading in light mode.
+// Bootstrap theme before paint — defaults to light (the Windy-style civic
+// feel). Users can pin dark via the toggle; their pin overrides the auto.
 const THEME_BOOTSTRAP = `(function(){
   try {
     var stored = localStorage.getItem('islagrid-theme');
-    var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-    var theme = stored || (prefersLight ? 'light' : 'dark');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = stored || (prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
   }
 })();`;
 

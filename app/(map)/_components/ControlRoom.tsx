@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { GridSnapshot } from "@/lib/supabase";
 import { isAutoTheme, suggestAutoTheme, useTheme } from "@/lib/theme";
 import { StatusBar } from "./StatusBar";
+import { TopNav } from "./TopNav";
 import { LayerRail, useLayerUrlState, type LayerKey } from "./LayerRail";
 import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
 import { UpdateTimeline, type UpdateItem } from "./UpdateTimeline";
@@ -68,7 +69,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "municipalities",
         "grid-now",
         "generation",
-        "infrastructure",
+        "rain-radar",
       ]),
   );
   const [selection, setSelection] = useState<PanelSelection | null>(null);
@@ -110,6 +111,8 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "weather-alerts",
         "hurricane",
         "quakes",
+        "rain-radar",
+        "wind",
       ].includes(k),
     ),
   );
@@ -146,6 +149,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
           })
         }
       />
+      <TopNav />
       <StatusBar
         snapshot={snapshot}
         onStatusClick={() =>

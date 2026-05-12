@@ -5,21 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
-  BatteryCharging,
-  Calculator,
   ChevronLeft,
   ChevronRight,
   CloudRain,
+  Droplets,
   Factory,
   Flame,
   Globe2,
   Info,
   Layers,
-  LifeBuoy,
   Map as MapIcon,
   MessageSquareWarning,
   Sun,
-  Sunrise,
   TriangleAlert,
   Waves,
   Wind,
@@ -41,7 +38,9 @@ export type LayerKey =
   | "hurricane"
   | "quakes"
   | "solar"
-  | "demand";
+  | "demand"
+  | "rain-radar"
+  | "wind";
 
 interface LayerDef {
   key: LayerKey;
@@ -54,22 +53,24 @@ interface LayerDef {
 
 const LAYERS: LayerDef[] = [
   // Grid
-  { key: "municipalities", label: "Municipalities", hint: "Status by region",            Icon: Layers,               available: true,  group: "grid" },
-  { key: "grid-now",       label: "Grid now",       hint: "Live demand & reserves",      Icon: Activity,             available: true,  group: "grid" },
-  { key: "generation",     label: "Generation",     hint: "Plant output by fuel",        Icon: Zap,                  available: true,  group: "grid" },
-  { key: "infrastructure", label: "Infrastructure", hint: "Substations & plants (OSM)",  Icon: Factory,              available: true,  group: "grid" },
-  { key: "planned-work",   label: "Planned work",   hint: "LUMA scheduled outages",      Icon: Wrench,               available: true,  group: "grid" },
-  { key: "outage-risk",    label: "Outage risk",    hint: "Weather + grid + hurricane",  Icon: TriangleAlert,        available: true,  group: "grid" },
-  { key: "outages-live",   label: "Active outages", hint: "Last 24h LUMA events",        Icon: Flame,                available: true,  group: "grid" },
-  { key: "demand",         label: "Demand (est.)",  hint: "Experimental pressure proxy", Icon: Wind,                 available: true,  group: "grid" },
-  // Weather
-  { key: "weather-alerts", label: "NWS alerts",     hint: "Live PR weather alerts",      Icon: CloudRain,            available: true,  group: "weather" },
-  { key: "hurricane",      label: "Hurricane cone", hint: "NHC active advisories",       Icon: Globe2,               available: true,  group: "weather" },
-  { key: "quakes",         label: "Earthquakes",    hint: "USGS, last 7 days, M ≥ 2.5",  Icon: Waves,                available: true,  group: "weather" },
+  { key: "municipalities", label: "Municipalities", hint: "Borders + status fill",      Icon: Layers,               available: true,  group: "grid" },
+  { key: "grid-now",       label: "Grid status",    hint: "Demand · reserves · gen",    Icon: Activity,             available: true,  group: "grid" },
+  { key: "generation",     label: "Power plants",   hint: "Output by fuel type",        Icon: Zap,                  available: true,  group: "grid" },
+  { key: "infrastructure", label: "Lines + subs",   hint: "OSM-mapped infrastructure",  Icon: Factory,              available: true,  group: "grid" },
+  { key: "planned-work",   label: "Planned work",   hint: "LUMA scheduled outages",     Icon: Wrench,               available: true,  group: "grid" },
+  { key: "outage-risk",    label: "Outage risk",    hint: "Model-predicted by muni",    Icon: TriangleAlert,        available: true,  group: "grid" },
+  { key: "outages-live",   label: "Live outages",   hint: "Last 24h events",            Icon: Flame,                available: true,  group: "grid" },
+  { key: "demand",         label: "Demand est.",    hint: "Experimental pressure",      Icon: Wind,                 available: true,  group: "grid" },
+  // Weather — animated overlays (Windy-style)
+  { key: "rain-radar",     label: "Rain radar",     hint: "Live precipitation",         Icon: Droplets,             available: true,  group: "weather" },
+  { key: "wind",           label: "Wind",           hint: "Animated streamlines",       Icon: Wind,                 available: true,  group: "weather" },
+  { key: "weather-alerts", label: "NWS alerts",     hint: "Active PR warnings",         Icon: CloudRain,            available: true,  group: "weather" },
+  { key: "hurricane",      label: "Hurricane cone", hint: "NHC active advisories",      Icon: Globe2,               available: true,  group: "weather" },
+  { key: "quakes",         label: "Earthquakes",    hint: "USGS · 7d · M ≥ 2.5",        Icon: Waves,                available: true,  group: "weather" },
   // Community
-  { key: "reports",        label: "Community",      hint: "Anonymous reports (H3)",      Icon: MessageSquareWarning, available: true,  group: "community" },
-  // Solar (still gated on NREL PVRDB ingest)
-  { key: "solar",          label: "Solar lens",     hint: "Rooftop heatmap (soon)",      Icon: Sun,                  available: false, group: "solar" },
+  { key: "reports",        label: "Community",      hint: "Anonymous reports (H3)",     Icon: MessageSquareWarning, available: true,  group: "community" },
+  // Solar
+  { key: "solar",          label: "Solar lens",     hint: "Rooftop heatmap (soon)",     Icon: Sun,                  available: false, group: "solar" },
 ];
 
 // Map presets — chosen layer sets for common scenarios. The map state
@@ -79,18 +80,19 @@ type PresetKey = "default" | "storm" | "solar" | "reporter";
 const PRESETS: Record<PresetKey, { label: string; layers: LayerKey[]; Icon: typeof MapIcon }> = {
   default: {
     label: "Default",
-    layers: ["municipalities", "grid-now", "generation", "infrastructure"],
+    layers: ["municipalities", "grid-now", "generation"],
     Icon: Layers,
   },
   storm: {
     label: "Storm",
     layers: [
       "municipalities",
-      "outage-risk",
-      "outages-live",
+      "rain-radar",
+      "wind",
       "weather-alerts",
       "hurricane",
-      "planned-work",
+      "outage-risk",
+      "outages-live",
     ],
     Icon: AlertTriangle,
   },
@@ -114,13 +116,18 @@ interface Props {
 const RAIL_KEY = "islagrid-rail-open";
 
 export function LayerRail({ active, onSetActive }: Props) {
-  const [open, setOpen] = useState(false);
+  // Default open on first visit — the rail is the primary interaction surface.
+  const [open, setOpen] = useState(true);
   const railRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     try {
       const v = localStorage.getItem(RAIL_KEY);
-      if (v === "1") setOpen(true);
+      // Honor an explicit pin (open or closed); otherwise default to open on
+      // desktop, collapsed on small screens to keep the map breathable.
+      if (v === "0") setOpen(false);
+      else if (v === "1") setOpen(true);
+      else setOpen(window.innerWidth >= 768);
     } catch {
       /* ignore */
     }
@@ -180,8 +187,10 @@ export function LayerRail({ active, onSetActive }: Props) {
       ref={railRef}
       aria-label="Map layers"
       className={cn(
-        "surface pointer-events-auto absolute left-3 top-[4.5rem] bottom-14 z-20 flex flex-col rounded-xl transition-[width] duration-200 ease-out",
-        open ? "w-64" : "w-12",
+        "pointer-events-auto absolute left-3 z-20 flex flex-col rounded-2xl glass-strong transition-[width,height] duration-200 ease-out",
+        // Sits below status hero on desktop, separate on mobile
+        "top-[16rem] sm:top-[15.5rem] bottom-3",
+        open ? "w-72" : "w-14",
       )}
     >
       <button
@@ -189,12 +198,12 @@ export function LayerRail({ active, onSetActive }: Props) {
         onClick={() => setPinned(!open)}
         aria-label={open ? "Collapse layer panel" : "Expand layer panel"}
         aria-expanded={open}
-        className="flex h-10 cursor-pointer items-center gap-2 border-b border-line px-3 text-text-2 transition-colors hover:text-text"
+        className="flex h-12 cursor-pointer items-center gap-2 border-b border-line px-3.5 text-text-2 transition-colors hover:text-text"
       >
         <Layers className="size-4 shrink-0" aria-hidden />
         <span
           className={cn(
-            "flex-1 text-left text-[11px] font-medium uppercase tracking-[0.14em] transition-opacity",
+            "flex-1 text-left text-[11px] font-semibold uppercase tracking-[0.18em] transition-opacity",
             open ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
@@ -209,16 +218,16 @@ export function LayerRail({ active, onSetActive }: Props) {
           <ChevronLeft className="size-4" aria-hidden />
         </span>
         {!open ? (
-          <ChevronRight className="absolute right-1.5 size-3 text-text-3" aria-hidden />
+          <ChevronRight className="absolute right-2 size-3.5 text-text-3" aria-hidden />
         ) : null}
       </button>
 
       {open ? (
-        <div className="border-b border-line p-2">
-          <p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.14em] text-text-3">
+        <div className="border-b border-line p-2.5">
+          <p className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-text-3">
             Presets
           </p>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-4 gap-1.5">
             {(Object.keys(PRESETS) as PresetKey[]).map((p) => {
               const { label, Icon } = PRESETS[p];
               return (
@@ -226,11 +235,11 @@ export function LayerRail({ active, onSetActive }: Props) {
                   key={p}
                   type="button"
                   onClick={() => applyPreset(p)}
-                  className="group flex flex-col items-center gap-1 rounded-md border border-line bg-surface-2 px-1 py-1.5 text-[10px] text-text-2 transition-colors hover:border-line-2 hover:text-text"
+                  className="group flex flex-col items-center gap-1 rounded-lg border border-line bg-surface px-1 py-2 text-[11px] text-text-2 transition-all hover:border-brand hover:bg-brand-soft hover:text-brand"
                   aria-label={`Apply ${label} preset`}
                 >
-                  <Icon className="size-3.5" aria-hidden />
-                  <span>{label}</span>
+                  <Icon className="size-4" aria-hidden />
+                  <span className="font-medium">{label}</span>
                 </button>
               );
             })}
@@ -238,7 +247,7 @@ export function LayerRail({ active, onSetActive }: Props) {
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-1.5">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {(["grid", "weather", "community", "solar"] as const).map((group) => {
           const items = groupedLayers[group];
           if (items.length === 0) return null;
@@ -251,7 +260,7 @@ export function LayerRail({ active, onSetActive }: Props) {
           return (
             <div key={group} className="flex flex-col gap-0.5">
               {open ? (
-                <p className="px-2 pt-1 text-[9px] uppercase tracking-[0.14em] text-text-3">
+                <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-text-3">
                   {labels[group]}
                 </p>
               ) : null}
@@ -266,19 +275,19 @@ export function LayerRail({ active, onSetActive }: Props) {
                     aria-label={`${label}${isActive ? " (active)" : ""}${!available ? " (coming soon)" : ""}`}
                     onClick={() => available && toggle(key)}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors",
+                      "group relative flex items-center gap-3 rounded-xl px-2 py-2 text-sm transition-all",
                       available ? "cursor-pointer" : "cursor-not-allowed opacity-40",
                       isActive
-                        ? "bg-surface-2 text-text"
+                        ? "bg-brand-soft text-brand-strong shadow-[inset_0_0_0_1px_var(--color-brand)]"
                         : "text-text-2 hover:bg-surface-2 hover:text-text",
                     )}
                   >
                     <span
                       className={cn(
-                        "grid size-7 shrink-0 place-items-center rounded-md border transition-colors",
+                        "grid size-8 shrink-0 place-items-center rounded-lg transition-colors",
                         isActive
-                          ? "border-brand/40 bg-brand-soft text-brand"
-                          : "border-line text-text-2 group-hover:border-line-2",
+                          ? "bg-brand text-white"
+                          : "bg-surface-2 text-text-2 group-hover:bg-surface-3",
                       )}
                     >
                       <Icon className="size-4" aria-hidden />
@@ -290,23 +299,14 @@ export function LayerRail({ active, onSetActive }: Props) {
                       )}
                     >
                       <span className="font-medium leading-tight">{label}</span>
-                      <span className="truncate text-[10px] leading-tight text-text-3">
+                      <span className="truncate text-[11px] leading-tight text-text-3">
                         {hint}
                       </span>
                     </span>
                     {open && !available ? (
-                      <span className="ml-auto rounded-md border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-text-3">
+                      <span className="ml-auto rounded-md bg-surface-3 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-text-3">
                         soon
                       </span>
-                    ) : null}
-                    {open && available ? (
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "ml-auto size-2 rounded-full transition-colors",
-                          isActive ? "bg-brand" : "bg-line-2",
-                        )}
-                      />
                     ) : null}
                   </button>
                 );
@@ -316,78 +316,15 @@ export function LayerRail({ active, onSetActive }: Props) {
         })}
       </div>
 
-      <div className="border-t border-line p-2 space-y-0.5">
-        <a
-          href="/bill"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <Calculator className="size-3.5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "truncate transition-opacity",
-              open ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-          >
-            What&rsquo;s my bill?
-          </span>
-        </a>
-        <a
-          href="/solar"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <Sunrise className="size-3.5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "truncate transition-opacity",
-              open ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-          >
-            Is solar worth it?
-          </span>
-        </a>
-        <a
-          href="/battery"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <BatteryCharging className="size-3.5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "truncate transition-opacity",
-              open ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-          >
-            Battery sizing
-          </span>
-        </a>
-        <a
-          href="/disaster"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-warn transition-colors hover:bg-surface-2"
-        >
-          <LifeBuoy className="size-3.5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "truncate transition-opacity",
-              open ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-          >
-            Disaster mode
-          </span>
-        </a>
+      {open ? (
         <a
           href="/attribution"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-text-3 transition-colors hover:bg-surface-2 hover:text-text-2"
+          className="flex items-center gap-2 border-t border-line px-3 py-2.5 text-[11px] text-text-3 transition-colors hover:bg-surface-2 hover:text-text-2"
         >
           <Info className="size-3.5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "truncate transition-opacity",
-              open ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-          >
-            Sources &amp; attribution
-          </span>
+          <span className="truncate">Sources &amp; attribution</span>
         </a>
-      </div>
+      ) : null}
     </nav>
   );
 }
