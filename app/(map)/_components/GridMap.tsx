@@ -67,7 +67,31 @@ export type ActiveLayerKey =
   | "planned-work"
   | "outage-risk"
   | "reports"
-  | "demand";
+  | "demand"
+  | "outages-live"
+  | "weather-alerts"
+  | "hurricane"
+  | "quakes";
+
+// NWS event types → severity color. Falls back to a neutral amber for unknowns.
+const ALERT_COLOR: Record<string, string> = {
+  "Hurricane Warning":         "#7f1d1d",
+  "Hurricane Watch":           "#b91c1c",
+  "Tropical Storm Warning":    "#dc2626",
+  "Tropical Storm Watch":      "#ea580c",
+  "Flash Flood Warning":       "#dc2626",
+  "Flood Warning":             "#ea580c",
+  "Flood Watch":               "#f59e0b",
+  "High Wind Warning":         "#ea580c",
+  "Wind Advisory":             "#f59e0b",
+  "Heat Advisory":             "#f97316",
+  "Severe Thunderstorm Warning": "#dc2626",
+  "Special Weather Statement": "#facc15",
+};
+
+function alertFillFor(event: string): string {
+  return ALERT_COLOR[event] ?? "#facc15";
+}
 
 // Heuristic risk band → fill color (always warmer than grid status to avoid
 // confusion between "status" and "risk").
@@ -224,17 +248,23 @@ export function GridMap({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     applyLayerVisibility(map);
-    if (activeLayers.has("outage-risk")) {
-      void loadRiskInto(map);
-    }
-    if (activeLayers.has("reports")) {
-      void loadReportsInto(map);
-    }
-    if (activeLayers.has("demand")) {
-      void loadDemandInto(map);
-    }
+    if (activeLayers.has("outage-risk")) void loadRiskInto(map);
+    if (activeLayers.has("reports")) void loadReportsInto(map);
+    if (activeLayers.has("demand")) void loadDemandInto(map);
+    if (activeLayers.has("hurricane")) void loadHurricaneInto(map);
+    if (activeLayers.has("weather-alerts")) void loadAlertsInto(map);
+    if (activeLayers.has("quakes")) void loadQuakesInto(map);
+    if (activeLayers.has("outages-live")) void loadOutageMarkersInto(map);
+    else clearOutageMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
+
+  // Holders for DOM-based marker animations (sonar pings on outage events).
+  const outageMarkersRef = useRef<maplibregl.Marker[]>([]);
+  function clearOutageMarkers() {
+    for (const m of outageMarkersRef.current) m.remove();
+    outageMarkersRef.current = [];
+  }
 
   function applyLayerVisibility(map: MlMap) {
     const showMuni = activeLayers.has("municipalities");
@@ -259,6 +289,248 @@ export function GridMap({
     setVis("osm-substations", showSubs);
     setVis("reports-hex-fill", showReports);
     setVis("reports-hex-stroke", showReports);
+    setVis("hurricane-cone-fill", activeLayers.has("hurricane"));
+    setVis("hurricane-cone-stroke", activeLayers.has("hurricane"));
+    setVis("hurricane-track", activeLayers.has("hurricane"));
+    setVis("alerts-fill", activeLayers.has("weather-alerts"));
+    setVis("alerts-stroke", activeLayers.has("weather-alerts"));
+    setVis("quakes-circle", activeLayers.has("quakes"));
+  }
+
+  async function loadHurricaneInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/hurricanes/active", { cache: "no-store" });
+      if (!res.ok) return;
+      const fc = await res.json();
+      if (!fc || !Array.isArray(fc.features)) return;
+      const existing = map.getSource("hurricane") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+      } else {
+        map.addSource("hurricane", { type: "geojson", data: fc });
+        map.addLayer({
+          id: "hurricane-cone-fill",
+          type: "fill",
+          source: "hurricane",
+          filter: ["==", ["get", "kind"], "cone"],
+          paint: {
+            "fill-color": "#facc15",
+            "fill-opacity": 0.12,
+          },
+        });
+        map.addLayer({
+          id: "hurricane-cone-stroke",
+          type: "line",
+          source: "hurricane",
+          filter: ["==", ["get", "kind"], "cone"],
+          paint: {
+            "line-color": "#fde047",
+            "line-width": 1.4,
+            "line-dasharray": [2, 2],
+            "line-opacity": 0.7,
+          },
+        });
+        map.addLayer({
+          id: "hurricane-track",
+          type: "line",
+          source: "hurricane",
+          filter: ["==", ["get", "kind"], "track"],
+          paint: {
+            "line-color": "#fef08a",
+            "line-width": 2,
+            "line-opacity": 0.9,
+          },
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] hurricane load failed", err);
+      onMapErrorRef.current?.("Hurricane forecast failed to load.");
+    }
+  }
+
+  async function loadAlertsInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/weather/alerts", { cache: "no-store" });
+      if (!res.ok) return;
+      const fc = await res.json();
+      if (!fc || !Array.isArray(fc.features)) return;
+      // Tag each feature with a resolved color so we can render via a
+      // 'get' expression rather than a long match in MapLibre.
+      type AlertFeature = GeoJSON.Feature<GeoJSON.Geometry, { event?: string; _color?: string }>;
+      for (const f of fc.features as AlertFeature[]) {
+        f.properties = {
+          ...f.properties,
+          _color: alertFillFor(f.properties?.event ?? ""),
+        };
+      }
+      const existing = map.getSource("alerts") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+      } else {
+        map.addSource("alerts", { type: "geojson", data: fc });
+        map.addLayer({
+          id: "alerts-fill",
+          type: "fill",
+          source: "alerts",
+          paint: {
+            "fill-color": ["coalesce", ["get", "_color"], "#facc15"],
+            "fill-opacity": 0.18,
+          },
+        });
+        map.addLayer({
+          id: "alerts-stroke",
+          type: "line",
+          source: "alerts",
+          paint: {
+            "line-color": ["coalesce", ["get", "_color"], "#facc15"],
+            "line-width": 1.2,
+            "line-opacity": 0.8,
+          },
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] alerts load failed", err);
+      onMapErrorRef.current?.("NWS alerts failed to load.");
+    }
+  }
+
+  async function loadQuakesInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/quakes", { cache: "no-store" });
+      if (!res.ok) return;
+      const fc = await res.json();
+      if (!fc || !Array.isArray(fc.features)) return;
+      const existing = map.getSource("quakes") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+      } else {
+        map.addSource("quakes", { type: "geojson", data: fc });
+        map.addLayer({
+          id: "quakes-circle",
+          type: "circle",
+          source: "quakes",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["coalesce", ["to-number", ["get", "mag"]], 2],
+              2, 3,
+              4, 7,
+              6, 13,
+            ],
+            "circle-color": "#a855f7",
+            "circle-opacity": 0.55,
+            "circle-stroke-color": "#f5d0fe",
+            "circle-stroke-width": 1,
+          },
+        });
+        map.on("click", "quakes-circle", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          const p = f.properties as { mag?: number; place?: string; url?: string; title?: string };
+          // eslint-disable-next-line no-alert
+          if (p?.url && typeof window !== "undefined") window.open(p.url, "_blank", "noopener");
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] quakes load failed", err);
+      onMapErrorRef.current?.("USGS earthquakes failed to load.");
+    }
+  }
+
+  async function loadOutageMarkersInto(map: MlMap) {
+    try {
+      const res = await fetch(
+        `/api/disaster/snapshot`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        outage_events?: Array<{
+          id: string;
+          municipality_id: string | null;
+          started_at: string;
+          ended_at: string | null;
+          kind: string;
+        }>;
+      };
+      const events = (json.outage_events ?? []).filter(
+        (e) => !e.ended_at && e.municipality_id && e.kind === "unplanned",
+      );
+      if (events.length === 0) {
+        clearOutageMarkers();
+        return;
+      }
+      // We need muni centroids for marker placement. Lazy fetch the
+      // municipalities source if it isn't loaded yet.
+      const src = map.getSource("municipalities") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (!src) return;
+      const data = (src as unknown as { _data?: GeoJSON.FeatureCollection })._data;
+      if (!data?.features) return;
+      const centroidById = new Map<string, [number, number]>();
+      for (const f of data.features) {
+        const id = (f.properties as { id?: string } | null)?.id;
+        if (!id) continue;
+        const c = approxCentroid(f.geometry);
+        if (c) centroidById.set(id, c);
+      }
+      clearOutageMarkers();
+      for (const ev of events) {
+        const c = ev.municipality_id ? centroidById.get(ev.municipality_id) : null;
+        if (!c) continue;
+        const el = document.createElement("div");
+        el.style.position = "relative";
+        el.style.width = "14px";
+        el.style.height = "14px";
+        el.innerHTML = `
+          <span class="sonar-ping" style="width:14px;height:14px;background:#ef4444;opacity:0.6"></span>
+          <span class="sonar-ping sonar-ping-delayed" style="width:14px;height:14px;background:#ef4444;opacity:0.6"></span>
+          <span style="position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:9999px;background:#ef4444;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #fef2f2"></span>
+        `;
+        const marker = new maplibregl.Marker({ element: el }).setLngLat(c).addTo(map);
+        outageMarkersRef.current.push(marker);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] outage markers failed", err);
+    }
+  }
+
+  function approxCentroid(geom: GeoJSON.Geometry): [number, number] | null {
+    if (geom.type === "Polygon") {
+      const ring = geom.coordinates[0];
+      if (!ring || ring.length === 0) return null;
+      let sx = 0;
+      let sy = 0;
+      for (const [x, y] of ring) {
+        sx += x;
+        sy += y;
+      }
+      return [sx / ring.length, sy / ring.length];
+    }
+    if (geom.type === "MultiPolygon") {
+      const ring = geom.coordinates[0]?.[0];
+      if (!ring || ring.length === 0) return null;
+      let sx = 0;
+      let sy = 0;
+      for (const [x, y] of ring) {
+        sx += x;
+        sy += y;
+      }
+      return [sx / ring.length, sy / ring.length];
+    }
+    return null;
   }
 
   async function loadDemandInto(map: MlMap) {

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { GridSnapshot } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { StatusBar } from "./StatusBar";
-import { LayerRail, type LayerKey } from "./LayerRail";
+import { LayerRail, useLayerUrlState, type LayerKey } from "./LayerRail";
 import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
 import { UpdateTimeline, type UpdateItem } from "./UpdateTimeline";
 import { EmptyStateNote } from "./EmptyStateNote";
@@ -59,14 +59,11 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     return () => clearInterval(t);
   }, []);
 
-  const toggleLayer = useCallback((key: LayerKey) => {
-    setActiveLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const setLayers = useCallback((next: Set<LayerKey>) => {
+    setActiveLayers(next);
   }, []);
+
+  useLayerUrlState(activeLayers, setLayers);
 
   // GridMap only acts on the subset it knows about.
   const mapLayers = new Set<ActiveLayerKey>(
@@ -80,6 +77,10 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "outage-risk",
         "reports",
         "demand",
+        "outages-live",
+        "weather-alerts",
+        "hurricane",
+        "quakes",
       ].includes(k),
     ),
   );
@@ -130,7 +131,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         }
       />
       <EmptyStateNote visible={snapshot == null} />
-      <LayerRail active={activeLayers} onToggle={toggleLayer} />
+      <LayerRail active={activeLayers} onSetActive={setLayers} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
       <UpdateTimeline items={updates} />
       <ReportSheet enabled={activeLayers.has("reports")} />

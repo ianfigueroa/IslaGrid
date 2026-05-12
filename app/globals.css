@@ -288,4 +288,32 @@
   }
   .fade-in { animation: islagrid-fade-in 220ms ease-out both; }
   @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+  /* Sonar ping — used on outage event markers + USGS quake markers. The
+     rings are absolute-positioned children of a marker root; the animation
+     scales them outward while fading. */
+  @keyframes islagrid-sonar {
+    0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.85; }
+    80%  { transform: translate(-50%, -50%) scale(3.4);  opacity: 0;    }
+    100% { transform: translate(-50%, -50%) scale(3.4);  opacity: 0;    }
+  }
+  .sonar-ping {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border-radius: 9999px;
+    pointer-events: none;
+    animation: islagrid-sonar 2.4s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  }
+  .sonar-ping-delayed { animation-delay: 1.2s; }
+  @media (prefers-reduced-motion: reduce) { .sonar-ping { animation: none; opacity: 0; } }
+
+  /* Hurricane cone "breath" — used on the cone polygon outline.
+     Slow opacity cycle so the cone is visible without dominating. */
+  @keyframes islagrid-cone-breath {
+    0%, 100% { opacity: 0.18; }
+    50%      { opacity: 0.42; }
+  }
+  .cone-breath { animation: islagrid-cone-breath 4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .cone-breath { animation: none; opacity: 0.3; } }
 }
