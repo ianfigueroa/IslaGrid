@@ -49,6 +49,18 @@ export function publicHandler(
       checkRate(`${principalId}:d`, perDayLimit, 86400),
     ]);
 
+    // Fail-closed in prod when Upstash is missing — public API must not run
+    // without a binding limit. Dev still passes through (unbounded:true).
+    if (perMin.disabled || perDay.disabled) {
+      return NextResponse.json(
+        {
+          error: "Public API is temporarily unavailable (rate limiter not configured).",
+          docs: "/docs/api",
+        },
+        { status: 503 },
+      );
+    }
+
     if (!perMin.allowed || !perDay.allowed) {
       const limit = !perMin.allowed ? "per-minute" : "per-day";
       const reset = !perMin.allowed ? perMin.resetSeconds : perDay.resetSeconds;

@@ -57,12 +57,32 @@ export async function GET() {
       .limit(20),
   ]);
 
+  // Per-section reason fields so the offline UI knows whether a missing
+  // section is "ingest_pending" (empty), "supabase_error" (query failed),
+  // or simply "no recent rows in the window".
+  const reasonFor = (
+    err: { message?: string } | null,
+    rows: unknown[] | null,
+  ): string | undefined => {
+    if (err) return "supabase_error";
+    if (!rows || rows.length === 0) return "ingest_pending";
+    return undefined;
+  };
+
   return NextResponse.json(
     {
       grid: grid.data,
+      grid_reason: grid.error
+        ? "supabase_error"
+        : grid.data
+          ? undefined
+          : "ingest_pending",
       planned_work: plannedWork.data ?? [],
+      planned_work_reason: reasonFor(plannedWork.error, plannedWork.data),
       outage_events: outageEvents.data ?? [],
+      outage_events_reason: reasonFor(outageEvents.error, outageEvents.data),
       updates: updates.data ?? [],
+      updates_reason: reasonFor(updates.error, updates.data),
       ts: new Date().toISOString(),
     },
     {

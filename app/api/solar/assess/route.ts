@@ -50,20 +50,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Cheap IP rate limit (Redis-backed when configured). Stops a flood of
-  // distinct addresses from ballooning solar_assessments + geocode_cache.
-  const ipKey = `solar:${hashIp(clientIp(req), "REPORT_IP_SALT")}`;
-  const rate = await checkRate(ipKey, SOLAR_HOURLY_LIMIT_PER_IP, 3600);
-  if (!rate.allowed) {
-    return NextResponse.json(
-      {
-        error: "Hourly limit reached. Try again later.",
-        retry_after_seconds: rate.resetSeconds,
-      },
-      { status: 429 },
-    );
-  }
-
   let lat = body.lat;
   let lon = body.lon;
   let displayName: string | undefined;
@@ -92,6 +78,21 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "lat/lon outside Puerto Rico" },
       { status: 400 },
+    );
+  }
+
+  // Rate-limit AFTER validation so bad-address retries don't burn quota.
+  // Cheap IP rate limit (Redis-backed when configured); stops a flood of
+  // distinct addresses from ballooning solar_assessments + geocode_cache.
+  const ipKey = `solar:${hashIp(clientIp(req), "REPORT_IP_SALT")}`;
+  const rate = await checkRate(ipKey, SOLAR_HOURLY_LIMIT_PER_IP, 3600);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error: "Hourly limit reached. Try again later.",
+        retry_after_seconds: rate.resetSeconds,
+      },
+      { status: 429 },
     );
   }
 

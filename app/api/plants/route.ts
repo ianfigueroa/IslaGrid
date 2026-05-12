@@ -51,10 +51,26 @@ export async function GET() {
       }
     }
 
+    // Try multiple join keys: normalized name, OSM id, and a stripped name
+    // (drops parentheticals + common suffixes). Generation feed uses upstream
+    // plant_ids that don't always match OSM `name` exactly.
+    const normName = (s: string): string =>
+      s
+        .toLowerCase()
+        .replace(/\([^)]*\)/g, "")
+        .replace(/\b(power\s+plant|planta|central|cc|gt|thermal)\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
     for (const f of collection.features) {
       if (f.properties.kind !== "plant" && f.properties.kind !== "generator") continue;
-      const key = (f.properties.name ?? "").toLowerCase().trim();
-      const hit = latest.get(key);
+      const candidates = [
+        (f.properties.name ?? "").toLowerCase().trim(),
+        normName(f.properties.name ?? ""),
+        f.id,
+        String(f.id).replace(/^(node|way|relation)\//, ""),
+      ].filter(Boolean);
+      const hit = candidates.map((c) => latest.get(c)).find((h) => h);
       if (hit) {
         (f.properties as Record<string, unknown>).current_mw = hit.mw;
         (f.properties as Record<string, unknown>).current_ts = hit.ts;
