@@ -11,6 +11,7 @@ export type SourceId =
   | "lumapr.com/bps"
   | "lumapr.com/planned-work"
   | "lumapr.com/avisos"
+  | "luma-outage-map"
   | "genera-pr.com"
   | "aeepr.maps.arcgis.com"
   | "api.weather.gov"
@@ -19,7 +20,8 @@ export type SourceId =
   | "nrel-pvrdb"
   | "preb"
   | "preb-seed"
-  | "social.x.unverified"
+  | "social.bluesky"
+  | "social.mastodon"
   | "islagrid-heuristic"
   | "islagrid-model";
 
@@ -61,6 +63,12 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     display: "LUMA Avisos",
     url: "https://lumapr.com/avisos/",
     freshnessSlo: 21600, // 6h
+  },
+  "luma-outage-map": {
+    label: "official",
+    display: "LUMA Outage Map",
+    url: "https://miluma.lumapr.com/outages",
+    freshnessSlo: 1800, // 30 min — LUMA refreshes the feed roughly every 15m
   },
   "genera-pr.com": {
     label: "official",
@@ -112,10 +120,16 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     // "stale" rather than silently presenting year-old rates as current.
     freshnessSlo: 60 * 60 * 24 * 90,
   },
-  "social.x.unverified": {
+  "social.bluesky": {
     label: "unverified",
-    display: "X / Twitter (unverified)",
-    url: "https://x.com/LUMAEnergyPR",
+    display: "Bluesky (unverified)",
+    url: "https://bsky.app",
+    freshnessSlo: 3600, // 1h
+  },
+  "social.mastodon": {
+    label: "unverified",
+    display: "Mastodon (unverified)",
+    url: "https://joinmastodon.org",
     freshnessSlo: 3600, // 1h
   },
   "islagrid-heuristic": {
