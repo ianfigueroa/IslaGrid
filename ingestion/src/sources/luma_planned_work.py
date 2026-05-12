@@ -65,11 +65,23 @@ def _parse(html: str) -> list[dict]:
     return rows
 
 
+_MUNI_IDS_CACHE: set[str] | None = None
+
+
+def _known_muni_ids() -> set[str]:
+    """Pull the seeded id set once per process. Anything not in this set is null."""
+    global _MUNI_IDS_CACHE
+    if _MUNI_IDS_CACHE is None:
+        rows = supabase().table("municipalities").select("id").execute().data or []
+        _MUNI_IDS_CACHE = {r["id"] for r in rows}
+    return _MUNI_IDS_CACHE
+
+
 def _muni_id(name: str | None) -> str | None:
-    """
-    Very loose mapping. The municipalities table seeds use lowercase ASCII keys
-    like 'san-juan'. If we don't have a seeded match we leave it null and let
-    the panel show the raw sector string.
+    """Slug `name` and only return it if it matches a seeded municipality.
+
+    Previous version accepted any 3–40 char slug, which let date strings like
+    `2026-05-12` through and broke the FK constraint on planned_work.
     """
     if not name:
         return None
@@ -84,8 +96,10 @@ def _muni_id(name: str | None) -> str | None:
         .strip()
     )
     slug = "-".join(slug.split())
-    # We trust the seeded list of 78 municipios. Anything else => null.
-    return slug if 3 <= len(slug) <= 40 else None
+    if slug not in _known_muni_ids():
+        log.debug("Unrecognized muni name on planned-work page: %r → %r", name, slug)
+        return None
+    return slug
 
 
 def run() -> int:

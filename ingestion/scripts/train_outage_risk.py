@@ -336,7 +336,14 @@ def assemble_dataset(start: str, end: str):
                 hurricane_per_hour[(muni, hour_iso)] = (100.0, max(prior[1], cat))
 
     # ----- feature: historical outage density (rolling 30d EAGLE-I customer-hours)
-    log.info("Computing historical outage density…")
+    #
+    # CRITICAL: the rolling window must be strictly PRIOR to the label hour. If
+    # we include the current hour, customers_out at ts is the source of the y
+    # label at ts → temporal leak → inflated AUC. We fetch 30d of history
+    # *before* `start` plus the in-window history, then compute a strictly-prior
+    # rolling sum (shift by one hour). The lookup at the same (muni, ts) below
+    # therefore returns the sum over [ts - 30d, ts).
+    log.info("Computing historical outage density (strictly prior 30d window)…")
     hist_rows = (
         sb.table("eagle_i_outages")
         .select("municipality_id, ts, customers_out")
@@ -350,10 +357,30 @@ def assemble_dataset(start: str, end: str):
     hist_df = pd.DataFrame(hist_rows)
     if not hist_df.empty:
         hist_df["ts"] = pd.to_datetime(hist_df["ts"], utc=True).dt.floor("h")
-        # rolling sum customers_out over last 30 days per muni, normalized to [0,1]
-        hist_df = hist_df.sort_values("ts").groupby(
+        # Sum simultaneous reports for the same (muni, ts) before rolling.
+        hist_df = hist_df.groupby(
             ["municipality_id", "ts"], as_index=False
         )["customers_out"].sum()
+        # Build a continuous hourly index per muni so the rolling-30d window
+        # is consistent. Resample fills gaps with 0, shift(1) makes it strictly
+        # prior, then we re-stack to (muni, ts) → density.
+        pieces = []
+        for muni_id, sub in hist_df.groupby("municipality_id"):
+            sub = (
+                sub.set_index("ts")["customers_out"]
+                .resample("h").sum()
+                .fillna(0.0)
+                .shift(1)               # strictly prior — no current-hour leak
+                .rolling("30D").sum()
+                .fillna(0.0)
+                .rename("density")
+                .reset_index()
+            )
+            sub["municipality_id"] = muni_id
+            pieces.append(sub)
+        hist_df = pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame(
+            columns=["municipality_id", "ts", "density"]
+        )
     # If we computed nothing, all density is 0.
 
     # ----- build the row grid
@@ -370,11 +397,11 @@ def assemble_dataset(start: str, end: str):
         wx.set_index(["municipality_id", "ts"]) if not wx.empty else None
     )
     grid_idx = grid.set_index("ts") if not grid.empty else None
-    # Density lookup
+    # Density lookup — values are the rolling 30d sum strictly prior to ts.
     hist_lookup: dict[tuple[str, pd.Timestamp], float] = {}
     if not hist_df.empty:
         for _, r in hist_df.iterrows():
-            hist_lookup[(r["municipality_id"], r["ts"])] = float(r["customers_out"])
+            hist_lookup[(r["municipality_id"], r["ts"])] = float(r["density"])
 
     for muni in muni_centroids.keys():
         for ts in all_hours:
