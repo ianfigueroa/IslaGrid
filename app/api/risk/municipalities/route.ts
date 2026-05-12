@@ -12,6 +12,12 @@ interface RiskRow {
   reasons: string[];
   feature_freshness_s: number;
   source: string;
+  model_version?: string | null;
+  ci_low?: number | null;
+  ci_high?: number | null;
+  forecast_cone_coverage_pct?: number | null;
+  nearest_storm_category?: number | null;
+  nearest_storm_id?: string | null;
 }
 
 interface Payload {
@@ -30,7 +36,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("municipality_risk_latest")
       .select(
-        "municipality_id, ts, risk_score, band, reasons, feature_freshness_s, source",
+        "municipality_id, ts, risk_score, band, reasons, feature_freshness_s, source, model_version, ci_low, ci_high, forecast_cone_coverage_pct, nearest_storm_category, nearest_storm_id",
       );
     if (error) throw new Error(error.message);
     const items = (data ?? []) as RiskRow[];

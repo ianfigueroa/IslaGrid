@@ -15,6 +15,7 @@ export type SourceId =
   | "genera-pr.com"
   | "aeepr.maps.arcgis.com"
   | "api.weather.gov"
+  | "nhc-hurdat"
   | "openstreetmap"
   | "tiger-2024"
   | "nrel-pvrdb"
@@ -87,6 +88,12 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     display: "NWS",
     url: "https://www.weather.gov",
     freshnessSlo: 3600,
+  },
+  "nhc-hurdat": {
+    label: "official",
+    display: "NHC (HURDAT2 + advisories)",
+    url: "https://www.nhc.noaa.gov/data/",
+    freshnessSlo: 21600, // 6h — NHC advisory cadence
   },
   openstreetmap: {
     label: "community",

@@ -34,6 +34,65 @@ class MunicipalityFeatures:
     historical_outage_density: float = 0.0  # 0..1; placeholder until Phase 9
     feature_freshness_s: int = 0
     reasons: list[str] = field(default_factory=list)
+    # Hurricane features (None when no active storm).
+    forecast_cone_coverage_pct: float | None = None
+    nearest_storm_category: int | None = None
+    nearest_storm_id: str | None = None
+
+
+# Model identity for downstream consumers. Bump when the heuristic changes.
+HEURISTIC_VERSION = "heuristic-v2-20260512"
+
+
+def _point_in_polygon(lon: float, lat: float, ring: list[list[float]]) -> bool:
+    """Ray-casting; ring is a list of [lon, lat] pairs, closed or not."""
+    inside = False
+    n = len(ring)
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        intersect = ((yi > lat) != (yj > lat)) and (
+            lon < (xj - xi) * (lat - yi) / ((yj - yi) or 1e-12) + xi
+        )
+        if intersect:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _hurricane_features(
+    cones: list[dict[str, Any]],
+    centroid_lon: float | None,
+    centroid_lat: float | None,
+) -> tuple[float | None, int | None, str | None]:
+    """Return (cone_coverage_pct, max_category, storm_id) for a muni centroid.
+
+    cone_coverage_pct is a coarse 0/1 indicator (100 if inside any cone, else
+    0). Higher-resolution coverage requires polygon intersection which we'll
+    add when we have geopandas at runtime — for now binary containment is
+    enough to drive the heuristic.
+    """
+    if centroid_lon is None or centroid_lat is None or not cones:
+        return None, None, None
+    best_cat: int | None = None
+    best_id: str | None = None
+    coverage = 0.0
+    for storm in cones:
+        cone = storm.get("cone_geojson")
+        if not cone or cone.get("type") != "Polygon":
+            continue
+        rings = cone.get("coordinates") or []
+        if not rings:
+            continue
+        outer = rings[0]
+        if _point_in_polygon(centroid_lon, centroid_lat, outer):
+            coverage = 100.0
+            cat = storm.get("category")
+            if cat is not None and (best_cat is None or cat > best_cat):
+                best_cat = cat
+                best_id = storm.get("storm_id")
+    return (coverage if coverage > 0 else 0.0, best_cat, best_id)
 
 
 def _weather_risk(wind_kph: float | None, gust_kph: float | None, precip_mm: float | None,
@@ -66,11 +125,29 @@ def _grid_stress(grid_row: dict[str, Any] | None) -> float:
 def _score(features: MunicipalityFeatures) -> tuple[float, str, list[str]]:
     """Combine features into a 0..100 score, a band, and human-readable reasons."""
     reasons = list(features.reasons)
+    # Hurricane lift: any muni inside an active cone gets a strong prior. A
+    # cat-3+ storm pushes the risk into the severe band on its own.
+    hurricane_bump = 0.0
+    if features.forecast_cone_coverage_pct and features.forecast_cone_coverage_pct > 0:
+        cat = features.nearest_storm_category or 0
+        if cat >= 3:
+            hurricane_bump = 0.6
+        elif cat >= 1:
+            hurricane_bump = 0.4
+        elif cat == 0:
+            hurricane_bump = 0.25
+        else:
+            hurricane_bump = 0.15
+        reasons.append(
+            f"Inside active hurricane cone ({features.nearest_storm_id or 'unknown'}, cat {cat})"
+        )
+
     raw = (
         0.50 * features.weather_risk
         + 0.30 * features.grid_stress
         + 0.15 * (1.0 if features.planned_work_active else 0.0)
         + 0.05 * features.historical_outage_density
+        + hurricane_bump
     )
     score = round(min(100.0, raw * 100.0), 1)
 
@@ -117,6 +194,25 @@ def build_for(municipality_id: str, weather: dict[str, Any] | None,
     return f
 
 
+def _heuristic_ci(score: float, freshness_s: int, weather_present: bool) -> tuple[float, float]:
+    """Honest CI for the rule-based score.
+
+    Width grows with feature staleness and shrinks when we have weather data.
+    No statistical guarantee — this is "the rule can be wrong by about this
+    much" telegraphed to users. Replace with quantile CIs once XGBoost ships.
+    """
+    base_width = 8.0  # +/- on a 0..100 scale
+    if not weather_present:
+        base_width += 10.0
+    if freshness_s > 3600:
+        base_width += 5.0
+    if freshness_s > 21600:
+        base_width += 10.0
+    lo = max(0.0, score - base_width)
+    hi = min(100.0, score + base_width)
+    return round(lo, 1), round(hi, 1)
+
+
 def run() -> int:
     sb = supabase()
     # Pull the freshest weather row per municipality (≤ 6 h old) and the
@@ -155,23 +251,49 @@ def run() -> int:
     for row in planned_rows:
         if not row.get("municipality_id"):
             continue
-        # If we don't have a time window the row could mean anything; we
-        # still treat it as 'active near this area' for the next 24h after
-        # scraping. The conservative default is fine for the heuristic.
         planned_active.add(row["municipality_id"])
 
-    muni_ids = list(
-        {*latest_weather.keys(), *planned_active, *(r["id"] for r in sb.table("municipalities").select("id").execute().data or [])}
-    )
+    # Active hurricane cones (latest forecast per storm).
+    try:
+        cones = (
+            sb.table("hurricane_active_latest")
+            .select("storm_id, category, cone_geojson")
+            .execute()
+            .data
+        ) or []
+    except Exception as exc:  # noqa: BLE001
+        log.warning("hurricane_active_latest unavailable (%s) — skipping cone features", exc)
+        cones = []
+
+    # Municipality centroids for cone containment.
+    muni_centroids: dict[str, tuple[float, float]] = {}
+    muni_rows = (
+        sb.table("municipalities")
+        .select("id, centroid_lon, centroid_lat")
+        .execute()
+        .data
+    ) or []
+    for r in muni_rows:
+        if r.get("centroid_lon") is not None and r.get("centroid_lat") is not None:
+            muni_centroids[r["id"]] = (float(r["centroid_lon"]), float(r["centroid_lat"]))
+
+    muni_ids = list({*latest_weather.keys(), *planned_active, *muni_centroids.keys()})
 
     rows = []
     for muni_id in muni_ids:
         weather = latest_weather.get(muni_id)
         f = build_for(muni_id, weather, grid, muni_id in planned_active)
+        cen = muni_centroids.get(muni_id)
+        if cen and cones:
+            cov, cat, sid = _hurricane_features(cones, cen[0], cen[1])
+            f.forecast_cone_coverage_pct = cov
+            f.nearest_storm_category = cat
+            f.nearest_storm_id = sid
         score, band, reasons = _score(f)
         freshness = int(
             (now - datetime.fromisoformat(weather["ts"].replace("Z", "+00:00"))).total_seconds()
         ) if weather else 0
+        ci_low, ci_high = _heuristic_ci(score, freshness, weather is not None)
         rows.append(
             {
                 "ts": now.isoformat(),
@@ -181,6 +303,12 @@ def run() -> int:
                 "reasons": reasons,
                 "feature_freshness_s": freshness,
                 "source": "islagrid-heuristic",
+                "model_version": HEURISTIC_VERSION,
+                "ci_low": ci_low,
+                "ci_high": ci_high,
+                "forecast_cone_coverage_pct": f.forecast_cone_coverage_pct,
+                "nearest_storm_category": f.nearest_storm_category,
+                "nearest_storm_id": f.nearest_storm_id,
             }
         )
 

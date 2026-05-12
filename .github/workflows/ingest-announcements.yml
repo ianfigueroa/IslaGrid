@@ -27,7 +27,7 @@ jobs:
       - name: Install
         working-directory: ingestion
         run: |
-          pip install -e .
+          pip install -e ".[hurricane]"
           python -m playwright install --with-deps chromium
 
       - name: LUMA avisos
@@ -63,6 +63,14 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BLUESKY_KEYWORDS: ${{ secrets.BLUESKY_KEYWORDS }}
         run: python -m src.sources.bluesky_pr
+
+      - name: NHC hurricane advisories
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.sources.nhc_hurdat
 
       - name: Mastodon (unverified social)
         if: success() || failure()
