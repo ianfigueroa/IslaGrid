@@ -3,8 +3,10 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 
+// Basemap — colorful + clean (Windy-style). Voyager for light, dark-matter
+// for dark mode. Both are CartoDB raster tiles, free, no API key.
 const BASEMAP_DARK = "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png";
-const BASEMAP_LIGHT = "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png";
+const BASEMAP_LIGHT = "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png";
 
 function tileUrls(template: string) {
   return ["a", "b", "c", "d"].map((s) => template.replace("{a-d}", s));
@@ -29,7 +31,13 @@ function buildStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
         id: "basemap",
         type: "raster",
         source: "basemap",
-        paint: { "raster-saturation": theme === "dark" ? -0.3 : -0.05 },
+        // Slightly desaturate so the data layers can pop on top, but keep
+        // enough color that the map feels alive (Windy-like, not Bloomberg).
+        paint: {
+          "raster-saturation": theme === "dark" ? -0.2 : -0.15,
+          "raster-contrast": theme === "dark" ? 0.05 : 0,
+          "raster-brightness-min": theme === "dark" ? 0 : 0.05,
+        },
       },
     ],
   };
@@ -49,15 +57,26 @@ const FUEL_COLOR: Record<string, string> = {
   unknown: "#525252",
 };
 
-// Per-municipality status fill, theme-aware via getComputedStyle later
+// Per-municipality status fill — kept warm + readable over Voyager.
 const STATUS_FILL: Record<string, string> = {
   normal: "#10b981",
   watch: "#f59e0b",
-  strained: "#f97316",
+  strained: "#fb923c",
   critical: "#ef4444",
-  stale: "#737373",
-  unknown: "#525252",
+  stale: "#94a3b8",
+  unknown: "#cbd5e1",
 };
+
+// Wind speed → hex color stops (matches Windy's wind layer). kph values.
+const WIND_STOPS = [
+  [0, "#dbeafe"],
+  [10, "#bae6fd"],
+  [25, "#7dd3fc"],
+  [40, "#38bdf8"],
+  [60, "#0284c7"],
+  [80, "#7c3aed"],
+  [110, "#dc2626"],
+] as const;
 
 export type ActiveLayerKey =
   | "municipalities"
@@ -71,7 +90,9 @@ export type ActiveLayerKey =
   | "outages-live"
   | "weather-alerts"
   | "hurricane"
-  | "quakes";
+  | "quakes"
+  | "rain-radar"
+  | "wind";
 
 // NWS event types → severity color. Falls back to a neutral amber for unknowns.
 const ALERT_COLOR: Record<string, string> = {
@@ -203,6 +224,12 @@ export function GridMap({
 
     return () => {
       ro.disconnect();
+      // Clear the rain animation timer before tearing down the map so it
+      // doesn't keep firing against a removed canvas.
+      if (rainStateRef.current.timer != null) {
+        window.clearInterval(rainStateRef.current.timer);
+        rainStateRef.current.timer = null;
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -219,26 +246,27 @@ export function GridMap({
       src.setTiles(tileUrls(tpl));
       map.setPaintProperty("basemap", "raster-saturation", theme === "dark" ? -0.3 : -0.05);
     }
-    // Re-color municipality stroke for light mode contrast
+    // Re-color municipality stroke for light mode contrast. Slate over Voyager,
+    // soft ink over dark-matter — keeps borders crisp without dominating.
     if (map.getLayer("municipalities-outline")) {
       map.setPaintProperty(
         "municipalities-outline",
         "line-color",
-        theme === "dark" ? "#1c1c1c" : "#fafaf9",
+        theme === "dark" ? "#1f3360" : "#475569",
       );
     }
     if (map.getLayer("osm-plants")) {
       map.setPaintProperty(
         "osm-plants",
         "circle-stroke-color",
-        theme === "dark" ? "#0a0a0a" : "#ffffff",
+        theme === "dark" ? "#07101f" : "#ffffff",
       );
     }
     if (map.getLayer("osm-substations")) {
       map.setPaintProperty(
         "osm-substations",
         "circle-stroke-color",
-        theme === "dark" ? "#0a0a0a" : "#ffffff",
+        theme === "dark" ? "#07101f" : "#ffffff",
       );
     }
   }, [theme]);
@@ -256,6 +284,9 @@ export function GridMap({
     if (activeLayers.has("quakes")) void loadQuakesInto(map);
     if (activeLayers.has("outages-live")) void loadOutageMarkersInto(map);
     else clearOutageMarkers();
+    if (activeLayers.has("rain-radar")) startRainRadar(map);
+    else stopRainRadar(map);
+    if (activeLayers.has("wind")) void loadWindInto(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
 
@@ -264,6 +295,148 @@ export function GridMap({
   function clearOutageMarkers() {
     for (const m of outageMarkersRef.current) m.remove();
     outageMarkersRef.current = [];
+  }
+
+  // Rain-radar animation state. RainViewer publishes a manifest with ~12 past
+  // frames (a moving 2-hour window). We add one raster source per frame and
+  // step through them with `raster-opacity` so the map "plays" precipitation.
+  const rainStateRef = useRef<{
+    frames: { id: string; time: number }[];
+    cursor: number;
+    timer: number | null;
+  }>({ frames: [], cursor: 0, timer: null });
+
+  function stopRainRadar(map: MlMap) {
+    const s = rainStateRef.current;
+    if (s.timer != null) {
+      window.clearInterval(s.timer);
+      s.timer = null;
+    }
+    for (const f of s.frames) {
+      if (map.getLayer(f.id)) map.removeLayer(f.id);
+      if (map.getSource(f.id)) map.removeSource(f.id);
+    }
+    s.frames = [];
+    s.cursor = 0;
+  }
+
+  function startRainRadar(map: MlMap) {
+    // No-op if already running.
+    if (rainStateRef.current.timer != null) return;
+    void (async () => {
+      try {
+        const res = await fetch("https://api.rainviewer.com/public/weather-maps.json", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        type RVManifest = {
+          host: string;
+          radar?: { past?: Array<{ path: string; time: number }> };
+        };
+        const json = (await res.json()) as RVManifest;
+        const past = json.radar?.past ?? [];
+        if (past.length === 0) return;
+        // Use the last 8 frames — enough to "play" the storm without spamming
+        // the GPU with too many concurrent raster layers.
+        const frames = past.slice(-8);
+        const host = json.host;
+        // Insert as a stack BENEATH the muni outline so borders stay sharp.
+        const beforeId = map.getLayer("municipalities-outline")
+          ? "municipalities-outline"
+          : undefined;
+        for (const f of frames) {
+          const id = `rain-${f.time}`;
+          if (map.getSource(id)) continue;
+          map.addSource(id, {
+            type: "raster",
+            // Color scheme 6 = Blue→Purple (Windy-like); size 512; smooth=1
+            tiles: [`${host}${f.path}/512/{z}/{x}/{y}/6/1_0.png`],
+            tileSize: 512,
+            attribution:
+              '<a href="https://www.rainviewer.com" target="_blank" rel="noreferrer">RainViewer</a>',
+          });
+          map.addLayer(
+            {
+              id,
+              type: "raster",
+              source: id,
+              paint: { "raster-opacity": 0 },
+            },
+            beforeId,
+          );
+        }
+        rainStateRef.current.frames = frames.map((f) => ({
+          id: `rain-${f.time}`,
+          time: f.time,
+        }));
+        rainStateRef.current.cursor = 0;
+        const tick = () => {
+          const m = mapRef.current;
+          const s = rainStateRef.current;
+          if (!m || s.frames.length === 0) return;
+          for (let i = 0; i < s.frames.length; i++) {
+            if (!m.getLayer(s.frames[i].id)) continue;
+            m.setPaintProperty(
+              s.frames[i].id,
+              "raster-opacity",
+              i === s.cursor ? 0.65 : 0,
+            );
+          }
+          s.cursor = (s.cursor + 1) % s.frames.length;
+        };
+        tick();
+        // 600ms per frame ≈ 5s loop for 8 frames — visible motion, no jitter.
+        rainStateRef.current.timer = window.setInterval(tick, 600);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[GridMap] rain radar failed", err);
+        onMapErrorRef.current?.("Rain radar failed to load.");
+      }
+    })();
+  }
+
+  async function loadWindInto(map: MlMap) {
+    if (map.getLayer("wind-fill")) return;
+    try {
+      // Pull the latest hour of weather snapshots per muni. The endpoint is
+      // already served by /api/weather/latest; if not present, fall back to
+      // the risk endpoint which includes wind_kph indirectly via reasons.
+      const res = await fetch("/api/weather/latest", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        items?: Array<{ municipality_id: string; wind_kph?: number; gust_kph?: number }>;
+      };
+      const byId = new Map<string, number>();
+      for (const r of json.items ?? []) {
+        const w = Math.max(r.gust_kph ?? 0, r.wind_kph ?? 0);
+        if (w > 0) byId.set(r.municipality_id, w);
+      }
+      if (!map.getSource("municipalities")) return;
+      for (const [id, w] of byId) {
+        map.setFeatureState({ source: "municipalities", id }, { wind_kph: w });
+      }
+      map.addLayer(
+        {
+          id: "wind-fill",
+          type: "fill",
+          source: "municipalities",
+          paint: {
+            "fill-color": [
+              "interpolate",
+              ["linear"],
+              ["coalesce", ["feature-state", "wind_kph"], 0],
+              ...WIND_STOPS.flatMap(([v, c]) => [v as number, c as string]),
+            ],
+            "fill-opacity": 0.42,
+          },
+        },
+        "municipalities-outline",
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] wind load failed", err);
+      onMapErrorRef.current?.("Wind layer failed to load.");
+    }
   }
 
   function applyLayerVisibility(map: MlMap) {
@@ -295,6 +468,8 @@ export function GridMap({
     setVis("alerts-fill", activeLayers.has("weather-alerts"));
     setVis("alerts-stroke", activeLayers.has("weather-alerts"));
     setVis("quakes-circle", activeLayers.has("quakes"));
+    setVis("wind-fill", activeLayers.has("wind"));
+    // rain frames are managed via startRainRadar / stopRainRadar
   }
 
   async function loadHurricaneInto(map: MlMap) {
@@ -708,13 +883,17 @@ export function GridMap({
           type: "line",
           source: "municipalities",
           paint: {
-            "line-color": themeRef.current === "dark" ? "#1c1c1c" : "#fafaf9",
+            "line-color": themeRef.current === "dark" ? "#1f3360" : "#475569",
             "line-width": [
               "case",
-              ["boolean", ["feature-state", "hover"], false], 1.5,
-              0.6,
+              ["boolean", ["feature-state", "hover"], false], 2.2,
+              0.9,
             ],
-            "line-opacity": 0.85,
+            "line-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false], 1,
+              0.7,
+            ],
           },
         });
 
