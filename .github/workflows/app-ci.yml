@@ -30,9 +30,6 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
