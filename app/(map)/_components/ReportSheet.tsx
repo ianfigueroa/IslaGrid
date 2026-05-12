@@ -230,10 +230,16 @@ export function ReportSheet({ enabled, onSubmitted }: Props) {
                     submit.kind === "ok"
                   }
                   onClick={send}
+                  aria-disabled={
+                    !type || geo.kind !== "ok" || submit.kind !== "idle"
+                  }
+                  // WCAG AA needs >= 3:1 for disabled UI controls; the prior
+                  // text-text-3 on bg-surface-2 was ~2.2:1 in dark mode.
+                  // Use text-text-2 + border for an explicit affordance.
                   className={cn(
-                    "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "min-h-11 rounded-md px-4 py-2 text-sm font-medium transition-colors",
                     !type || geo.kind !== "ok"
-                      ? "cursor-not-allowed bg-surface-2 text-text-3"
+                      ? "cursor-not-allowed border border-line bg-surface-2 text-text-2"
                       : submit.kind === "ok"
                         ? "bg-ok/20 text-ok"
                         : "cursor-pointer bg-brand text-bg hover:bg-brand/90",

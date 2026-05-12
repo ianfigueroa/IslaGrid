@@ -49,11 +49,17 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Disaster-mode data endpoints — network first, fall back to last good copy.
+  // The list intentionally includes the live weather / hurricane / quake
+  // endpoints so the disaster page stays useful when the network drops
+  // mid-event. networkFirst returns a 503 JSON body if nothing is cached.
   if (
     url.pathname === "/api/public/grid-status" ||
     url.pathname === "/api/public/planned-work" ||
     url.pathname === "/api/public/outage-risk" ||
-    url.pathname === "/api/disaster/snapshot"
+    url.pathname === "/api/disaster/snapshot" ||
+    url.pathname === "/api/weather/alerts" ||
+    url.pathname === "/api/hurricanes/active" ||
+    url.pathname === "/api/quakes"
   ) {
     event.respondWith(networkFirst(DATA_CACHE, req));
     return;
