@@ -10,6 +10,23 @@ export const dynamic = "force-dynamic";
 
 const HOURLY_LIMIT_PER_IP = 30;
 
+/**
+ * Same-origin guard. Anonymous POST endpoints get hit by random forms /
+ * scripts on third-party sites; we only accept requests whose Origin matches
+ * our own host. `REPORTS_ALLOWED_ORIGINS` (comma-separated) lets ops add more.
+ */
+function isAllowedOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true; // same-origin browser POSTs often omit Origin
+  const allowed = new Set<string>([
+    "http://localhost:3000",
+    "http://localhost:3001",
+    ...(process.env.NEXT_PUBLIC_SITE_URL ? [process.env.NEXT_PUBLIC_SITE_URL] : []),
+    ...(process.env.REPORTS_ALLOWED_ORIGINS?.split(",").map((s) => s.trim()) ?? []),
+  ]);
+  return allowed.has(origin);
+}
+
 interface SubmitBody {
   type?: string;
   lat?: number;
@@ -18,6 +35,12 @@ interface SubmitBody {
 }
 
 export async function POST(req: Request) {
+  if (!isAllowedOrigin(req)) {
+    return NextResponse.json(
+      { error: "Cross-origin requests not allowed." },
+      { status: 403 },
+    );
+  }
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: "Reports are disabled in this environment." },

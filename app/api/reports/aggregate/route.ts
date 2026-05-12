@@ -68,7 +68,13 @@ export async function GET() {
   }));
 
   return NextResponse.json(
-    { type: "FeatureCollection" as const, features },
+    {
+      type: "FeatureCollection" as const,
+      features,
+      // These aggregates are community-submitted, not LUMA-verified. UI must
+      // render a disclaimer so callers don't treat them as official counts.
+      source: "community.unverified",
+    },
     {
       headers: {
         "Cache-Control":

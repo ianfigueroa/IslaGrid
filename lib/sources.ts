@@ -107,7 +107,10 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     label: "estimated",
     display: "PREB seed (frozen 2026 Q1)",
     url: "https://energia.pr.gov/en/current-rate/",
-    freshnessSlo: 31536000,
+    // 90 days. PREB issues quarterly fuel/purchased-power adjustments so the
+    // seed will fall behind reality within a quarter; UI should mark it
+    // "stale" rather than silently presenting year-old rates as current.
+    freshnessSlo: 60 * 60 * 24 * 90,
   },
   "social.x.unverified": {
     label: "unverified",

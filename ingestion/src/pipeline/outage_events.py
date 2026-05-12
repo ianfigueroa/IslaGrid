@@ -102,8 +102,11 @@ def run(window_days: int = 14) -> int:
         muni = _find_municipality(text, index)
         started = row.get("ts") or cutoff
         snippet = text[:280]
+        # Hash the FULL text (not a 120-char truncation) so two distinct
+        # notices that happen to share the same opening line still get
+        # different event ids.
         event_id = "ev:" + hashlib.sha1(
-            f"{row.get('source')}|{started}|{snippet[:120]}".encode("utf-8")
+            f"{row.get('source')}|{started}|{text}".encode("utf-8")
         ).hexdigest()[:16]
         events.append(
             {

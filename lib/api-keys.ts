@@ -1,10 +1,14 @@
 /**
  * API-key auth for the public API.
  *
- * Keys look like `ig_<prefix>_<secret>` where `<prefix>` is 8 chars stored in
- * plaintext (display only) and `<secret>` is the random body. We hash the
- * full key with SHA-256 and look up by `key_hash`. Constant-time-ish: SHA
- * is fast and we don't compare strings ourselves.
+ * Keys look like `ig_<prefix>_<secret>`. `<prefix>` is 8 chars in plaintext
+ * for display only; `<secret>` is the random body. We hash the full key with
+ * HMAC-SHA-256 using a server-side pepper (`API_KEY_PEPPER`). Rotating the
+ * pepper invalidates every key — that is the intended escape hatch.
+ *
+ * In dev or when the pepper is unset we fall back to plain SHA-256 so local
+ * setups don't require the env var; prod operators should always set the
+ * pepper (logged at startup when missing).
  */
 
 import crypto from "node:crypto";
@@ -18,8 +22,24 @@ export interface ApiKey {
   ratePerDay: number;
 }
 
+let warnedMissingPepper = false;
+
 export function hashKey(key: string): string {
-  return crypto.createHash("sha256").update(key).digest("hex");
+  const pepper = process.env.API_KEY_PEPPER;
+  if (!pepper) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      !warnedMissingPepper
+    ) {
+      warnedMissingPepper = true;
+      // eslint-disable-next-line no-console
+      console.error(
+        "[api-keys] API_KEY_PEPPER unset in production. Keys fall back to plain SHA-256.",
+      );
+    }
+    return crypto.createHash("sha256").update(key).digest("hex");
+  }
+  return crypto.createHmac("sha256", pepper).update(key).digest("hex");
 }
 
 export function extractKey(req: Request): string | null {
