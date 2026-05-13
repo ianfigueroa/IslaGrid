@@ -111,8 +111,12 @@ def run() -> int:
         return 0
 
     now = datetime.now(timezone.utc).isoformat()
-    payload = [
-        {
+    # Dedup by id: the LUMA page sometimes lists the same work order twice
+    # (e.g. when two muni rows share an upstream id), and Postgres rejects
+    # an ON CONFLICT batch that touches the same key twice.
+    by_id: dict[str, dict[str, str | None]] = {}
+    for r in rows:
+        by_id[r["id"]] = {
             "id": r["id"],
             "municipality_id": r["municipality_id"],
             "area": r["area"],
@@ -125,24 +129,25 @@ def run() -> int:
             "raw_key": raw_key,
             "scraped_at": now,
         }
-        for r in rows
-    ]
+    payload = list(by_id.values())
     supabase().table("planned_work").upsert(payload, on_conflict="id").execute()
 
-    # Mirror each entry into the official_updates timeline so users see it live.
+    # Mirror each entry into the official_updates timeline so users see it
+    # live. Dedup by id for the same Postgres reason as the upsert above.
+    updates_by_id: dict[str, dict[str, str | None]] = {}
+    for r in rows:
+        uid = f"pw:{r['id']}"
+        updates_by_id[uid] = {
+            "id": uid,
+            "ts": now,
+            "source": "lumapr.com/planned-work",
+            "category": "planned-work",
+            "text": f"Planned work posted near {r['municipality_id'] or 'PR'}: {r['raw_text'][:200]}",
+            "url": URL,
+            "raw_key": raw_key,
+        }
     supabase().table("official_updates").upsert(
-        [
-            {
-                "id": f"pw:{r['id']}",
-                "ts": now,
-                "source": "lumapr.com/planned-work",
-                "category": "planned-work",
-                "text": f"Planned work posted near {r['municipality_id'] or 'PR'}: {r['raw_text'][:200]}",
-                "url": URL,
-                "raw_key": raw_key,
-            }
-            for r in rows
-        ],
+        list(updates_by_id.values()),
         on_conflict="id",
     ).execute()
     log.info("planned_work upserted: %d rows (raw %s)", len(payload), raw_key)

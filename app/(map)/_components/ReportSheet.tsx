@@ -7,8 +7,12 @@ import { cn } from "@/lib/cn";
 import { REPORT_TYPES, type ReportType } from "@/lib/reports";
 
 interface Props {
-  /** When false, the trigger button is hidden — used to gate behind the layer toggle. */
-  enabled: boolean;
+  /**
+   * Kept for back-compat with callers that still pass it; previously gated the
+   * trigger behind a layer toggle, which made the button invisible by default
+   * and broke "make a report" for new users. Reports are always submittable.
+   */
+  enabled?: boolean;
   /** Fires after a successful submit so the parent can refresh the map layer. */
   onSubmitted?: () => void;
 }
@@ -25,7 +29,7 @@ type SubmitState =
   | { kind: "ok" }
   | { kind: "error"; message: string };
 
-export function ReportSheet({ enabled, onSubmitted }: Props) {
+export function ReportSheet({ onSubmitted }: Props) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<ReportType | null>(null);
   const [geo, setGeo] = useState<GeoState>({ kind: "idle" });
@@ -103,15 +107,13 @@ export function ReportSheet({ enabled, onSubmitted }: Props) {
     }
   }
 
-  if (!enabled) return null;
-
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Report a power issue"
-        className="surface pointer-events-auto absolute bottom-12 right-3 z-30 flex h-11 items-center gap-2 rounded-full px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
+        className="pointer-events-auto absolute right-3 top-44 z-30 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
       >
         <MessageSquareWarning className="size-4 text-warn" aria-hidden />
         Report
