@@ -42,8 +42,33 @@ function rasterStyle(variant: "voyager" | "dark_all"): maplibregl.StyleSpecifica
   };
 }
 
-function styleFor(theme: "dark" | "light"): maplibregl.StyleSpecification {
-  return rasterStyle(theme === "dark" ? "dark_all" : "voyager");
+export type Basemap = "light" | "dark" | "satellite";
+
+function satelliteStyle(): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      basemap: {
+        type: "raster",
+        // Esri World Imagery — free for non-commercial use, dense global cover.
+        tiles: [
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        ],
+        tileSize: 256,
+        attribution:
+          'Imagery © <a href="https://www.esri.com" target="_blank" rel="noreferrer">Esri</a>',
+        minzoom: 0,
+        maxzoom: 19,
+      },
+    },
+    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+  };
+}
+
+function styleFor(basemap: Basemap): maplibregl.StyleSpecification {
+  if (basemap === "satellite") return satelliteStyle();
+  return rasterStyle(basemap === "dark" ? "dark_all" : "voyager");
 }
 
 // Soft, warm fuel palette — no AI-tech cyan
@@ -150,6 +175,8 @@ interface Props {
   onMapError?: (message: string) => void;
   activeLayers: Set<ActiveLayerKey>;
   theme: "dark" | "light";
+  /** When set, overrides theme-derived basemap (used for the Satellite toggle). */
+  basemap?: Basemap;
 }
 
 export function GridMap({
@@ -158,7 +185,9 @@ export function GridMap({
   onMapError,
   activeLayers,
   theme,
+  basemap,
 }: Props) {
+  const effectiveBasemap: Basemap = basemap ?? theme;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const themeRef = useRef(theme);
@@ -190,7 +219,7 @@ export function GridMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleFor(theme),
+      style: styleFor(effectiveBasemap),
       center: [-66.5, 18.23],
       zoom: 8.4,
       // OpenFreeMap returns a "Zoom Level Not Supported" placeholder image
@@ -296,9 +325,9 @@ export function GridMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(styleFor(theme));
+    map.setStyle(styleFor(effectiveBasemap));
     // style.load handler does the rest (addDataLayers → applyLayerVisibility).
-  }, [theme]);
+  }, [effectiveBasemap]);
 
   // Active-layer changes -> visibility flips + overlay loads
   useEffect(() => {
@@ -378,9 +407,14 @@ export function GridMap({
           if (map.getSource(id)) continue;
           map.addSource(id, {
             type: "raster",
-            // Color scheme 6 = Blue→Purple (Windy-like); size 512; smooth=1
+            // Color scheme 6 = Blue→Purple (Windy-like); size 512; smooth=1.
+            // Constrain to RainViewer's actual cache range so MapLibre never
+            // requests tiles that come back as "Zoom Level Not Supported".
             tiles: [`${host}${f.path}/512/{z}/{x}/{y}/6/1_0.png`],
             tileSize: 512,
+            minzoom: 0,
+            maxzoom: 10,
+            bounds: [-68.5, 17.4, -64.4, 19.1],
             attribution:
               '<a href="https://www.rainviewer.com" target="_blank" rel="noreferrer">RainViewer</a>',
           });

@@ -23,8 +23,8 @@ export default function ApiDocsPage() {
             Read-only, source-labeled, free for research and journalism. Anonymous
             requests get 60 req/min and 1,000 req/day per IP. For higher limits,
             email{" "}
-            <a href="mailto:iantdm11@gmail.com" className="underline-offset-2 hover:underline">
-              iantdm11@gmail.com
+            <a href="mailto:contact@islagrid.app" className="underline-offset-2 hover:underline">
+              contact@islagrid.app
             </a>{" "}
             with a one-paragraph description of your use case.
           </p>

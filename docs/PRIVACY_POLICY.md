@@ -37,7 +37,7 @@ IslaGrid AI is a public, informational dashboard about Puerto Rico's electric gr
 
 ## How to delete your data
 
-Email **iantdm11@gmail.com** with the subject `IslaGrid AI: delete my account`. We will delete your account, all community reports tied to it, and any hashed IPs we can correlate, within 30 days. You will receive a confirmation when this is done.
+Email **contact@islagrid.app** with the subject `IslaGrid AI: delete my account`. We will delete your account, all community reports tied to it, and any hashed IPs we can correlate, within 30 days. You will receive a confirmation when this is done.
 
 ## Cookies
 
@@ -45,4 +45,4 @@ A single session cookie for login. No analytics, advertising, or tracking cookie
 
 ## Contact
 
-Privacy questions: **iantdm11@gmail.com**.
+Privacy questions: **contact@islagrid.app**.

@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 def _fetch() -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
-        ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+iantdm11@gmail.com)")
+        ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+contact@islagrid.app)")
         page = ctx.new_page()
         page.goto(URL, wait_until="domcontentloaded", timeout=45_000)
         page.wait_for_timeout(3_500)

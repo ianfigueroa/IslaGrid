@@ -71,7 +71,7 @@ def _grab_number_near_label(html: str, label_variants: list[str]) -> float | Non
 def _fetch() -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
-        ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+iantdm11@gmail.com)")
+        ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+contact@islagrid.app)")
         page = ctx.new_page()
         page.goto(URL, wait_until="domcontentloaded", timeout=45_000)
         # Give JS up to 5s to populate MW values; we accept stale state if it doesn't.

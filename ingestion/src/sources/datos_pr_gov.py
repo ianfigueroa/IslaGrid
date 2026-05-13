@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 def _fetch() -> tuple[bytes, str]:
     """Return (raw_bytes, final_url) so we can detect maintenance redirects."""
     with httpx.Client(timeout=20.0, follow_redirects=True) as client:
-        r = client.get(URL, headers={"User-Agent": "islagrid-ai/0.1 (+iantdm11@gmail.com)"})
+        r = client.get(URL, headers={"User-Agent": "islagrid-ai/0.1 (+contact@islagrid.app)"})
         return r.content, str(r.url)
 
 

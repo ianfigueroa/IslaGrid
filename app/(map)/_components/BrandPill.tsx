@@ -11,10 +11,13 @@ import {
   LifeBuoy,
   Map as MapIcon,
   Menu,
+  Moon,
+  Satellite,
   Sun,
   X,
   Zap,
 } from "lucide-react";
+import type { Basemap } from "./GridMap";
 import { cn } from "@/lib/cn";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -39,7 +42,13 @@ const NAV: NavItem[] = [
  * navigation drawer with the calculator tools. Designed to disappear into
  * the map when not needed; pop with intent when needed.
  */
-export function BrandPill({ onMap = true }: { onMap?: boolean }) {
+interface BrandPillProps {
+  onMap?: boolean;
+  basemap?: Basemap;
+  onBasemapChange?: (next: Basemap) => void;
+}
+
+export function BrandPill({ onMap = true, basemap, onBasemapChange }: BrandPillProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -172,6 +181,37 @@ export function BrandPill({ onMap = true }: { onMap?: boolean }) {
                   <span className="text-[13px]">Sources &amp; attribution</span>
                 </Link>
               </motion.nav>
+
+              {onBasemapChange ? (
+                <div className="border-t border-line px-5 py-3">
+                  <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-text-3">
+                    Basemap
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([
+                      { key: "light", label: "Light", Icon: Sun },
+                      { key: "dark", label: "Dark", Icon: Moon },
+                      { key: "satellite", label: "Satellite", Icon: Satellite },
+                    ] as const).map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => onBasemapChange(key)}
+                        aria-pressed={basemap === key}
+                        className={cn(
+                          "flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg border text-[11px] font-medium transition-colors",
+                          basemap === key
+                            ? "border-brand bg-brand-soft text-brand"
+                            : "border-line bg-surface text-text-2 hover:bg-surface-2 hover:text-text",
+                        )}
+                      >
+                        <Icon className="size-3.5" aria-hidden />
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3">
                 <span className="text-[11px] text-text-3">Theme</span>

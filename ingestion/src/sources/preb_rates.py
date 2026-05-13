@@ -33,7 +33,7 @@ from ..pipeline.supabase_client import supabase
 
 PAGE_URL = "https://energia.pr.gov/numero-de-tema/?_tema=tarifas"
 SOURCE = "preb"
-USER_AGENT = "islagrid-ai/0.1 (+iantdm11@gmail.com)"
+USER_AGENT = "islagrid-ai/0.1 (+contact@islagrid.app)"
 
 log = logging.getLogger(__name__)
 

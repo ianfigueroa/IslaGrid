@@ -54,7 +54,7 @@ def _fetch() -> bytes:
         r = client.post(
             OVERPASS_URL,
             data={"data": q},
-            headers={"User-Agent": "islagrid-ai/0.1 (+iantdm11@gmail.com)"},
+            headers={"User-Agent": "islagrid-ai/0.1 (+contact@islagrid.app)"},
         )
         r.raise_for_status()
         return r.content

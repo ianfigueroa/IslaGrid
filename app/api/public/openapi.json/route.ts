@@ -13,7 +13,7 @@ const spec = {
       "requests, and the privacy policy. Every field is sourced from a real " +
       "ingested record or labeled as a heuristic estimate — IslaGrid does not " +
       "fabricate data.",
-    contact: { email: "iantdm11@gmail.com" },
+    contact: { email: "contact@islagrid.app" },
     license: {
       name: "Data attribution applies — see /attribution",
       url: "/attribution",

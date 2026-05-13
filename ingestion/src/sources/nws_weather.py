@@ -31,7 +31,7 @@ from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
 SOURCE = "api.weather.gov"
-UA = os.environ.get("NWS_USER_AGENT") or "islagrid-ai/0.1 (+iantdm11@gmail.com)"
+UA = os.environ.get("NWS_USER_AGENT") or "islagrid-ai/0.1 (+contact@islagrid.app)"
 ALERTS_URL = "https://api.weather.gov/alerts/active?area=PR"
 POINTS_CACHE = pathlib.Path(__file__).resolve().parents[2] / ".cache" / "nws_points.json"
 
