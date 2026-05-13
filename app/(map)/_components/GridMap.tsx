@@ -3,44 +3,15 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 
-// Basemap — colorful + clean (Windy-style). Voyager for light, dark-matter
-// for dark mode. Both are CartoDB raster tiles, free, no API key.
-const BASEMAP_DARK = "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png";
-const BASEMAP_LIGHT = "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png";
+// Basemap — OpenFreeMap vector styles. Free, no API key, proper coastline +
+// land-use rendering (Windy-style natural feel). Liberty for light mode, the
+// dark-matter for dark. MapLibre swallows these as full style URLs; data
+// layers re-add in the style.load event below.
+const STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
+const STYLE_DARK = "https://tiles.openfreemap.org/styles/dark-matter";
 
-function tileUrls(template: string) {
-  return ["a", "b", "c", "d"].map((s) => template.replace("{a-d}", s));
-}
-
-function buildStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
-  const tpl = theme === "dark" ? BASEMAP_DARK : BASEMAP_LIGHT;
-  return {
-    version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        tiles: tileUrls(tpl),
-        tileSize: 256,
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
-      },
-    },
-    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
-    layers: [
-      {
-        id: "basemap",
-        type: "raster",
-        source: "basemap",
-        // Slightly desaturate so the data layers can pop on top, but keep
-        // enough color that the map feels alive (Windy-like, not Bloomberg).
-        paint: {
-          "raster-saturation": theme === "dark" ? -0.2 : -0.15,
-          "raster-contrast": theme === "dark" ? 0.05 : 0,
-          "raster-brightness-min": theme === "dark" ? 0 : 0.05,
-        },
-      },
-    ],
-  };
+function styleUrl(theme: "dark" | "light"): string {
+  return theme === "dark" ? STYLE_DARK : STYLE_LIGHT;
 }
 
 // Soft, warm fuel palette — no AI-tech cyan
@@ -168,13 +139,21 @@ export function GridMap({
   onSelPlantRef.current = onSelectPlant;
   onMapErrorRef.current = onMapError;
 
+  // Cached GeoJSON so we don't re-fetch on every theme/style swap. Populated
+  // by the initial addDataLayers fetches and re-used by the style.load
+  // handler when MapLibre swaps the basemap style.
+  const cacheRef = useRef<{
+    munis?: GeoJSON.FeatureCollection;
+    plants?: GeoJSON.FeatureCollection;
+  }>({});
+
   // One-time map setup
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildStyle(theme),
+      style: styleUrl(theme),
       center: [-66.5, 18.23],
       zoom: 8.4,
       minZoom: 7,
@@ -188,7 +167,26 @@ export function GridMap({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
-    map.on("load", () => {
+    // style.load fires on initial load AND every setStyle() call. We use it
+    // (not 'load') so theme swaps re-attach our data layers.
+    map.on("style.load", () => {
+      // Soften OpenFreeMap labels slightly so muni names + plant markers stay
+      // legible without competing visually with the data overlays.
+      try {
+        const style = map.getStyle();
+        for (const layer of style.layers ?? []) {
+          if (layer.type === "symbol" && layer.id.includes("label")) {
+            const id = layer.id;
+            try {
+              map.setPaintProperty(id, "text-halo-width", 1.4);
+            } catch {
+              /* property may not exist on this layer */
+            }
+          }
+        }
+      } catch {
+        /* style not ready yet — no-op */
+      }
       addDataLayers(map);
       applyLayerVisibility(map);
     });
@@ -236,39 +234,13 @@ export function GridMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Theme swap — rebuild basemap source without losing data layers
+  // Theme swap — setStyle wipes our sources/layers; style.load handler
+  // re-attaches everything from the cache.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const tpl = theme === "dark" ? BASEMAP_DARK : BASEMAP_LIGHT;
-    const src = map.getSource("basemap") as maplibregl.RasterTileSource | undefined;
-    if (src) {
-      src.setTiles(tileUrls(tpl));
-      map.setPaintProperty("basemap", "raster-saturation", theme === "dark" ? -0.3 : -0.05);
-    }
-    // Re-color municipality stroke for light mode contrast. Slate over Voyager,
-    // soft ink over dark-matter — keeps borders crisp without dominating.
-    if (map.getLayer("municipalities-outline")) {
-      map.setPaintProperty(
-        "municipalities-outline",
-        "line-color",
-        theme === "dark" ? "#1f3360" : "#475569",
-      );
-    }
-    if (map.getLayer("osm-plants")) {
-      map.setPaintProperty(
-        "osm-plants",
-        "circle-stroke-color",
-        theme === "dark" ? "#07101f" : "#ffffff",
-      );
-    }
-    if (map.getLayer("osm-substations")) {
-      map.setPaintProperty(
-        "osm-substations",
-        "circle-stroke-color",
-        theme === "dark" ? "#07101f" : "#ffffff",
-      );
-    }
+    if (!map) return;
+    map.setStyle(styleUrl(theme));
+    // style.load handler does the rest (addDataLayers → applyLayerVisibility).
   }, [theme]);
 
   // Active-layer changes -> visibility flips + overlay loads
@@ -456,6 +428,7 @@ export function GridMap({
     const showStatus = showMuni && !showRisk && !showDemand;
     setVis("municipalities-fill", showStatus);
     setVis("municipalities-outline", showMuni || showRisk || showDemand);
+    setVis("municipalities-hover", showMuni || showRisk || showDemand);
     setVis("municipalities-risk", showRisk);
     setVis("municipalities-demand", showDemand && !showRisk);
     setVis("osm-plants", showPlants);
@@ -844,178 +817,220 @@ export function GridMap({
     }
   }
 
+  function addMuniLayers(map: MlMap, fc: GeoJSON.FeatureCollection) {
+    if (map.getSource("municipalities")) return;
+    map.addSource("municipalities", { type: "geojson", data: fc, promoteId: "id" });
+
+    // Status fill — kept VERY subtle so the OpenFreeMap land/water rendering
+    // shows through. Only colors strongly when status ≠ unknown/normal.
+    map.addLayer({
+      id: "municipalities-fill",
+      type: "fill",
+      source: "municipalities",
+      paint: {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "status"], "unknown"],
+          "normal", STATUS_FILL.normal,
+          "watch", STATUS_FILL.watch,
+          "strained", STATUS_FILL.strained,
+          "critical", STATUS_FILL.critical,
+          "stale", STATUS_FILL.stale,
+          STATUS_FILL.unknown,
+        ],
+        "fill-opacity": [
+          "case",
+          ["boolean", ["feature-state", "hover"], false], 0.32,
+          ["match",
+            ["coalesce", ["get", "status"], "unknown"],
+            "unknown", 0,
+            "stale",   0.04,
+            0.18,
+          ],
+        ],
+      },
+    });
+
+    map.addLayer({
+      id: "municipalities-outline",
+      type: "line",
+      source: "municipalities",
+      paint: {
+        "line-color": themeRef.current === "dark" ? "#94a3b8" : "#1e293b",
+        "line-width": [
+          "interpolate", ["linear"], ["zoom"],
+          7, 0.5,
+          9, 0.9,
+          11, 1.4,
+        ],
+        "line-opacity": [
+          "case",
+          ["boolean", ["feature-state", "hover"], false], 1,
+          0.55,
+        ],
+      },
+    });
+
+    // Hover highlight (separate layer so the fill stays subtle on idle)
+    map.addLayer({
+      id: "municipalities-hover",
+      type: "line",
+      source: "municipalities",
+      paint: {
+        "line-color": themeRef.current === "dark" ? "#38bdf8" : "#0284c7",
+        "line-width": 2.4,
+        "line-opacity": [
+          "case",
+          ["boolean", ["feature-state", "hover"], false], 1,
+          0,
+        ],
+      },
+    });
+
+    // Hover state — bound to fill but renders via the dedicated hover layer
+    let hoveredId: string | number | null = null;
+    map.on("mousemove", "municipalities-fill", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      if (hoveredId !== null) {
+        map.setFeatureState(
+          { source: "municipalities", id: hoveredId },
+          { hover: false },
+        );
+      }
+      hoveredId = f.id as string | number;
+      map.setFeatureState(
+        { source: "municipalities", id: hoveredId },
+        { hover: true },
+      );
+    });
+    map.on("mouseleave", "municipalities-fill", () => {
+      if (hoveredId !== null) {
+        map.setFeatureState(
+          { source: "municipalities", id: hoveredId },
+          { hover: false },
+        );
+      }
+      hoveredId = null;
+    });
+  }
+
+  function addPlantLayers(map: MlMap, fc: GeoJSON.FeatureCollection) {
+    if (map.getSource("osm-power")) return;
+    map.addSource("osm-power", { type: "geojson", data: fc });
+
+    map.addLayer({
+      id: "osm-substations",
+      type: "circle",
+      source: "osm-power",
+      filter: ["==", ["get", "kind"], "substation"],
+      paint: {
+        "circle-radius": 3,
+        "circle-color": "#94a3b8",
+        "circle-stroke-color": themeRef.current === "dark" ? "#07101f" : "#ffffff",
+        "circle-stroke-width": 1,
+        "circle-opacity": 0.7,
+      },
+    });
+
+    map.addLayer({
+      id: "osm-plants",
+      type: "circle",
+      source: "osm-power",
+      filter: ["match", ["get", "kind"], ["plant", "generator"], true, false],
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["to-number", ["get", "capacity_mw"]], 0],
+          0, 4,
+          100, 7,
+          500, 11,
+          1000, 14,
+        ],
+        "circle-color": [
+          "match",
+          ["downcase", ["to-string", ["coalesce", ["get", "fuel"], "unknown"]]],
+          "oil", FUEL_COLOR.oil,
+          "diesel", FUEL_COLOR.diesel,
+          "gas", FUEL_COLOR.gas,
+          "coal", FUEL_COLOR.coal,
+          "solar", FUEL_COLOR.solar,
+          "wind", FUEL_COLOR.wind,
+          "hydro", FUEL_COLOR.hydro,
+          "landfill", FUEL_COLOR.landfill,
+          "battery", FUEL_COLOR.battery,
+          FUEL_COLOR.unknown,
+        ],
+        "circle-stroke-color": themeRef.current === "dark" ? "#07101f" : "#ffffff",
+        "circle-stroke-width": 1.2,
+        "circle-opacity": 0.94,
+      },
+    });
+
+    map.on("mouseenter", "osm-plants", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "osm-plants", () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("click", "osm-plants", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const p = f.properties as Record<string, string | number | null>;
+      onSelPlantRef.current?.(
+        String(f.id ?? p.name ?? "plant"),
+        String(p.name ?? "Unnamed plant"),
+        (p.fuel as string | undefined) ?? undefined,
+      );
+    });
+  }
+
   function addDataLayers(map: MlMap) {
-    // Municipality polygons
-    void fetch("/api/municipalities")
-      .then((r) => {
-        if (!r.ok) throw new Error(`/api/municipalities ${r.status}`);
-        return r.json();
-      })
-      .then((fc) => {
-        if (!fc || map.getSource("municipalities")) return;
-        map.addSource("municipalities", { type: "geojson", data: fc, promoteId: "id" });
-
-        map.addLayer({
-          id: "municipalities-fill",
-          type: "fill",
-          source: "municipalities",
-          paint: {
-            "fill-color": [
-              "match",
-              ["coalesce", ["get", "status"], "normal"],
-              "normal", STATUS_FILL.normal,
-              "watch", STATUS_FILL.watch,
-              "strained", STATUS_FILL.strained,
-              "critical", STATUS_FILL.critical,
-              "stale", STATUS_FILL.stale,
-              STATUS_FILL.unknown,
-            ],
-            "fill-opacity": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false], 0.55,
-              0.32,
-            ],
-          },
+    // Use cached data if available so theme swaps don't re-fetch.
+    if (cacheRef.current.munis) {
+      addMuniLayers(map, cacheRef.current.munis);
+    } else {
+      void fetch("/api/municipalities")
+        .then((r) => {
+          if (!r.ok) throw new Error(`/api/municipalities ${r.status}`);
+          return r.json();
+        })
+        .then((fc: GeoJSON.FeatureCollection) => {
+          if (!fc) return;
+          cacheRef.current.munis = fc;
+          if (!mapRef.current) return;
+          addMuniLayers(mapRef.current, fc);
+          applyLayerVisibility(mapRef.current);
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error("[GridMap] municipalities fetch failed", err);
+          onMapErrorRef.current?.("Municipality boundaries failed to load.");
         });
+    }
 
-        map.addLayer({
-          id: "municipalities-outline",
-          type: "line",
-          source: "municipalities",
-          paint: {
-            "line-color": themeRef.current === "dark" ? "#1f3360" : "#475569",
-            "line-width": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false], 2.2,
-              0.9,
-            ],
-            "line-opacity": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false], 1,
-              0.7,
-            ],
-          },
+    if (cacheRef.current.plants) {
+      addPlantLayers(map, cacheRef.current.plants);
+    } else {
+      void fetch("/api/plants")
+        .then((r) => {
+          if (!r.ok) throw new Error(`/api/plants ${r.status}`);
+          return r.json();
+        })
+        .then((fc: GeoJSON.FeatureCollection) => {
+          if (!fc || !fc.features) return;
+          cacheRef.current.plants = fc;
+          if (!mapRef.current) return;
+          addPlantLayers(mapRef.current, fc);
+          applyLayerVisibility(mapRef.current);
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error("[GridMap] plants fetch failed", err);
+          onMapErrorRef.current?.("Power infrastructure failed to load.");
         });
-
-        // Hover state
-        let hoveredId: string | number | null = null;
-        map.on("mousemove", "municipalities-fill", (e) => {
-          const f = e.features?.[0];
-          if (!f) return;
-          if (hoveredId !== null) {
-            map.setFeatureState(
-              { source: "municipalities", id: hoveredId },
-              { hover: false },
-            );
-          }
-          hoveredId = f.id as string | number;
-          map.setFeatureState(
-            { source: "municipalities", id: hoveredId },
-            { hover: true },
-          );
-        });
-        map.on("mouseleave", "municipalities-fill", () => {
-          if (hoveredId !== null) {
-            map.setFeatureState(
-              { source: "municipalities", id: hoveredId },
-              { hover: false },
-            );
-          }
-          hoveredId = null;
-        });
-
-        applyLayerVisibility(map);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error("[GridMap] municipalities fetch failed", err);
-        onMapErrorRef.current?.("Municipality boundaries failed to load.");
-      });
-
-    // Power infrastructure (community-mapped OSM data via /api/plants)
-    void fetch("/api/plants")
-      .then((r) => {
-        if (!r.ok) throw new Error(`/api/plants ${r.status}`);
-        return r.json();
-      })
-      .then((fc) => {
-        if (!fc || !fc.features || map.getSource("osm-power")) return;
-
-        map.addSource("osm-power", { type: "geojson", data: fc });
-
-        map.addLayer({
-          id: "osm-substations",
-          type: "circle",
-          source: "osm-power",
-          filter: ["==", ["get", "kind"], "substation"],
-          paint: {
-            "circle-radius": 3,
-            "circle-color": "#94a3b8",
-            "circle-stroke-color": themeRef.current === "dark" ? "#0a0a0a" : "#ffffff",
-            "circle-stroke-width": 1,
-            "circle-opacity": 0.7,
-          },
-        });
-
-        map.addLayer({
-          id: "osm-plants",
-          type: "circle",
-          source: "osm-power",
-          filter: ["match", ["get", "kind"], ["plant", "generator"], true, false],
-          paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["coalesce", ["to-number", ["get", "capacity_mw"]], 0],
-              0, 4,
-              100, 7,
-              500, 11,
-              1000, 14,
-            ],
-            "circle-color": [
-              "match",
-              ["downcase", ["to-string", ["coalesce", ["get", "fuel"], "unknown"]]],
-              "oil", FUEL_COLOR.oil,
-              "diesel", FUEL_COLOR.diesel,
-              "gas", FUEL_COLOR.gas,
-              "coal", FUEL_COLOR.coal,
-              "solar", FUEL_COLOR.solar,
-              "wind", FUEL_COLOR.wind,
-              "hydro", FUEL_COLOR.hydro,
-              "landfill", FUEL_COLOR.landfill,
-              "battery", FUEL_COLOR.battery,
-              FUEL_COLOR.unknown,
-            ],
-            "circle-stroke-color": themeRef.current === "dark" ? "#0a0a0a" : "#ffffff",
-            "circle-stroke-width": 1.2,
-            "circle-opacity": 0.94,
-          },
-        });
-
-        map.on("mouseenter", "osm-plants", () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", "osm-plants", () => {
-          map.getCanvas().style.cursor = "";
-        });
-        map.on("click", "osm-plants", (e) => {
-          const f = e.features?.[0];
-          if (!f) return;
-          const p = f.properties as Record<string, string | number | null>;
-          onSelPlantRef.current?.(
-            String(f.id ?? p.name ?? "plant"),
-            String(p.name ?? "Unnamed plant"),
-            (p.fuel as string | undefined) ?? undefined,
-          );
-        });
-
-        applyLayerVisibility(map);
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error("[GridMap] plants fetch failed", err);
-        onMapErrorRef.current?.("Power infrastructure failed to load.");
-      });
+    }
   }
 
   return (
