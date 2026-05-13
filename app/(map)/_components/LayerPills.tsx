@@ -37,7 +37,7 @@ const PRIMARY: PillDef[] = [
   { key: "outages-live",   label: "Outages",  Icon: Flame },
   { key: "weather-alerts", label: "Alerts",   Icon: CloudRain },
   { key: "generation",     label: "Plants",   Icon: Zap },
-  { key: "hurricane",      label: "Cone",     Icon: Globe2 },
+  { key: "hurricane",      label: "Hurricane", Icon: Globe2 },
 ];
 
 // Everything else lives in the More drawer (legend below).

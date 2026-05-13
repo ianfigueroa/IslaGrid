@@ -140,6 +140,11 @@ export function GridMap({
   onSelPlantRef.current = onSelectPlant;
   onMapErrorRef.current = onMapError;
 
+  // Mirror activeLayers into a ref so the style.load handler (which only
+  // closes over the first render's props) can check what's currently on.
+  const activeLayersRef = useRef(activeLayers);
+  activeLayersRef.current = activeLayers;
+
   // Cached GeoJSON so we don't re-fetch on every theme/style swap. Populated
   // by the initial addDataLayers fetches and re-used by the style.load
   // handler when MapLibre swaps the basemap style.
@@ -157,13 +162,15 @@ export function GridMap({
       style: styleUrl(theme),
       center: [-66.5, 18.23],
       zoom: 8.4,
-      // Vector tile styles (OpenFreeMap Liberty, Carto dark-matter) bottom out
-      // around zoom 6 — going lower paints "Zoom Level Not Supported" tiles.
-      minZoom: 6,
+      // OpenFreeMap returns a "Zoom Level Not Supported" placeholder image
+      // (not a 404) for tiles outside their dense vector coverage. Stay at
+      // zoom 7 or deeper, and bound the viewport tight around PR + USVI to
+      // avoid requesting tiles in regions where coverage thins.
+      minZoom: 7,
       maxZoom: 16,
       maxBounds: [
-        [-72.0, 16.0],
-        [-62.0, 20.5],
+        [-68.5, 17.4],
+        [-64.4, 19.1],
       ],
       attributionControl: { compact: true },
     });
@@ -192,6 +199,19 @@ export function GridMap({
       }
       addDataLayers(map);
       applyLayerVisibility(map);
+      // setStyle() wipes runtime layers including the rain-radar frames. If
+      // the user had rain on, reset state and restart so the animation
+      // resumes after a theme swap (otherwise the frames just disappear).
+      if (activeLayersRef.current.has("rain-radar")) {
+        rainStateRef.current.frames = [];
+        rainStateRef.current.cursor = 0;
+        if (rainStateRef.current.timer != null) {
+          window.clearInterval(rainStateRef.current.timer);
+          rainStateRef.current.timer = null;
+        }
+        startRainRadar(map);
+      }
+      if (activeLayersRef.current.has("wind")) void loadWindInto(map);
     });
 
     map.on("error", (ev) => {
