@@ -41,9 +41,11 @@ export const viewport: Viewport = {
 // feel). Users can pin dark via the toggle; their pin overrides the auto.
 const THEME_BOOTSTRAP = `(function(){
   try {
+    // Light is the default civic look; only switch to dark if the user has
+    // explicitly pinned dark via the toggle. (prefers-color-scheme is NOT
+    // consulted on first paint — the map is the focus and looks better light.)
     var stored = localStorage.getItem('islagrid-theme');
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored || (prefersDark ? 'dark' : 'light');
+    var theme = stored === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'light');

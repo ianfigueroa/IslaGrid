@@ -9,9 +9,9 @@ const STORAGE_AUTO_KEY = "islagrid-theme-auto";
 const EVENT = "islagrid:theme";
 
 function readTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
+  if (typeof document === "undefined") return "light";
   const attr = document.documentElement.getAttribute("data-theme");
-  return attr === "light" ? "light" : "dark";
+  return attr === "dark" ? "dark" : "light";
 }
 
 /**
@@ -23,7 +23,7 @@ function readTheme(): Theme {
  */
 export function suggestAutoTheme(opts: { hurricaneActive: boolean }): Theme {
   if (opts.hurricaneActive) return "dark";
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   // Puerto Rico is UTC-4 year-round (no DST). The user's clock may not be
   // in PR — we use their local time as a reasonable proxy since the goal is
   // "is it dark wherever they are reading this".
@@ -52,14 +52,14 @@ export function setAutoTheme(auto: boolean): void {
 }
 
 export function useTheme() {
-  // Start with "dark" on the server to match the SSR baseline; resync on mount.
-  const [theme, setThemeState] = useState<Theme>("dark");
+  // Start with "light" on the server to match the SSR baseline; resync on mount.
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
     setThemeState(readTheme());
     const handler = (e: Event) => {
       const next = (e as CustomEvent<Theme>).detail;
-      setThemeState(next === "light" ? "light" : "dark");
+      setThemeState(next === "dark" ? "dark" : "light");
     };
     window.addEventListener(EVENT, handler);
     return () => window.removeEventListener(EVENT, handler);
@@ -77,7 +77,7 @@ export function useTheme() {
   }, []);
 
   const toggle = useCallback(() => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(theme === "light" ? "dark" : "light");
   }, [theme, setTheme]);
 
   return { theme, setTheme, toggle };
