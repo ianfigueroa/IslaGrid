@@ -25,7 +25,10 @@ export function IntelligencePanel({ selection, onClose }: Props) {
 
   useEffect(() => {
     if (!selection) return;
-    closeRef.current?.focus();
+    // preventScroll stops the browser from scrolling the whole page to bring
+    // the close button into view while the panel is still mid-slide from the
+    // right (which yanked the brand pill + status pill off-screen on click).
+    closeRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
