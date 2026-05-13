@@ -44,12 +44,13 @@ export function IntelligencePanel({ selection, onClose }: Props) {
           exit={{ x: "100%", opacity: 0.4 }}
           transition={transition}
           className={cn(
-            // Solid panel — uses our glass-strong utility so it stays legible
-            // over both dark + light basemaps. Was previously "surface" which
-            // wasn't a defined Tailwind class, so it rendered transparent.
-            "glass-strong pointer-events-auto absolute right-3 top-[4.5rem] bottom-14 z-20",
+            // Fully opaque card so the muni details are readable over any
+            // basemap. Earlier we used translucent glass which made text fade
+            // into the map underneath.
+            "pointer-events-auto absolute right-3 top-[4.5rem] bottom-14 z-20",
             "w-[min(380px,calc(100%-1.5rem))] rounded-2xl",
             "flex flex-col overflow-hidden",
+            "bg-surface border border-line shadow-2xl",
           )}
         >
           <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">

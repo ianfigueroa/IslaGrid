@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadScorecard } from "@/lib/scorecards";
+import { SubPageHeader } from "@/app/_components/SubPageHeader";
 import { MunicipalityScorecard } from "./MunicipalityScorecard";
 
 export const dynamic = "force-dynamic";
@@ -34,18 +35,21 @@ export default async function MunicipalityPage({ params }: Props) {
   if (!data) notFound();
 
   return (
-    <main className="min-h-dvh bg-bg px-4 py-10 text-text sm:px-8">
-      <div className="mx-auto w-full max-w-3xl">
-        <p className="mb-3 text-[11px]">
-          <a
-            href="/m"
-            className="text-text-3 underline-offset-2 hover:text-text-2 hover:underline"
-          >
-            ← All municipalities
-          </a>
-        </p>
-        <MunicipalityScorecard data={data} />
-      </div>
-    </main>
+    <div className="min-h-dvh bg-bg text-text">
+      <SubPageHeader title={`${data.basics.name} scorecard`} />
+      <main className="px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-3xl">
+          <p className="mb-3 text-[11px]">
+            <a
+              href="/m"
+              className="text-text-3 underline-offset-2 hover:text-text-2 hover:underline"
+            >
+              ← All municipalities
+            </a>
+          </p>
+          <MunicipalityScorecard data={data} />
+        </div>
+      </main>
+    </div>
   );
 }
