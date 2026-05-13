@@ -113,10 +113,10 @@ export function ReportSheet({ onSubmitted }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Report a power issue"
-        // Bottom-left, just above the Legend chip — guaranteed empty space
-        // on every breakpoint. Doesn't collide with the brand pill, the grid
-        // status pill, or the right-side municipality info panel.
-        className="pointer-events-auto absolute bottom-32 left-3 z-30 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
+        // Sits in the TOP-LEFT, one slot below the PR Grid status pill. The
+        // brand pill is at top-4 (h-12), the grid pill at top-[5rem] (h-12),
+        // so this lands at top-[8.5rem] with a small visual gap.
+        className="pointer-events-auto absolute left-3 top-[8.5rem] z-30 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
       >
         <MessageSquareWarning className="size-4 text-warn" aria-hidden />
         Report

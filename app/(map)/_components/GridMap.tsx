@@ -3,15 +3,47 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 
-// Basemap — OpenFreeMap Liberty for BOTH themes. Carto's dark-matter style
-// returned "Zoom Level Not Supported" placeholder tiles for sparse Caribbean
-// regions, which ate the canvas. Liberty has dense planet coverage at zoom
-// 0-15 and a single style.json works everywhere. "Dark" mode just dims the
-// land via paint props in style.load below; everything else stays the same.
-const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+// Basemap — CartoDB raster tiles, served as inline MapLibre style.json. Both
+// Voyager (light) and Dark Matter (dark) have dense global coverage, so we
+// don't get OpenFreeMap's "Zoom Level Not Supported" placeholder boxes in
+// the ocean surrounding Puerto Rico. Raster instead of vector means slightly
+// less crisp on retina but zero coverage gaps and dark mode that actually
+// shows streets + buildings instead of a black void.
+const CARTO_ATTRIB =
+  '<a href="https://carto.com/attributions" target="_blank" rel="noreferrer">© CARTO</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
 
-function styleUrl(_theme: "dark" | "light"): string {
-  return STYLE_URL;
+function rasterStyle(variant: "voyager" | "dark_all"): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      basemap: {
+        type: "raster",
+        tiles: [
+          `https://a.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
+          `https://b.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
+          `https://c.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
+          `https://d.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
+        ],
+        tileSize: 256,
+        attribution: CARTO_ATTRIB,
+        minzoom: 0,
+        maxzoom: 19,
+      },
+    },
+    layers: [
+      {
+        id: "basemap",
+        type: "raster",
+        source: "basemap",
+        paint: { "raster-resampling": "linear" },
+      },
+    ],
+    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+  };
+}
+
+function styleFor(theme: "dark" | "light"): maplibregl.StyleSpecification {
+  return rasterStyle(theme === "dark" ? "dark_all" : "voyager");
 }
 
 // Soft, warm fuel palette — no AI-tech cyan
@@ -158,7 +190,7 @@ export function GridMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleUrl(theme),
+      style: styleFor(theme),
       center: [-66.5, 18.23],
       zoom: 8.4,
       // OpenFreeMap returns a "Zoom Level Not Supported" placeholder image
@@ -264,7 +296,7 @@ export function GridMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(styleUrl(theme));
+    map.setStyle(styleFor(theme));
     // style.load handler does the rest (addDataLayers → applyLayerVisibility).
   }, [theme]);
 
