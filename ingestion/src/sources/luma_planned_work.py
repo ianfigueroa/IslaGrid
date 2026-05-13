@@ -22,7 +22,7 @@ from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
 # Honor LUMA_OPERATOR_HOST so a successor operator can be swapped in via env.
-_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+_HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 URL = f"https://{_HOST}/mejorasplanificadas/"
 SOURCE = f"{_HOST}/planned-work"
 
