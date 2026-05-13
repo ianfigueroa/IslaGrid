@@ -3,16 +3,15 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 
-// Basemap — vector styles. Liberty (OpenFreeMap) for light: free, no key,
-// proper coastline + land-use. Dark-matter from Carto's CDN for dark
-// (OpenFreeMap doesn't host a dark style). Both are TileJSON style.json
-// URLs MapLibre can load directly; data layers re-add in style.load below.
-const STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
-const STYLE_DARK =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+// Basemap — OpenFreeMap Liberty for BOTH themes. Carto's dark-matter style
+// returned "Zoom Level Not Supported" placeholder tiles for sparse Caribbean
+// regions, which ate the canvas. Liberty has dense planet coverage at zoom
+// 0-15 and a single style.json works everywhere. "Dark" mode just dims the
+// land via paint props in style.load below; everything else stays the same.
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
-function styleUrl(theme: "dark" | "light"): string {
-  return theme === "dark" ? STYLE_DARK : STYLE_LIGHT;
+function styleUrl(_theme: "dark" | "light"): string {
+  return STYLE_URL;
 }
 
 // Soft, warm fuel palette — no AI-tech cyan
@@ -395,6 +394,8 @@ export function GridMap({
 
   async function loadWindInto(map: MlMap) {
     if (map.getLayer("wind-fill")) return;
+    // Concurrent callers (style.load + activeLayers effect) can both pass the
+    // pre-fetch check; the post-await guard below catches that race.
     try {
       // Pull the latest hour of weather snapshots per muni. The endpoint is
       // already served by /api/weather/latest; if not present, fall back to
@@ -413,6 +414,7 @@ export function GridMap({
       for (const [id, w] of byId) {
         map.setFeatureState({ source: "municipalities", id }, { wind_kph: w });
       }
+      if (map.getLayer("wind-fill")) return;
       map.addLayer(
         {
           id: "wind-fill",
@@ -722,6 +724,7 @@ export function GridMap({
           { demand_band: row.band },
         );
       }
+      // Recheck after the await: a concurrent caller may have added it.
       if (map.getLayer("municipalities-demand")) return;
       map.addLayer(
         {
@@ -815,6 +818,7 @@ export function GridMap({
       for (const [id, band] of byId) {
         map.setFeatureState({ source: "municipalities", id }, { band });
       }
+      if (map.getLayer("municipalities-risk")) return;
       map.addLayer(
         {
           id: "municipalities-risk",
