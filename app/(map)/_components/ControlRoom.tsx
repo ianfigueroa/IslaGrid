@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { GridSnapshot } from "@/lib/supabase";
-import { isAutoTheme, suggestAutoTheme, useTheme } from "@/lib/theme";
+import { useTheme } from "@/lib/theme";
 import { BrandPill } from "./BrandPill";
 import { GridStatusButton } from "./GridStatusButton";
 import { StatusPanel } from "./StatusPanel";
@@ -16,7 +16,7 @@ import { EmptyStateNote } from "./EmptyStateNote";
 import { MunicipalitySummary } from "./MunicipalitySummary";
 import { MapErrorBanner } from "./MapErrorBanner";
 import { ReportSheet } from "./ReportSheet";
-import type { ActiveLayerKey } from "./GridMap";
+import type { ActiveLayerKey, Basemap } from "./GridMap";
 
 const GridMap = dynamic(() => import("./GridMap").then((m) => m.GridMap), {
   ssr: false,
@@ -33,37 +33,23 @@ interface Props {
 }
 
 export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
 
-  // Auto-theme: dark at night OR during hurricane advisories. Honors a pinned
-  // user choice via isAutoTheme().
-  useEffect(() => {
-    if (!isAutoTheme()) return;
-    let cancelled = false;
-    async function pick() {
-      let hurricaneActive = false;
-      try {
-        const res = await fetch("/api/hurricanes/active", { cache: "no-store" });
-        if (res.ok) {
-          const json = (await res.json()) as { features?: unknown[] };
-          hurricaneActive = (json.features?.length ?? 0) > 0;
-        }
-      } catch {
-        /* fall through to time-based */
-      }
-      if (cancelled) return;
-      setTheme(suggestAutoTheme({ hurricaneActive }));
-    }
-    void pick();
-    const t = setInterval(pick, 60 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [setTheme]);
+  // No auto-theme. Light by default; the toggle in the brand menu is the only
+  // way to switch. (We used to flip back to dark every night based on local
+  // time, which kept "fighting" the user when they pinned light and came back
+  // to the map from /bill or /solar.)
 
   const [snapshot, setSnapshot] = useState<GridSnapshot | null>(initialSnapshot);
   const [updates] = useState<UpdateItem[]>(initialUpdates);
+  // Basemap is independent of theme — Satellite mode is just a different
+  // raster layer underneath, not a UI color change.
+  const [basemap, setBasemap] = useState<Basemap>(() => (theme === "dark" ? "dark" : "light"));
+  // Keep basemap in sync when the user toggles the theme via the menu, unless
+  // they've explicitly picked Satellite.
+  useEffect(() => {
+    setBasemap((prev) => (prev === "satellite" ? "satellite" : theme === "dark" ? "dark" : "light"));
+  }, [theme]);
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
     () =>
       new Set<LayerKey>([
@@ -133,6 +119,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     <main className="relative h-dvh w-dvw overflow-hidden bg-bg">
       <GridMap
         theme={theme}
+        basemap={basemap}
         activeLayers={mapLayers}
         onMapError={(msg) => setMapError(msg)}
         onSelectMunicipality={(id, name) =>
@@ -162,7 +149,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         }
       />
 
-      <BrandPill />
+      <BrandPill basemap={basemap} onBasemapChange={setBasemap} />
       <GridStatusButton
         snapshot={snapshot}
         active={panelOpen}

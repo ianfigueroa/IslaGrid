@@ -98,8 +98,8 @@ NREL_API_KEY=$NREL_API_KEY
 NREL_API_HOST=developer.nlr.gov
 
 # --- Geocoder (Nominatim) ---
-GEOCODER_UA=islagrid-ai/0.1 (iantdm11@gmail.com)
-NWS_USER_AGENT=islagrid-ai/0.1 (iantdm11@gmail.com)
+GEOCODER_UA=islagrid-ai/0.1 (contact@islagrid.app)
+NWS_USER_AGENT=islagrid-ai/0.1 (contact@islagrid.app)
 
 # --- Public site (for /api/reports origin allow-list) ---
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -121,8 +121,8 @@ R2_BUCKET=islagrid-raw
 R2_ENDPOINT=$R2_ENDPOINT
 
 # --- NWS / Nominatim User-Agents ---
-NWS_USER_AGENT=islagrid-ai/0.1 (iantdm11@gmail.com)
-GEOCODER_UA=islagrid-ai/0.1 (iantdm11@gmail.com)
+NWS_USER_AGENT=islagrid-ai/0.1 (contact@islagrid.app)
+GEOCODER_UA=islagrid-ai/0.1 (contact@islagrid.app)
 
 # --- NREL ---
 NREL_API_KEY=$NREL_API_KEY

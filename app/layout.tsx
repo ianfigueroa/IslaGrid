@@ -17,14 +17,14 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "IslaGrid AI — Puerto Rico Grid Intelligence",
+  title: "IslaGrid — Puerto Rico",
   description:
-    "Public, source-labeled view of Puerto Rico's electric grid. Demand, reserves, generation, planned work, community reports.",
-  applicationName: "IslaGrid AI",
-  authors: [{ name: "IslaGrid AI" }],
+    "Live view of Puerto Rico's electric grid. Demand, reserves, generation, planned work, community reports — every number traced to its source.",
+  applicationName: "IslaGrid",
+  authors: [{ name: "IslaGrid" }],
   openGraph: {
-    title: "IslaGrid AI",
-    description: "Public, source-labeled view of Puerto Rico's electric grid.",
+    title: "IslaGrid — Puerto Rico",
+    description: "Live view of Puerto Rico's electric grid.",
     type: "website",
     locale: "en_US",
   },

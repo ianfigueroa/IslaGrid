@@ -40,4 +40,4 @@ We may update these terms. Material changes will be announced on the site. Conti
 
 ## Contact
 
-**iantdm11@gmail.com**.
+**contact@islagrid.app**.

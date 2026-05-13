@@ -64,7 +64,7 @@ def _summarize(pdf_bytes: bytes) -> str:
 def run() -> int:
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
         index = client.get(
-            PAGE_URL, headers={"User-Agent": "islagrid-ai/0.1 (+iantdm11@gmail.com)"}
+            PAGE_URL, headers={"User-Agent": "islagrid-ai/0.1 (+contact@islagrid.app)"}
         )
         pdf_url = _find_latest_pdf(index.text)
         if not pdf_url:

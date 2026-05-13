@@ -47,7 +47,7 @@ def _fetch(url: str) -> bytes:
         r = client.get(
             url,
             params={"f": "json", "where": "1=1", "outFields": "*"},
-            headers={"User-Agent": "islagrid-ai/0.1 (+iantdm11@gmail.com)"},
+            headers={"User-Agent": "islagrid-ai/0.1 (+contact@islagrid.app)"},
         )
         r.raise_for_status()
         return r.content

@@ -147,4 +147,4 @@ will likely 301 for some window but plan to be off by 2026-06-15.
 
 ## On-call expectations (MVP)
 
-There is no on-call rotation. MVP is single-developer. Failure emails from GitHub Actions land in `iantdm11@gmail.com`. Acknowledge within 24 hours; full investigation within 7 days. Public site has a banner at all times that says: *"Informational — not for operational decisions."*
+There is no on-call rotation. MVP is single-developer. Failure emails from GitHub Actions land in `contact@islagrid.app`. Acknowledge within 24 hours; full investigation within 7 days. Public site has a banner at all times that says: *"Informational — not for operational decisions."*

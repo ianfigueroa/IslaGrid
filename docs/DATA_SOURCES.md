@@ -105,7 +105,7 @@ If a number appears in the UI, its source row must exist in this table.
 | Source label | `official` |
 | Parser | `ingestion/src/sources/nws_weather.py` |
 | Known issues (2026) | `/forecast` and `/forecast/hourly` removed historical data on 2026-01-07. `/radar/queues/{rds,tds}` limited since 2026-03-17. |
-| Required header | `User-Agent: islagrid-ai/0.1 (iantdm11@gmail.com)` per api.weather.gov policy |
+| Required header | `User-Agent: islagrid-ai/0.1 (contact@islagrid.app)` per api.weather.gov policy |
 
 ### OpenInfraMap / OpenStreetMap
 

@@ -35,4 +35,4 @@ IslaGrid AI is built from public data. Every source below is shown here and surf
 
 ## How to report an attribution issue
 
-Email **iantdm11@gmail.com** with the subject `IslaGrid AI: attribution`. We will respond within seven days.
+Email **contact@islagrid.app** with the subject `IslaGrid AI: attribution`. We will respond within seven days.

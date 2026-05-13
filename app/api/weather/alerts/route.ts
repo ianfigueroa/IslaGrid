@@ -35,7 +35,7 @@ export async function GET() {
     const res = await fetch(NWS_ALERTS, {
       headers: {
         Accept: "application/geo+json",
-        "User-Agent": "islagrid-ai/0.1 (+iantdm11@gmail.com)",
+        "User-Agent": "islagrid-ai/0.1 (+contact@islagrid.app)",
       },
       signal: ctrl.signal,
       cache: "no-store",

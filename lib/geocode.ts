@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { getServerSupabase, isSupabaseConfigured } from "./supabase";
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const USER_AGENT = process.env.GEOCODER_UA ?? "islagrid-ai/0.1 (+iantdm11@gmail.com)";
+const USER_AGENT = process.env.GEOCODER_UA ?? "islagrid-ai/0.1 (+contact@islagrid.app)";
 
 export interface Geocoded {
   lat: number;
