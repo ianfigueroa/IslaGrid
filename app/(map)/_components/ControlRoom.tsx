@@ -77,6 +77,15 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
   const [mapError, setMapError] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
 
+  // Tag the body so global CSS can lock scroll on the map route only.
+  // Subpages (bill, solar, battery, disaster) need to scroll normally.
+  useEffect(() => {
+    document.body.dataset.route = "map";
+    return () => {
+      delete document.body.dataset.route;
+    };
+  }, []);
+
   // Refresh the snapshot once a minute so the status pill stays current.
   useEffect(() => {
     const t = setInterval(async () => {
@@ -170,7 +179,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
       <EmptyStateNote visible={snapshot == null} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
-      <ReportSheet enabled={activeLayers.has("reports")} />
+      <ReportSheet />
       <MapErrorBanner message={mapError} onDismiss={() => setMapError(null)} />
     </main>
   );

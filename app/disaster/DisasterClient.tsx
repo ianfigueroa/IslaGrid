@@ -189,7 +189,7 @@ export function DisasterClient() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-6">
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
       <a
         href="/"
         className="mb-4 inline-flex h-10 items-center gap-2 rounded-full bg-surface px-3.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
