@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Plus, Sun, Trash2, Zap } from "lucide-react";
+import { Plus, Sun, Trash2 } from "lucide-react";
+import { SubPageHeader } from "@/app/_components/SubPageHeader";
 import {
   APPLIANCE_PRESETS,
   estimateBill,
@@ -76,24 +76,10 @@ export function BillCalculator({ initialRate }: Props) {
 
   return (
     <div className="min-h-dvh bg-bg text-text">
-      <header className="surface sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-md">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Back to map
-        </Link>
-        <div className="ml-2 flex items-center gap-2 border-l border-line pl-4">
-          <Zap className="size-4 text-brand" aria-hidden />
-          <span className="font-mono text-sm">
-            IslaGrid<span className="text-text-3">/PR</span>
-          </span>
-        </div>
-        <span className="ml-auto hidden font-mono text-[11px] text-text-3 md:inline">
-          Informational — not for operational decisions
-        </span>
-      </header>
+      <SubPageHeader
+        title="Bill estimator"
+        hint="Informational — not for operational decisions"
+      />
 
       <main className="mx-auto max-w-5xl px-5 py-10 md:py-14">
         <div className="mb-8">

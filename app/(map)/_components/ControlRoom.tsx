@@ -4,13 +4,14 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { GridSnapshot } from "@/lib/supabase";
 import { isAutoTheme, suggestAutoTheme, useTheme } from "@/lib/theme";
-import { StatusBar } from "./StatusBar";
-import { TopNav } from "./TopNav";
-import { LayerRail, useLayerUrlState, type LayerKey } from "./LayerRail";
+import { BrandPill } from "./BrandPill";
+import { GridStatusButton } from "./GridStatusButton";
+import { StatusPanel } from "./StatusPanel";
+import { LayerPills } from "./LayerPills";
+import { useLayerUrlState, type LayerKey } from "./LayerRail";
 import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
-import { UpdateTimeline, type UpdateItem } from "./UpdateTimeline";
+import type { UpdateItem } from "./UpdateTimeline";
 import { EmptyStateNote } from "./EmptyStateNote";
-import { GridStatusDetails } from "./GridStatusDetails";
 import { MunicipalitySummary } from "./MunicipalitySummary";
 import { MapErrorBanner } from "./MapErrorBanner";
 import { ReportSheet } from "./ReportSheet";
@@ -33,9 +34,8 @@ interface Props {
 export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
   const { theme, setTheme } = useTheme();
 
-  // Auto-theme: dark during night hours OR when a hurricane advisory is
-  // active. Only runs when the user hasn't explicitly pinned a theme
-  // (isAutoTheme()=true) — preserves user choice when they set it manually.
+  // Auto-theme: dark at night OR during hurricane advisories. Honors a pinned
+  // user choice via isAutoTheme().
   useEffect(() => {
     if (!isAutoTheme()) return;
     let cancelled = false;
@@ -48,19 +48,19 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
           hurricaneActive = (json.features?.length ?? 0) > 0;
         }
       } catch {
-        /* no signal; fall through to time-based */
+        /* fall through to time-based */
       }
       if (cancelled) return;
       setTheme(suggestAutoTheme({ hurricaneActive }));
     }
     void pick();
-    // Re-evaluate hourly so it flips at 22:00 / 06:00 boundaries.
     const t = setInterval(pick, 60 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
   }, [setTheme]);
+
   const [snapshot, setSnapshot] = useState<GridSnapshot | null>(initialSnapshot);
   const [updates] = useState<UpdateItem[]>(initialUpdates);
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
@@ -74,7 +74,9 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
   );
   const [selection, setSelection] = useState<PanelSelection | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
 
+  // Refresh the snapshot once a minute so the status pill stays current.
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -83,7 +85,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         const json = (await res.json()) as { snapshot: GridSnapshot | null };
         if (json.snapshot) setSnapshot(json.snapshot);
       } catch {
-        /* keep prior snapshot */
+        /* keep prior */
       }
     }, 60_000);
     return () => clearInterval(t);
@@ -95,7 +97,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
   useLayerUrlState(activeLayers, setLayers);
 
-  // GridMap only acts on the subset it knows about.
+  // GridMap only knows about a subset of the rail's layer keys.
   const mapLayers = new Set<ActiveLayerKey>(
     Array.from(activeLayers).filter((k): k is ActiveLayerKey =>
       [
@@ -149,24 +151,23 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
           })
         }
       />
-      <TopNav />
-      <StatusBar
+
+      <BrandPill />
+      <GridStatusButton
         snapshot={snapshot}
-        onStatusClick={() =>
-          snapshot &&
-          setSelection({
-            kind: "municipality",
-            id: `grid:${snapshot.ts}`,
-            title: "Puerto Rico grid status",
-            subtitle: `${snapshot.status.toUpperCase()} · as of ${new Date(snapshot.ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`,
-            body: <GridStatusDetails snapshot={snapshot} />,
-          })
-        }
+        active={panelOpen}
+        onClick={() => setPanelOpen((v) => !v)}
       />
+      <StatusPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        snapshot={snapshot}
+        updates={updates}
+      />
+      <LayerPills active={activeLayers} onSetActive={setLayers} />
+
       <EmptyStateNote visible={snapshot == null} />
-      <LayerRail active={activeLayers} onSetActive={setLayers} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
-      <UpdateTimeline items={updates} />
       <ReportSheet enabled={activeLayers.has("reports")} />
       <MapErrorBanner message={mapError} onDismiss={() => setMapError(null)} />
     </main>

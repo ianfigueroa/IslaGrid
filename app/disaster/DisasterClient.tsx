@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BatteryCharging, Building2, Languages, MessageSquareWarning, RefreshCw, Wifi, WifiOff, Zap } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BatteryCharging, Building2, Languages, MessageSquareWarning, RefreshCw, Wifi, WifiOff, Zap } from "lucide-react";
 import { SHELTERS, SHELTER_DISCLAIMER } from "@/lib/shelters";
 
 type Lang = "en" | "es";
@@ -190,6 +190,13 @@ export function DisasterClient() {
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6">
+      <a
+        href="/"
+        className="mb-4 inline-flex h-10 items-center gap-2 rounded-full bg-surface px-3.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        {lang === "es" ? "Volver al mapa" : "Back to map"}
+      </a>
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="size-5 text-warn" aria-hidden />

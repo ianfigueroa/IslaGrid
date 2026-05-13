@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SolarAssessor } from "./SolarAssessor";
 import { SOLAR_ASSUMPTIONS } from "@/lib/solar";
+import { SubPageHeader } from "@/app/_components/SubPageHeader";
 
 export const metadata: Metadata = {
   title: "Solar Lens — IslaGrid",
@@ -12,8 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default function SolarPage() {
   return (
-    <main className="min-h-dvh bg-bg px-4 py-10 text-text sm:px-8">
-      <div className="mx-auto w-full max-w-3xl">
+    <div className="min-h-dvh bg-bg text-text">
+      <SubPageHeader title="Solar Lens" hint="NREL PVWatts v8 + PREB rates" />
+      <main className="px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-3xl">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-text-3">
           Solar Lens · Estimate
         </p>
@@ -56,7 +59,8 @@ export default function SolarPage() {
             </li>
           </ul>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
