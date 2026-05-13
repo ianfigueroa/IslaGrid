@@ -28,7 +28,7 @@ from ..pipeline.supabase_client import supabase
 
 # Successor-operator swap: set LUMA_OPERATOR_HOST in env to redirect all
 # luma_* parsers without code changes. See docs/RUNBOOK.md.
-_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+_HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 PAGE_URL = f"https://{_HOST}/bps-monitoring/"
 SOURCE = f"{_HOST}/bps"
 

@@ -19,7 +19,7 @@ from selectolax.parser import HTMLParser
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
 
-_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+_HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 URL = f"https://{_HOST}/avisos/"
 SOURCE = f"{_HOST}/avisos"
 

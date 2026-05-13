@@ -216,7 +216,7 @@ def _to_rows(snapshots: Iterable[RegionSnapshot], raw_key: str) -> list[dict[str
 
 
 def run() -> int:
-    arcgis_url = os.environ.get(ARCGIS_URL_ENV, DEFAULT_ARCGIS_URL)
+    arcgis_url = os.environ.get(ARCGIS_URL_ENV) or DEFAULT_ARCGIS_URL
     snapshots: list[RegionSnapshot] = []
     raw_key = ""
 

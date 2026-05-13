@@ -24,7 +24,7 @@ from ..pipeline.supabase_client import supabase
 # If/when the operator contract transitions, set LUMA_OPERATOR_HOST to the
 # successor's domain (no scheme, no trailing slash). All luma_* parsers honor
 # this env var so swapping is a config-only change. See docs/RUNBOOK.md.
-_HOST = os.environ.get("LUMA_OPERATOR_HOST", "lumapr.com").rstrip("/")
+_HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 URL = f"https://{_HOST}/resumen-del-sistema/"
 SOURCE = _HOST
 
