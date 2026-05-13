@@ -8,6 +8,7 @@ import { BrandPill } from "./BrandPill";
 import { GridStatusButton } from "./GridStatusButton";
 import { StatusPanel } from "./StatusPanel";
 import { LayerPills } from "./LayerPills";
+import { MapLegend } from "./MapLegend";
 import { useLayerUrlState, type LayerKey } from "./LayerRail";
 import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
 import type { UpdateItem } from "./UpdateTimeline";
@@ -165,6 +166,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         updates={updates}
       />
       <LayerPills active={activeLayers} onSetActive={setLayers} />
+      <MapLegend active={activeLayers} />
 
       <EmptyStateNote visible={snapshot == null} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />

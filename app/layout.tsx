@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Fira_Code, Fira_Sans } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 
 const firaSans = Fira_Sans({
@@ -58,10 +57,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${firaSans.variable} ${firaCode.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          // Run before paint so the first frame already has the right theme.
+          // Next 16 warns on next/script with inline children; an inline
+          // <script dangerouslySetInnerHTML> in <head> is the supported path.
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }}
+        />
+      </head>
       <body className="font-sans">
-        <Script id="islagrid-theme-bootstrap" strategy="beforeInteractive">
-          {THEME_BOOTSTRAP}
-        </Script>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:text-text"

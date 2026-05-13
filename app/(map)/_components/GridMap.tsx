@@ -157,13 +157,13 @@ export function GridMap({
       style: styleUrl(theme),
       center: [-66.5, 18.23],
       zoom: 8.4,
-      minZoom: 4,
+      // Vector tile styles (OpenFreeMap Liberty, Carto dark-matter) bottom out
+      // around zoom 6 — going lower paints "Zoom Level Not Supported" tiles.
+      minZoom: 6,
       maxZoom: 16,
-      // Wide Caribbean bounds — user can pan out to see the region without
-      // getting trapped in the PR-only window.
       maxBounds: [
-        [-90.0, 8.0],
-        [-50.0, 28.0],
+        [-72.0, 16.0],
+        [-62.0, 20.5],
       ],
       attributionControl: { compact: true },
     });
@@ -969,11 +969,15 @@ export function GridMap({
       FUEL_COLOR.unknown,
     ] as unknown as maplibregl.ExpressionSpecification;
 
+    // OSM tags individual PV panels, wind turbines, and battery cells as
+    // separate `generator` nodes — rendering them all paints fake clusters
+    // on top of solar farms. Restrict the plant layer to `kind: "plant"`
+    // (the consolidated facility polygon) so each plant is exactly one dot.
     map.addLayer({
       id: "osm-plants-glow",
       type: "circle",
       source: "osm-power",
-      filter: ["match", ["get", "kind"], ["plant", "generator"], true, false],
+      filter: ["==", ["get", "kind"], "plant"],
       paint: {
         "circle-radius": [
           "interpolate",
@@ -994,7 +998,7 @@ export function GridMap({
       id: "osm-plants",
       type: "circle",
       source: "osm-power",
-      filter: ["match", ["get", "kind"], ["plant", "generator"], true, false],
+      filter: ["==", ["get", "kind"], "plant"],
       paint: {
         "circle-radius": [
           "interpolate",
