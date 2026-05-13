@@ -151,7 +151,7 @@ def main() -> int:
     # Optional R2 mirror
     if os.environ.get("R2_BUCKET"):
         try:
-            from ..src.pipeline.snapshot import save_raw
+            from src.pipeline.snapshot import save_raw  # type: ignore[import-not-found]
 
             for p in (out / "model.txt", out / "metrics.json"):
                 save_raw(f"islagrid-ml/{stamp}/{p.name}", p.read_bytes(), ext=p.suffix.lstrip("."))

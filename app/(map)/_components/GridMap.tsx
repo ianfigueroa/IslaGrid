@@ -3,12 +3,13 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 
-// Basemap — OpenFreeMap vector styles. Free, no API key, proper coastline +
-// land-use rendering (Windy-style natural feel). Liberty for light mode, the
-// dark-matter for dark. MapLibre swallows these as full style URLs; data
-// layers re-add in the style.load event below.
+// Basemap — vector styles. Liberty (OpenFreeMap) for light: free, no key,
+// proper coastline + land-use. Dark-matter from Carto's CDN for dark
+// (OpenFreeMap doesn't host a dark style). Both are TileJSON style.json
+// URLs MapLibre can load directly; data layers re-add in style.load below.
 const STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
-const STYLE_DARK = "https://tiles.openfreemap.org/styles/dark-matter";
+const STYLE_DARK =
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 function styleUrl(theme: "dark" | "light"): string {
   return theme === "dark" ? STYLE_DARK : STYLE_LIGHT;
@@ -156,11 +157,13 @@ export function GridMap({
       style: styleUrl(theme),
       center: [-66.5, 18.23],
       zoom: 8.4,
-      minZoom: 7,
-      maxZoom: 14,
+      minZoom: 4,
+      maxZoom: 16,
+      // Wide Caribbean bounds — user can pan out to see the region without
+      // getting trapped in the PR-only window.
       maxBounds: [
-        [-68.5, 17.0],
-        [-64.0, 19.5],
+        [-90.0, 8.0],
+        [-50.0, 28.0],
       ],
       attributionControl: { compact: true },
     });
@@ -200,17 +203,20 @@ export function GridMap({
       onMapErrorRef.current?.(msg);
     });
 
-    map.on("click", "municipalities-fill", (e) => {
+    // Clicks bind to the ALWAYS-visible "municipalities-hit" layer (opacity 0
+    // but interactive) so user can pick a muni even when status/risk/demand
+    // layers are toggled off. The hit layer is added inside addMuniLayers.
+    map.on("click", "municipalities-hit", (e) => {
       const f = e.features?.[0];
       if (!f) return;
       const p = f.properties as { id: string; name: string };
       onSelMuniRef.current?.(p.id, p.name);
     });
 
-    map.on("mouseenter", "municipalities-fill", () => {
+    map.on("mouseenter", "municipalities-hit", () => {
       map.getCanvas().style.cursor = "pointer";
     });
-    map.on("mouseleave", "municipalities-fill", () => {
+    map.on("mouseleave", "municipalities-hit", () => {
       map.getCanvas().style.cursor = "";
     });
 
@@ -432,6 +438,7 @@ export function GridMap({
     setVis("municipalities-risk", showRisk);
     setVis("municipalities-demand", showDemand && !showRisk);
     setVis("osm-plants", showPlants);
+    setVis("osm-plants-glow", showPlants);
     setVis("osm-substations", showSubs);
     setVis("reports-hex-fill", showReports);
     setVis("reports-hex-stroke", showReports);
@@ -821,6 +828,16 @@ export function GridMap({
     if (map.getSource("municipalities")) return;
     map.addSource("municipalities", { type: "geojson", data: fc, promoteId: "id" });
 
+    // Invisible hit layer — always present so clicks register regardless of
+    // which paint layer (status/risk/demand) is currently visible. Opacity 0
+    // still receives pointer events in MapLibre.
+    map.addLayer({
+      id: "municipalities-hit",
+      type: "fill",
+      source: "municipalities",
+      paint: { "fill-color": "#000000", "fill-opacity": 0 },
+    });
+
     // Status fill — kept VERY subtle so the OpenFreeMap land/water rendering
     // shows through. Only colors strongly when status ≠ unknown/normal.
     map.addLayer({
@@ -887,9 +904,10 @@ export function GridMap({
       },
     });
 
-    // Hover state — bound to fill but renders via the dedicated hover layer
+    // Hover state — bound to the always-on hit layer so hover works even when
+    // status/risk/demand fills are toggled off.
     let hoveredId: string | number | null = null;
-    map.on("mousemove", "municipalities-fill", (e) => {
+    map.on("mousemove", "municipalities-hit", (e) => {
       const f = e.features?.[0];
       if (!f) return;
       if (hoveredId !== null) {
@@ -904,7 +922,7 @@ export function GridMap({
         { hover: true },
       );
     });
-    map.on("mouseleave", "municipalities-fill", () => {
+    map.on("mouseleave", "municipalities-hit", () => {
       if (hoveredId !== null) {
         map.setFeatureState(
           { source: "municipalities", id: hoveredId },
@@ -933,6 +951,45 @@ export function GridMap({
       },
     });
 
+    // Plant glow — soft halo behind each plant marker. Fuel-tinted so renewables
+    // read green/teal, fossils warm. Sized 2.5× the marker so it bleeds out like
+    // a lit node rather than a flat dot.
+    const FUEL_MATCH = [
+      "match",
+      ["downcase", ["to-string", ["coalesce", ["get", "fuel"], "unknown"]]],
+      "oil", FUEL_COLOR.oil,
+      "diesel", FUEL_COLOR.diesel,
+      "gas", FUEL_COLOR.gas,
+      "coal", FUEL_COLOR.coal,
+      "solar", FUEL_COLOR.solar,
+      "wind", FUEL_COLOR.wind,
+      "hydro", FUEL_COLOR.hydro,
+      "landfill", FUEL_COLOR.landfill,
+      "battery", FUEL_COLOR.battery,
+      FUEL_COLOR.unknown,
+    ] as unknown as maplibregl.ExpressionSpecification;
+
+    map.addLayer({
+      id: "osm-plants-glow",
+      type: "circle",
+      source: "osm-power",
+      filter: ["match", ["get", "kind"], ["plant", "generator"], true, false],
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["to-number", ["get", "capacity_mw"]], 0],
+          0, 10,
+          100, 18,
+          500, 28,
+          1000, 36,
+        ],
+        "circle-color": FUEL_MATCH,
+        "circle-opacity": 0.22,
+        "circle-blur": 1.1,
+      },
+    });
+
     map.addLayer({
       id: "osm-plants",
       type: "circle",
@@ -943,28 +1000,15 @@ export function GridMap({
           "interpolate",
           ["linear"],
           ["coalesce", ["to-number", ["get", "capacity_mw"]], 0],
-          0, 4,
-          100, 7,
+          0, 4.5,
+          100, 7.5,
           500, 11,
           1000, 14,
         ],
-        "circle-color": [
-          "match",
-          ["downcase", ["to-string", ["coalesce", ["get", "fuel"], "unknown"]]],
-          "oil", FUEL_COLOR.oil,
-          "diesel", FUEL_COLOR.diesel,
-          "gas", FUEL_COLOR.gas,
-          "coal", FUEL_COLOR.coal,
-          "solar", FUEL_COLOR.solar,
-          "wind", FUEL_COLOR.wind,
-          "hydro", FUEL_COLOR.hydro,
-          "landfill", FUEL_COLOR.landfill,
-          "battery", FUEL_COLOR.battery,
-          FUEL_COLOR.unknown,
-        ],
-        "circle-stroke-color": themeRef.current === "dark" ? "#07101f" : "#ffffff",
-        "circle-stroke-width": 1.2,
-        "circle-opacity": 0.94,
+        "circle-color": FUEL_MATCH,
+        "circle-stroke-color": themeRef.current === "dark" ? "#0b1a33" : "#ffffff",
+        "circle-stroke-width": 1.6,
+        "circle-opacity": 0.96,
       },
     });
 
