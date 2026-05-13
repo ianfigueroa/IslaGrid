@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 
-from ..src.pipeline.supabase_client import supabase
+from src.pipeline.supabase_client import supabase  # type: ignore[import-not-found]
 from .dataset import FEATURE_COLS
 
 log = logging.getLogger(__name__)

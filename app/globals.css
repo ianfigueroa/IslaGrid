@@ -183,6 +183,16 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* Surface — solid panel for non-overlay UI (settings rows, info sections).
+     Many components reference className="surface" expecting this. Without it
+     the element renders transparent over the map. */
+  .surface {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+
   /* Glass — for chrome overlaid on the map */
   .glass {
     background: color-mix(in oklch, var(--color-surface) 94%, transparent);

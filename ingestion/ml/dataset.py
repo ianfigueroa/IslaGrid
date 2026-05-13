@@ -19,7 +19,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..src.pipeline.supabase_client import supabase
+from src.pipeline.supabase_client import supabase  # type: ignore[import-not-found]
 
 log = logging.getLogger(__name__)
 

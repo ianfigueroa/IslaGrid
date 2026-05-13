@@ -102,7 +102,11 @@ export function LayerPills({ active, onSetActive }: Props) {
                 onClick={() => toggle(key)}
                 aria-pressed={isActive}
                 aria-label={`${label} layer${isActive ? " (active)" : ""}`}
-                whileTap={{ scale: 0.93 }}
+                // Pop on click — scale up briefly then return. No sliding ring
+                // between pills (the layoutId variant was confusing).
+                whileTap={{ scale: 0.9 }}
+                animate={isActive ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={{ duration: 0.28, ease: [0.34, 1.56, 0.64, 1] }}
                 className={cn(
                   // 44×44 minimum for accessibility
                   "group relative flex h-11 shrink-0 items-center gap-2 rounded-xl px-3 transition-colors",
@@ -113,13 +117,6 @@ export function LayerPills({ active, onSetActive }: Props) {
               >
                 <Icon className="size-4 shrink-0" aria-hidden />
                 <span className="text-[13px] font-medium">{label}</span>
-                {isActive ? (
-                  <motion.span
-                    layoutId="pill-active-ring"
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-brand-strong/40"
-                  />
-                ) : null}
               </motion.button>
             );
           })}
