@@ -276,13 +276,26 @@ def _parse_plants(gauges: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         nt = _norm(title)
         category = "unknown"
-        for i, (name, cat) in enumerate(expected):
-            if used[i]:
-                continue
-            if name == nt or name in nt or nt in name:
-                category = cat
-                used[i] = True
-                break
+        # Two passes so a loose substring never wins over a real name. Pass 1:
+        # exact normalized match ("sanjuan" == "sanjuan"). Pass 2: substring,
+        # only if nothing matched exactly — this catches "Ciclo Combinado
+        # Aguirre" → "aguirre" without letting "aguirre" hijack it in pass 1.
+        idx = next(
+            (i for i, (name, _c) in enumerate(expected) if not used[i] and name == nt),
+            None,
+        )
+        if idx is None:
+            idx = next(
+                (
+                    i
+                    for i, (name, _c) in enumerate(expected)
+                    if not used[i] and (name in nt or nt in name)
+                ),
+                None,
+            )
+        if idx is not None:
+            category = expected[idx][1]
+            used[idx] = True
         rows.append({"plant_name": title, "category": category, "output_mw": mw})
     return rows
 

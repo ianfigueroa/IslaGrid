@@ -100,11 +100,11 @@ def _fetch_all(client: httpx.Client, url: str, where: str) -> tuple[list[dict[st
 def _feature_to_row(feat: dict[str, Any]) -> dict[str, Any] | None:
     props = feat.get("properties") or {}
     geom = feat.get("geometry")
-    feeder_id = (
-        props.get("CIRCUIT1")
-        or props.get("FEEDER")
-        or props.get("OBJECTID_1")
-    )
+    # Only the circuit/feeder codes are stable identities. OBJECTID is an
+    # ArcGIS row counter that can shift between layer refreshes, so using it
+    # as feeder_id would make the same physical feeder look like a new one
+    # (and break the "latest per feeder" view). Drop rows with neither code.
+    feeder_id = props.get("CIRCUIT1") or props.get("FEEDER")
     if not feeder_id:
         return None
     return {

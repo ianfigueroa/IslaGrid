@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .risk import GridInputs, classify
@@ -43,6 +43,12 @@ MERGED_SOURCE = "islagrid-merged"
 # Sources we merge, newest-first lookup. Order here does not imply priority —
 # priority is per-field, see FIELD_PRIORITY below.
 COMPONENT_SOURCES = ("lumapr.com", "genera-pr.com")
+
+# When a source is in maintenance it keeps publishing FRESH rows that are full
+# of NULLs (source_stale=True). A real reading from a few hours ago is more
+# useful to the public than that — so we'll fall back to the most recent
+# non-stale row within this window. Past it, the source is genuinely dark.
+_MAX_FALLBACK_AGE = timedelta(hours=6)
 
 # field -> ordered list of sources to try
 FIELD_PRIORITY: dict[str, tuple[str, ...]] = {
@@ -60,8 +66,17 @@ log = logging.getLogger(__name__)
 
 
 def _latest_per_source() -> dict[str, dict[str, Any]]:
-    """Most recent grid_snapshots row for each component source."""
+    """
+    Best available grid_snapshots row for each component source.
+
+    Not simply the newest row: a source in maintenance publishes fresh rows
+    full of NULLs, and merging those would erase a perfectly good reading from
+    an hour ago. So we take the freshest NON-stale row within
+    `_MAX_FALLBACK_AGE`, and only fall back to the newest (possibly stale) row
+    when there's nothing better — that keeps the all-stale detection honest.
+    """
     out: dict[str, dict[str, Any]] = {}
+    cutoff = (datetime.now(UTC) - _MAX_FALLBACK_AGE).isoformat()
     for src in COMPONENT_SOURCES:
         res = (
             supabase()
@@ -69,12 +84,21 @@ def _latest_per_source() -> dict[str, dict[str, Any]]:
             .select("*")
             .eq("source", src)
             .order("ts", desc=True)
-            .limit(1)
+            .limit(10)
             .execute()
         )
         rows = res.data or []
-        if rows:
-            out[src] = rows[0]
+        if not rows:
+            continue
+        fresh = next(
+            (
+                r
+                for r in rows
+                if not r.get("source_stale") and str(r.get("ts", "")) >= cutoff
+            ),
+            None,
+        )
+        out[src] = fresh or rows[0]
     return out
 
 
