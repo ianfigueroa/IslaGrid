@@ -46,7 +46,14 @@ interface Payload {
   features: FeederFeature[];
   reason?: "supabase_unconfigured" | "supabase_error";
   error?: string;
+  /** True when the result hit the row cap — the map is showing a subset. */
+  truncated?: boolean;
 }
+
+// Generous cap. During a true island-wide event active feeders can run into
+// the thousands; we'd rather serve a large payload than silently drop the
+// tail. If we ever hit this, `truncated` tells the client to disclose it.
+const ROW_CAP = 8000;
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -65,7 +72,7 @@ export async function GET() {
       "feeder_id, name, region, municipality_label, voltage_kv, load_mw, customers, status, predicted_load_shed, predicted_at, sectors, comments, geometry_geojson, ts",
     )
     .or("status.eq.SI,predicted_load_shed.eq.SI")
-    .limit(2000);
+    .limit(ROW_CAP);
 
   if (error) {
     const body: Payload = {
@@ -77,7 +84,8 @@ export async function GET() {
     return NextResponse.json(body, { status: 500 });
   }
 
-  const features: FeederFeature[] = ((data ?? []) as FeederRow[]).map((r) => ({
+  const rows = (data ?? []) as FeederRow[];
+  const features: FeederFeature[] = rows.map((r) => ({
     type: "Feature",
     id: r.feeder_id,
     geometry: r.geometry_geojson,
@@ -97,7 +105,11 @@ export async function GET() {
     },
   }));
 
-  const body: Payload = { type: "FeatureCollection", features };
+  const body: Payload = {
+    type: "FeatureCollection",
+    features,
+    ...(rows.length >= ROW_CAP ? { truncated: true } : {}),
+  };
   return NextResponse.json(body, {
     headers: {
       "Cache-Control":

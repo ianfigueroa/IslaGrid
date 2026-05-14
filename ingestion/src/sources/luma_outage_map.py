@@ -86,10 +86,14 @@ def _parse_timestamp(raw: str | None) -> str | None:
         return None
     try:
         # No timezone in the source — assume Atlantic Standard Time (no DST).
-        from datetime import timedelta
+        # Attach AST explicitly rather than relying on the runner's local tz:
+        # astimezone() on a naive datetime treats it as system-local, which is
+        # only correct on a UTC runner and silently wrong everywhere else.
+        from datetime import timedelta, timezone
 
-        dt = datetime.strptime(raw, "%m/%d/%Y %I:%M %p")
-        return (dt - timedelta(hours=-4)).astimezone(UTC).isoformat()
+        ast = timezone(timedelta(hours=-4))
+        dt = datetime.strptime(raw, "%m/%d/%Y %I:%M %p").replace(tzinfo=ast)
+        return dt.astimezone(UTC).isoformat()
     except ValueError:
         return None
 
