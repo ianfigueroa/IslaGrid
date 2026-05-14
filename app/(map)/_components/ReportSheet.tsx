@@ -113,10 +113,11 @@ export function ReportSheet({ onSubmitted }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Report a power issue"
-        // Sits in the TOP-LEFT, one slot below the PR Grid status pill. The
-        // brand pill is at top-4 (h-12), the grid pill at top-[5rem] (h-12),
-        // so this lands at top-[8.5rem] with a small visual gap.
-        className="pointer-events-auto absolute left-3 top-[8.5rem] z-30 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
+        // Tucked directly under the PR Grid pill, left edge flush with the
+        // IslaGrid brand pill above. Brand at top-4 (h-11), grid pill at
+        // top-[4.5rem] (h-11) ends at 7.25rem — sit at top-[7.5rem] with a
+        // 4px gap so the three pills read as one column.
+        className="pointer-events-auto absolute left-4 top-[7.5rem] z-30 flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-text shadow-lg transition-colors hover:bg-surface-2"
       >
         <MessageSquareWarning className="size-4 text-warn" aria-hidden />
         Report

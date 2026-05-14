@@ -272,6 +272,8 @@ export function GridMap({
         startRainRadar(map);
       }
       if (activeLayersRef.current.has("wind")) void loadWindInto(map);
+      if (activeLayersRef.current.has("outages-live")) void loadFeederOutagesInto(map);
+      if (activeLayersRef.current.has("planned-work")) void loadPlannedWorkInto(map);
     });
 
     map.on("error", (ev) => {
@@ -340,8 +342,11 @@ export function GridMap({
     if (activeLayers.has("hurricane")) void loadHurricaneInto(map);
     if (activeLayers.has("weather-alerts")) void loadAlertsInto(map);
     if (activeLayers.has("quakes")) void loadQuakesInto(map);
-    if (activeLayers.has("outages-live")) void loadOutageMarkersInto(map);
-    else clearOutageMarkers();
+    if (activeLayers.has("outages-live")) {
+      void loadOutageMarkersInto(map);
+      void loadFeederOutagesInto(map);
+    } else clearOutageMarkers();
+    if (activeLayers.has("planned-work")) void loadPlannedWorkInto(map);
     if (activeLayers.has("rain-radar")) startRainRadar(map);
     else stopRainRadar(map);
     if (activeLayers.has("wind")) void loadWindInto(map);
@@ -370,12 +375,29 @@ export function GridMap({
       window.clearInterval(s.timer);
       s.timer = null;
     }
-    for (const f of s.frames) {
-      if (map.getLayer(f.id)) map.removeLayer(f.id);
-      if (map.getSource(f.id)) map.removeSource(f.id);
-    }
+    // purgeRainLayers catches both our tracked frames and any orphans.
+    purgeRainLayers(map);
     s.frames = [];
     s.cursor = 0;
+  }
+
+  // Remove ANY rain-* layers/sources still attached to the map, including
+  // orphans left behind by a hot-reload or an aborted earlier run. Without
+  // this, a stale layer (added before a code change) keeps rendering its old
+  // tiles — which is how "Zoom Level Not Supported" ends up tiling the whole
+  // viewport even after the URL is fixed.
+  function purgeRainLayers(map: MlMap) {
+    const style = map.getStyle();
+    for (const layer of style.layers ?? []) {
+      if (layer.id.startsWith("rain-") && map.getLayer(layer.id)) {
+        map.removeLayer(layer.id);
+      }
+    }
+    for (const srcId of Object.keys(style.sources ?? {})) {
+      if (srcId.startsWith("rain-") && map.getSource(srcId)) {
+        map.removeSource(srcId);
+      }
+    }
   }
 
   function startRainRadar(map: MlMap) {
@@ -383,6 +405,8 @@ export function GridMap({
     if (rainStateRef.current.timer != null) return;
     void (async () => {
       try {
+        // Clear any orphan rain layers before we add a fresh stack.
+        purgeRainLayers(map);
         const res = await fetch("https://api.rainviewer.com/public/weather-maps.json", {
           cache: "no-store",
         });
@@ -407,13 +431,17 @@ export function GridMap({
           if (map.getSource(id)) continue;
           map.addSource(id, {
             type: "raster",
-            // Color scheme 6 = Blue→Purple (Windy-like); size 512; smooth=1.
-            // Constrain to RainViewer's actual cache range so MapLibre never
-            // requests tiles that come back as "Zoom Level Not Supported".
-            tiles: [`${host}${f.path}/512/{z}/{x}/{y}/6/1_0.png`],
+            // RainViewer radar data only exists through zoom 7. At z8+ BOTH
+            // the /256/ and /512/ endpoints return a "Zoom Level Not
+            // Supported" placeholder PNG (a uniform rgba(0,0,0,140) image) —
+            // WITH a 200 status, so it can't be caught as a network error.
+            // Setting source maxzoom:7 makes MapLibre request z7 tiles and
+            // over-zoom (stretch) them for display at z8-16, so we never hit
+            // the broken tiles. minzoom 3 + PR bounds keep us off world tiles.
+            tiles: [`${host}${f.path}/512/{z}/{x}/{y}/2/1_1.png`],
             tileSize: 512,
-            minzoom: 0,
-            maxzoom: 10,
+            minzoom: 3,
+            maxzoom: 7,
             bounds: [-68.5, 17.4, -64.4, 19.1],
             attribution:
               '<a href="https://www.rainviewer.com" target="_blank" rel="noreferrer">RainViewer</a>',
@@ -537,6 +565,15 @@ export function GridMap({
     setVis("alerts-stroke", activeLayers.has("weather-alerts"));
     setVis("quakes-circle", activeLayers.has("quakes"));
     setVis("wind-fill", activeLayers.has("wind"));
+    // AEE/PREPA feeder outages ride along with the "outages-live" toggle.
+    const showOutages = activeLayers.has("outages-live");
+    setVis("feeders-outage-fill", showOutages);
+    setVis("feeders-outage-stroke", showOutages);
+    setVis("feeders-loadshed-fill", showOutages);
+    setVis("feeders-loadshed-stroke", showOutages);
+    const showPlanned = activeLayers.has("planned-work");
+    setVis("planned-work-halo", showPlanned);
+    setVis("planned-work-dot", showPlanned);
     // rain frames are managed via startRainRadar / stopRainRadar
   }
 
@@ -747,6 +784,191 @@ export function GridMap({
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[GridMap] outage markers failed", err);
+    }
+  }
+
+  async function loadFeederOutagesInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/outages/feeders", { cache: "no-store" });
+      if (!res.ok) return;
+      const fc = await res.json();
+      if (!fc || !Array.isArray(fc.features)) return;
+      const existing = map.getSource("aeepr-feeders") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+        return;
+      }
+      map.addSource("aeepr-feeders", { type: "geojson", data: fc });
+      // Active outage feeders — red. Tucked above the muni outline so they
+      // don't blow out the choropleth, but still under labels.
+      map.addLayer(
+        {
+          id: "feeders-outage-fill",
+          type: "fill",
+          source: "aeepr-feeders",
+          filter: ["==", ["get", "kind"], "outage"],
+          paint: {
+            "fill-color": "#ef4444",
+            "fill-opacity": 0.42,
+          },
+        },
+        "municipalities-outline",
+      );
+      map.addLayer(
+        {
+          id: "feeders-outage-stroke",
+          type: "line",
+          source: "aeepr-feeders",
+          filter: ["==", ["get", "kind"], "outage"],
+          paint: {
+            "line-color": "#fee2e2",
+            "line-width": 1.1,
+            "line-opacity": 0.9,
+          },
+        },
+        "municipalities-outline",
+      );
+      // Projected load-shed feeders — amber dashed.
+      map.addLayer(
+        {
+          id: "feeders-loadshed-fill",
+          type: "fill",
+          source: "aeepr-feeders",
+          filter: ["==", ["get", "kind"], "load_shed"],
+          paint: {
+            "fill-color": "#f59e0b",
+            "fill-opacity": 0.28,
+          },
+        },
+        "municipalities-outline",
+      );
+      map.addLayer(
+        {
+          id: "feeders-loadshed-stroke",
+          type: "line",
+          source: "aeepr-feeders",
+          filter: ["==", ["get", "kind"], "load_shed"],
+          paint: {
+            "line-color": "#fde68a",
+            "line-width": 1,
+            "line-opacity": 0.85,
+            "line-dasharray": [2, 2],
+          },
+        },
+        "municipalities-outline",
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] feeder outages failed", err);
+      onMapErrorRef.current?.("AEE/PREPA feeder outages failed to load.");
+    }
+  }
+
+  async function loadPlannedWorkInto(map: MlMap) {
+    try {
+      const res = await fetch("/api/planned-work", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        items: Array<{
+          id: string;
+          municipality_id: string | null;
+          area: string | null;
+          work_type: string | null;
+          start_ts: string | null;
+          end_ts: string | null;
+          possible_interruption: boolean | null;
+        }>;
+      };
+      // The API returns 100 most recent; filter to entries still in the
+      // future (end_ts after now) so the map shows current/upcoming work.
+      const now = Date.now();
+      const items = (json.items ?? []).filter((i) => {
+        const end = i.end_ts ? new Date(i.end_ts).getTime() : NaN;
+        return !Number.isFinite(end) || end > now;
+      });
+      if (items.length === 0) {
+        const src = map.getSource("planned-work") as
+          | maplibregl.GeoJSONSource
+          | undefined;
+        if (src) src.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+      // Resolve muni centroids from the existing municipalities source.
+      const muniSrc = map.getSource("municipalities") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (!muniSrc) return;
+      const data = (muniSrc as unknown as { _data?: GeoJSON.FeatureCollection })._data;
+      if (!data?.features) return;
+      const centroidById = new Map<string, [number, number]>();
+      for (const f of data.features) {
+        const id = (f.properties as { id?: string } | null)?.id;
+        if (!id) continue;
+        const c = approxCentroid(f.geometry);
+        if (c) centroidById.set(id, c);
+      }
+      const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
+      for (const i of items) {
+        const c = i.municipality_id ? centroidById.get(i.municipality_id) : null;
+        if (!c) continue;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: c },
+          properties: {
+            id: i.id,
+            area: i.area ?? "",
+            work_type: i.work_type ?? "",
+            start_ts: i.start_ts ?? "",
+            end_ts: i.end_ts ?? "",
+            interruption: i.possible_interruption ? 1 : 0,
+          },
+        });
+      }
+      const fc: GeoJSON.FeatureCollection = { type: "FeatureCollection", features };
+      const existing = map.getSource("planned-work") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc);
+        return;
+      }
+      map.addSource("planned-work", { type: "geojson", data: fc });
+      map.addLayer({
+        id: "planned-work-halo",
+        type: "circle",
+        source: "planned-work",
+        paint: {
+          "circle-radius": [
+            "case",
+            ["==", ["get", "interruption"], 1], 16,
+            12,
+          ],
+          "circle-color": "#fbbf24",
+          "circle-opacity": 0.18,
+          "circle-blur": 0.6,
+        },
+      });
+      map.addLayer({
+        id: "planned-work-dot",
+        type: "circle",
+        source: "planned-work",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": [
+            "case",
+            ["==", ["get", "interruption"], 1], "#f59e0b",
+            "#fde68a",
+          ],
+          "circle-stroke-color": "#92400e",
+          "circle-stroke-width": 1,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[GridMap] planned-work load failed", err);
+      onMapErrorRef.current?.("Planned work failed to load.");
     }
   }
 

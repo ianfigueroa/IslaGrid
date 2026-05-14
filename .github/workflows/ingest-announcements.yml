@@ -42,7 +42,7 @@ jobs:
           LUMA_OPERATOR_HOST: ${{ secrets.LUMA_OPERATOR_HOST }}
         run: python -m src.sources.luma_service_updates
 
-      - name: LUMA outage map
+      - name: LUMA notable outages (averías)
         if: success() || failure()
         working-directory: ingestion
         env:
@@ -52,8 +52,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          LUMA_OUTAGE_ARCGIS_URL: ${{ secrets.LUMA_OUTAGE_ARCGIS_URL }}
-        run: python -m src.sources.luma_outage_map
+          LUMA_OPERATOR_HOST: ${{ secrets.LUMA_OPERATOR_HOST }}
+        run: python -m src.sources.luma_averias
 
       - name: Bluesky (unverified social)
         if: success() || failure()
