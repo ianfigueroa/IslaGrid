@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 from selectolax.parser import HTMLParser
@@ -35,6 +36,26 @@ URL = f"https://{_HOST}/averias-mas-relevantes/"
 SOURCE = f"{_HOST}/averias-mas-relevantes"
 
 log = logging.getLogger(__name__)
+
+
+def _safe_href(href: str | None) -> str:
+    """
+    Sanitize a scraped <a href>. The result is stored in official_updates.url
+    and later rendered as an <a href> / window.open() target in the public UI,
+    so a `javascript:` or `data:` scheme would be clickable stored-XSS. Accept
+    only http(s) and site-relative paths; anything else falls back to the page
+    URL itself (always safe, always relevant).
+    """
+    if not href:
+        return URL
+    href = href.strip()
+    if href.startswith("/"):
+        return f"https://{_HOST}{href}"
+    try:
+        scheme = urlparse(href).scheme.lower()
+    except ValueError:
+        return URL
+    return href if scheme in ("http", "https") else URL
 
 
 def _fetch() -> str:
@@ -95,7 +116,7 @@ def _parse(html: str) -> list[dict[str, str]]:
             continue
         href_node = node.css_first("a")
         href = href_node.attributes.get("href") if href_node else None
-        items.append({"text": text[:500], "url": href or URL})
+        items.append({"text": text[:500], "url": _safe_href(href)})
     return items
 
 
