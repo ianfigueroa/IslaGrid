@@ -13,7 +13,7 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from playwright.sync_api import sync_playwright
 
@@ -28,10 +28,17 @@ _HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 URL = f"https://{_HOST}/resumen-del-sistema/"
 SOURCE = _HOST
 
-LABELS = {
+# LUMA's Resumen page renders each metric as a JS gauge. The numeric value
+# is NOT in the static HTML's <p class="mw-text"> (that stays literally "MW")
+# — it lives in a `data-value` attribute on the enclosing `.gauge-container`
+# div, set by JS after load. We match each gauge by its <h3 class="label">
+# text. The two "Pico" values are plain text rather than gauges.
+GAUGE_LABELS = {
     "demand": ["Demanda Actual", "Current Demand"],
     "next_hour": ["Demanda Próxima", "Next Hour Demand"],
     "reserve_current": ["Reserva Actual", "Current Reserve"],
+}
+TEXT_LABELS = {
     "peak_demand": ["Demanda Pico", "Peak Demand"],
     "peak_reserve": ["Reserva Pico", "Peak Reserve"],
 }
@@ -45,53 +52,78 @@ MAINTENANCE_HINTS = [
 log = logging.getLogger(__name__)
 
 
-def _grab_number_near_label(html: str, label_variants: list[str]) -> float | None:
-    """
-    LUMA's markup repeats label/MW pairs:
-        <h3 class="label">Demanda Actual</h3>
-        <p class="mw-text">2418<span>MW</span></p>
-    The MW text immediately follows the label in source order.
-    """
-    for label in label_variants:
-        pattern = re.compile(
-            rf"{re.escape(label)}.{{0,500}}?<p[^>]*>\s*([\d,\.]+)\s*<span",
-            re.IGNORECASE | re.DOTALL,
-        )
-        m = pattern.search(html)
-        if not m:
-            continue
-        raw = m.group(1).replace(",", "")
-        try:
-            return float(raw)
-        except ValueError:
-            continue
-    return None
+def _to_float(raw: str | None) -> float | None:
+    if not raw:
+        return None
+    try:
+        return float(raw.replace(",", "").strip())
+    except (ValueError, AttributeError):
+        return None
 
 
-def _fetch() -> str:
+def _fetch() -> tuple[str, dict[str, float | None], str]:
+    """Return (raw_html, parsed_values, visible_text)."""
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
         ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+contact@islagrid.app)")
         page = ctx.new_page()
-        page.goto(URL, wait_until="domcontentloaded", timeout=45_000)
-        # Give JS up to 5s to populate MW values; we accept stale state if it doesn't.
-        page.wait_for_timeout(5_000)
+        page.goto(URL, wait_until="networkidle", timeout=60_000)
+        # The gauges populate their data-value attribute via JS after load.
+        page.wait_for_timeout(6_000)
         html = page.content()
+        # Each .gauge-container carries data-value + an inner .label. Pull all
+        # of them as {label: value} so we don't depend on DOM source order.
+        gauges = page.eval_on_selector_all(
+            ".gauge-container",
+            "els => els.map(e => ({"
+            " label: (e.querySelector('.label')?.textContent || '').trim(),"
+            " value: e.getAttribute('data-value')"
+            "}))",
+        )
+        visible_text = page.locator("body").inner_text()
         browser.close()
-        return html
+
+    by_label = {g["label"]: g["value"] for g in gauges if g.get("label")}
+    values: dict[str, float | None] = {}
+    for key, variants in GAUGE_LABELS.items():
+        values[key] = None
+        for variant in variants:
+            if variant in by_label:
+                values[key] = _to_float(by_label[variant])
+                break
+    # "Pico" values render as plain text like "2730MW".
+    for key, variants in TEXT_LABELS.items():
+        values[key] = None
+        for variant in variants:
+            m = re.search(
+                rf"{re.escape(variant)}[\s\S]{{0,80}}?([\d,]+)\s*MW",
+                visible_text,
+                re.IGNORECASE,
+            )
+            if m:
+                values[key] = _to_float(m.group(1))
+                break
+    return html, values, visible_text
 
 
 def run() -> int:
-    html = _fetch()
+    html, parsed, visible_text = _fetch()
     body = html.encode("utf-8")
     raw_key = save_raw(SOURCE, body, ext="html", content_type="text/html; charset=utf-8")
 
-    is_stale = any(h in html.lower() for h in MAINTENANCE_HINTS)
-    demand = _grab_number_near_label(html, LABELS["demand"])
-    next_demand = _grab_number_near_label(html, LABELS["next_hour"])
-    reserve = _grab_number_near_label(html, LABELS["reserve_current"])
-    peak_d = _grab_number_near_label(html, LABELS["peak_demand"])
-    peak_r = _grab_number_near_label(html, LABELS["peak_reserve"])
+    has_maintenance_banner = any(
+        h in html.lower() or h in visible_text.lower() for h in MAINTENANCE_HINTS
+    )
+    demand = parsed["demand"]
+    next_demand = parsed["next_hour"]
+    reserve = parsed["reserve_current"]
+    peak_d = parsed["peak_demand"]
+    peak_r = parsed["peak_reserve"]
+    # The "podría no estar actualizada" disclaimer is on the page chronically,
+    # even when the MW values are fresh. Only treat the snapshot as stale when
+    # the banner is present AND every core number is missing — that's the
+    # actual "blank slots + maintenance" state the comment up top describes.
+    is_stale = has_maintenance_banner and demand is None and reserve is None
 
     # Compute total generation as the closest proxy we can get without more parsing.
     # LUMA's page doesn't always expose available capacity; leave None when unknown.
@@ -110,7 +142,7 @@ def run() -> int:
     )
 
     row = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "current_demand_mw": demand,
         "next_hour_demand_mw": next_demand,
         "total_generation_mw": available_capacity,

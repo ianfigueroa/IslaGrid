@@ -53,6 +53,31 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: python -m src.sources.luma_planned_work
 
+      - name: Genera PR generation
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python -m src.sources.genera_pr
+
+      - name: LUMA outage map (region counts)
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          LUMA_OUTAGE_API_URL: ${{ secrets.LUMA_OUTAGE_API_URL }}
+        run: python -m src.sources.luma_outage_map
+
       - name: BPS PDF (hourly only)
         if: github.event.schedule == null || endsWith(github.event.schedule, '0 * * * *')
         working-directory: ingestion
@@ -64,3 +89,13 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: python -m src.sources.luma_bps_pdf
+
+      # Must run LAST — merges the freshest LUMA + Genera rows into one
+      # authoritative grid_snapshots row that /api/grid/status serves.
+      - name: Merge grid snapshot
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipeline.merge_grid

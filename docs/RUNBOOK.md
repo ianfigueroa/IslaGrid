@@ -48,6 +48,11 @@ Stored as GitHub Actions secrets and Vercel project environment variables. Never
 | `UPSTASH_REDIS_REST_URL` | Vercel | hot grid-status cache |
 | `UPSTASH_REDIS_REST_TOKEN` | Vercel | hot grid-status cache |
 | `NWS_USER_AGENT` | GH Actions | NWS API requires identifying UA |
+| `AEEPR_LOAD_SHED_URL` | GH Actions | _Optional._ Overrides the AEE/PREPA Manual Load Shedding FeatureServer query URL. Defaults to the discovered `services3.arcgis.com/0n3sEGhALDkUSwc5/.../Manual_Load_Shedding/FeatureServer/0/query`. Only set if AEEPR migrates the layer. |
+| `LUMA_OUTAGE_API_URL` | GH Actions | _Optional._ Overrides the MiLUMA region-outage JSON endpoint. Defaults to `api.miluma.lumapr.com/miluma-outage-api/outage/regionsWithoutService`. |
+
+Both new vars are optional — the scrapers ship with working defaults and only
+need a secret if the upstream URL changes. Nothing breaks if they're unset.
 
 Never commit `.env.local`. `.env.example` is the only env file checked in.
 
@@ -122,21 +127,24 @@ The replay script downloads the raw bytes, runs the current parser, and `UPSERT`
 
 ---
 
-## AEE/PREPA ArcGIS endpoint discovery (one-time)
+## AEE/PREPA ArcGIS endpoint (resolved 2026-05)
 
-The dashboard at
+The "Manual Load Shedding" dashboard at
 `https://aeepr.maps.arcgis.com/apps/dashboards/1995c773fceb468db8b7f7d34899df94`
-hides its data behind FeatureServer/MapServer layers. To wire `aeepr_arcgis.py`:
+is backed by this public, unauthenticated FeatureServer layer (found by walking
+the dashboard's WebMap config, item `fc5f8ede0f7f4ac39d297c63cc1751ce`):
 
-1. Open the dashboard in Chrome/Firefox with DevTools → Network panel filtered
-   on `FeatureServer` or `MapServer`.
-2. Click the dashboard's filters / widgets to trigger layer queries. Copy each
-   distinct `services*/rest/services/.../FeatureServer/<n>/query` URL.
-3. Set GitHub secret `AEEPR_LAYERS` to those URLs as a comma-separated list.
-4. The ingest workflow snapshots all layers daily; raw JSON lands in R2 at
-   `raw/aeepr.maps.arcgis.com/yyyy/mm/dd/`.
-5. Once layer schemas are known, update `aeepr_arcgis.py` to parse rows into
-   `outage_labels` (Phase 9 label source).
+```
+https://services3.arcgis.com/0n3sEGhALDkUSwc5/arcgis/rest/services/Manual_Load_Shedding/FeatureServer/0/query
+```
+
+`aeepr_arcgis.py` queries it for `STATUS = 'SI'` (active outage) and
+`predicted = 'SI'` (projected load shed), paginating with `resultOffset`. Rows
+land in `aeepr_feeder_snapshots`; raw JSON archives to R2. If AEEPR moves the
+layer, set `AEEPR_LOAD_SHED_URL` to the new `/query` URL — no code change.
+
+Key feeder fields: `CIRCUIT1` (feeder id), `MUNICIPALI`, `REGION`, `CLIENTS`,
+`MW`, `STATUS`, `predicted`.
 
 ## NREL developer.nrel.gov → developer.nlr.gov migration
 

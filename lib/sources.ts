@@ -11,6 +11,7 @@ export type SourceId =
   | "lumapr.com/bps"
   | "lumapr.com/planned-work"
   | "lumapr.com/avisos"
+  | "lumapr.com/averias-mas-relevantes"
   | "luma-outage-map"
   | "genera-pr.com"
   | "aeepr.maps.arcgis.com"
@@ -26,7 +27,8 @@ export type SourceId =
   | "social.bluesky"
   | "social.mastodon"
   | "islagrid-heuristic"
-  | "islagrid-model";
+  | "islagrid-model"
+  | "islagrid-merged";
 
 export interface SourceMeta {
   label: SourceLabel;
@@ -67,11 +69,17 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     url: "https://lumapr.com/avisos/",
     freshnessSlo: 21600, // 6h
   },
+  "lumapr.com/averias-mas-relevantes": {
+    label: "official",
+    display: "LUMA Notable Outages",
+    url: "https://lumapr.com/averias-mas-relevantes/",
+    freshnessSlo: 7200, // 2h — LUMA updates the >500-customer list a few times a day
+  },
   "luma-outage-map": {
     label: "official",
     display: "LUMA Outage Map",
     url: "https://miluma.lumapr.com/outages",
-    freshnessSlo: 1800, // 30 min — LUMA refreshes the feed roughly every 15m
+    freshnessSlo: 1800, // 30 min — MiLUMA's region API refreshes ~every 10-15m
   },
   "genera-pr.com": {
     label: "official",
@@ -165,6 +173,14 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     label: "estimated",
     display: "IslaGrid model prediction",
     freshnessSlo: 1800, // 30 min
+  },
+  "islagrid-merged": {
+    // The merged grid snapshot is itself "official" — every field traces to
+    // an official upstream (LUMA Resumen or Genera PR); the merge only picks
+    // the best-available value per field, it never invents one.
+    label: "official",
+    display: "LUMA + Genera PR (merged)",
+    freshnessSlo: 1800, // 30 min — matches the fastest component cadence
   },
 };
 
