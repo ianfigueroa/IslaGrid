@@ -750,13 +750,10 @@ export function GridMap({
         clearOutageMarkers();
         return;
       }
-      // We need muni centroids for marker placement. Lazy fetch the
-      // municipalities source if it isn't loaded yet.
-      const src = map.getSource("municipalities") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (!src) return;
-      const data = (src as unknown as { _data?: GeoJSON.FeatureCollection })._data;
+      // We need muni centroids for marker placement. Use the cached muni
+      // GeoJSON (populated by addDataLayers) rather than poking MapLibre's
+      // private source internals.
+      const data = cacheRef.current.munis;
       if (!data?.features) return;
       const centroidById = new Map<string, [number, number]>();
       for (const f of data.features) {
@@ -895,12 +892,9 @@ export function GridMap({
         if (src) src.setData({ type: "FeatureCollection", features: [] });
         return;
       }
-      // Resolve muni centroids from the existing municipalities source.
-      const muniSrc = map.getSource("municipalities") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (!muniSrc) return;
-      const data = (muniSrc as unknown as { _data?: GeoJSON.FeatureCollection })._data;
+      // Resolve muni centroids from the cached municipalities GeoJSON
+      // (populated by addDataLayers) — never MapLibre's private internals.
+      const data = cacheRef.current.munis;
       if (!data?.features) return;
       const centroidById = new Map<string, [number, number]>();
       for (const f of data.features) {
