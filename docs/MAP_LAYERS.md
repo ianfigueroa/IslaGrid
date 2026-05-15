@@ -1,8 +1,8 @@
 # Map layers — what ships now vs. follow-ups
 
-_Last updated: 2026-05-12_
+_Last updated: 2026-05-15_
 
-The map is built on **MapLibre GL JS** with a CartoDB raster basemap tinted via `raster-saturation`. Every layer below traces to a real upstream source — no synthetic data.
+The map is built on **MapLibre GL JS** with a self-hosted **Protomaps** vector basemap (one `pr.pmtiles` file at `public/map/pr.pmtiles`, ~24 MB, OSM+Natural Earth, zoom 0–14). The style is generated from `@protomaps/basemaps` with a custom flavor — warm cream land + muted teal ocean in light, deep navy in dark. Every layer below traces to a real upstream source — no synthetic data.
 
 ## Layers shipped today
 
@@ -42,7 +42,6 @@ All animations are CSS, not WebGL — cheaper to maintain, no jank on low-end mo
 
 | Layer | Why deferred | What it needs |
 |---|---|---|
-| Protomaps pmtiles self-hosted basemap | Heavy infra-level work; CartoDB tint is acceptable for now | One-time pmtiles generation + custom style.json + nginx/CF config |
 | MRMS precipitation radar | Complex GeoTIFF→tile pipeline + 2-min cadence | A separate tile server (titiler + R2) |
 | NDFD wind streamlines (WindGL) | Needs GRIB2→tiled vector pipeline | Either pre-compute vector tiles or fetch GRIB2 + decode in-browser via wgrib2-wasm |
 | VIIRS Black Marble nighttime lights | Daily GeoTIFF, large | Tile pipeline + day/night masking |

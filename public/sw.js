@@ -42,8 +42,13 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // CartoDB basemap tiles — cap to 200 entries so we don't blow up storage.
-  if (url.hostname.endsWith("global.ssl.fastly.net")) {
+  // Protomaps pmtiles are served from /map/pr.pmtiles via HTTP range
+  // requests; the basemap glyphs/sprites come from protomaps.github.io.
+  // Cache both lanes so offline disaster mode still draws a map.
+  if (
+    url.pathname.startsWith("/map/") ||
+    url.hostname === "protomaps.github.io"
+  ) {
     event.respondWith(staleWhileRevalidate(TILES_CACHE, req, 200));
     return;
   }

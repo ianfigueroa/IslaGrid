@@ -128,7 +128,9 @@ const FUEL_COLOR: Record<string, string> = {
   unknown: "#525252",
 };
 
-// Per-municipality status fill — kept warm + readable over Voyager.
+// Per-municipality status fill — kept warm + readable over the Protomaps
+// light flavor. Saturation stays mid so colors register without overpowering
+// the basemap.
 const STATUS_FILL: Record<string, string> = {
   normal: "#10b981",
   watch: "#f59e0b",
@@ -1190,7 +1192,7 @@ export function GridMap({
       paint: { "fill-color": "#000000", "fill-opacity": 0 },
     });
 
-    // Status fill — kept VERY subtle so the OpenFreeMap land/water rendering
+    // Status fill — kept VERY subtle so the Protomaps land/water rendering
     // shows through. Only colors strongly when status ≠ unknown/normal.
     map.addLayer({
       id: "municipalities-fill",
