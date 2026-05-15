@@ -2,46 +2,89 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
+import { Protocol } from "pmtiles";
+import { layers as protomapsLayers, namedFlavor } from "@protomaps/basemaps";
 
-// Basemap — CartoDB raster tiles, served as inline MapLibre style.json. Both
-// Voyager (light) and Dark Matter (dark) have dense global coverage, so we
-// don't get OpenFreeMap's "Zoom Level Not Supported" placeholder boxes in
-// the ocean surrounding Puerto Rico. Raster instead of vector means slightly
-// less crisp on retina but zero coverage gaps and dark mode that actually
-// shows streets + buildings instead of a black void.
-const CARTO_ATTRIB =
-  '<a href="https://carto.com/attributions" target="_blank" rel="noreferrer">© CARTO</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
+// Register the pmtiles:// protocol with MapLibre once per page load. Calling
+// this twice is harmless — addProtocol replaces the previous handler — but
+// guarding keeps the console clean during HMR.
+let _pmtilesRegistered = false;
+function ensurePmtilesProtocol() {
+  if (_pmtilesRegistered) return;
+  // MapLibre v5 types accept the Protocol's tile handler signature directly.
+  maplibregl.addProtocol("pmtiles", new Protocol().tile);
+  _pmtilesRegistered = true;
+}
 
-function rasterStyle(variant: "voyager" | "dark_all"): maplibregl.StyleSpecification {
+// Custom Protomaps flavor: we start from the stock "light"/"dark" flavor and
+// override a small palette so the basemap reads as a civic data layer instead
+// of a generic city map. Warm cream land + muted teal water in light;
+// deep navy land + abyss water in dark. Roads stay quiet so the data on top
+// (risk, outages, plants) dominates the eye.
+function flavorFor(theme: "light" | "dark") {
+  const base = namedFlavor(theme);
+  if (theme === "dark") {
+    return {
+      ...base,
+      background: "#040b16",
+      earth: "#0a1726",
+      park_a: "#0e2233",
+      park_b: "#0c1c2c",
+      hospital: "#1f1b2e",
+      industrial: "#0d1825",
+      school: "#0e1828",
+      wood_a: "#0d1f2a",
+      wood_b: "#0c1d28",
+      pedestrian: "#0a1626",
+      scrub_a: "#0d1d2a",
+      scrub_b: "#0c1c28",
+      glacier: "#102232",
+      sand: "#1a2236",
+      beach: "#1a2236",
+      farmland: "#0c1a28",
+      water: "#03101c",
+      zoo: "#0d1c28",
+      military: "#0e1828",
+    } as const;
+  }
+  return {
+    ...base,
+    background: "#eef3f5",
+    earth: "#f7f1e6",
+    park_a: "#dfead0",
+    park_b: "#e6efd9",
+    water: "#bedce7",
+    sand: "#f0e6c8",
+    beach: "#f3e8c8",
+    farmland: "#eee6cf",
+  } as const;
+}
+
+const PMTILES_URL = "/map/pr.pmtiles";
+
+function protomapsStyle(theme: "light" | "dark"): maplibregl.StyleSpecification {
+  // Generate the layer stack from our flavor + the standard OSM source key
+  // expected by Protomaps' v4 schema ("protomaps").
+  const layers = protomapsLayers("protomaps", flavorFor(theme), {
+    lang: "es",
+  }) as maplibregl.LayerSpecification[];
   return {
     version: 8,
+    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
     sources: {
-      basemap: {
-        type: "raster",
-        tiles: [
-          `https://a.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
-          `https://b.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
-          `https://c.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
-          `https://d.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}@2x.png`,
-        ],
-        tileSize: 256,
-        attribution: CARTO_ATTRIB,
-        minzoom: 0,
-        maxzoom: 19,
+      protomaps: {
+        type: "vector",
+        url: `pmtiles://${PMTILES_URL}`,
+        attribution:
+          '<a href="https://protomaps.com" target="_blank" rel="noreferrer">Protomaps</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>',
       },
     },
-    layers: [
-      {
-        id: "basemap",
-        type: "raster",
-        source: "basemap",
-        paint: { "raster-resampling": "linear" },
-      },
-    ],
-    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+    layers,
   };
 }
 
+// Esri satellite is a separate (raster) flavor and stays as-is.
 export type Basemap = "light" | "dark" | "satellite";
 
 function satelliteStyle(): maplibregl.StyleSpecification {
@@ -68,7 +111,7 @@ function satelliteStyle(): maplibregl.StyleSpecification {
 
 function styleFor(basemap: Basemap): maplibregl.StyleSpecification {
   if (basemap === "satellite") return satelliteStyle();
-  return rasterStyle(basemap === "dark" ? "dark_all" : "voyager");
+  return protomapsStyle(basemap === "dark" ? "dark" : "light");
 }
 
 // Soft, warm fuel palette — no AI-tech cyan
@@ -217,15 +260,18 @@ export function GridMap({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Register pmtiles:// before any map instance touches the URL.
+    ensurePmtilesProtocol();
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: styleFor(effectiveBasemap),
       center: [-66.5, 18.23],
       zoom: 8.4,
-      // OpenFreeMap returns a "Zoom Level Not Supported" placeholder image
-      // (not a 404) for tiles outside their dense vector coverage. Stay at
-      // zoom 7 or deeper, and bound the viewport tight around PR + USVI to
-      // avoid requesting tiles in regions where coverage thins.
+      // pr.pmtiles covers PR + USVI at zoom 0–14; MapLibre over-zooms
+      // (stretches) z14 tiles up to 16 so we stay crisp at street level
+      // without shipping building-detail tiles. Lower bound keeps the user
+      // from zooming out to ocean-only views.
       minZoom: 7,
       maxZoom: 16,
       maxBounds: [
@@ -240,7 +286,7 @@ export function GridMap({
     // style.load fires on initial load AND every setStyle() call. We use it
     // (not 'load') so theme swaps re-attach our data layers.
     map.on("style.load", () => {
-      // Soften OpenFreeMap labels slightly so muni names + plant markers stay
+      // Soften basemap labels slightly so muni names + plant markers stay
       // legible without competing visually with the data overlays.
       try {
         const style = map.getStyle();

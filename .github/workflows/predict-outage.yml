@@ -2,7 +2,8 @@ name: predict-outage
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 min
+    - cron: "*/30 * * * *"   # every 30 min — inference only
+    - cron: "0 6 * * 1"      # weekly Mon 06:00 UTC — try to train
   workflow_dispatch:
 
 concurrency:
@@ -14,6 +15,8 @@ permissions:
 
 jobs:
   predict:
+    # skip predict on the weekly train tick; train job runs instead.
+    if: github.event.schedule != '0 6 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,7 +39,10 @@ jobs:
         run: python -m ml.predict
 
   train:
-    if: github.event.schedule == null || endsWith(github.event.schedule, '0 3 * * *')
+    # weekly cron, manual dispatch, or push to main with a model change.
+    # The trainer itself enforces the data-readiness gate; if there aren't
+    # enough labels it exits non-zero and the heuristic stays in service.
+    if: github.event.schedule == '0 6 * * 1' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

@@ -114,7 +114,10 @@ def assemble_manifest(start: str, end: str) -> TrainingManifest:
         q = sb.table(table).select("id", count="exact").gte(ts_col, start).lt(ts_col, end)
         if filters:
             for k, v in filters.items():
-                q = q.gt(k, v) if k.startswith("gt:") else q.eq(k, v)
+                if k.startswith("gt:"):
+                    q = q.gt(k[3:], v)
+                else:
+                    q = q.eq(k, v)
         return int(getattr(q.execute(), "count", 0) or 0)
 
     pos_outage_events = _count("outage_events", "started_at")
