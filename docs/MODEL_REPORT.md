@@ -1,6 +1,40 @@
 # Outage-risk model — accuracy + honesty report
 
-_Last updated: 2026-05-12_
+_Last updated: 2026-05-15_
+
+## 2026-05-15 manifest run
+
+The readiness gate refuses to train. Numbers:
+
+| Source | Positive labels |
+|---|---|
+| `outage_events` | 90 |
+| `eagle_i_outages` | 0 (EAGLE-I ingest not yet wired to production) |
+| `wayback_outage_history` | 1 (only one usable Wayback capture exists) |
+| **Total** | **91** |
+| **Required** | **200** |
+
+Notable findings from the audit:
+
+- A bug in the manifest counter (`gt:` prefix wasn't stripped before being
+  sent as a column name) was fixed. The script now actually counts.
+- The Wayback Machine has exactly **one** usable capture of
+  `miluma.lumapr.com/outages` because the page is JavaScript-rendered.
+  Adjacent URLs are also thin (`averias-mas-relevantes`: 25 captures,
+  `resumen-del-sistema`: 31). Even with custom parsers across all variants,
+  the upper bound is ~50 historical labels — not enough.
+- Outage history span is **3 days** (2026-05-12 → 2026-05-15). The project
+  just started ingesting in production.
+- The runtime continues to serve the rule-based `heuristic-v2-20260512`
+  model honestly. No miscalibrated ML is being deployed.
+
+Expected timeline to a trainable dataset: at the current observed rate of
+~30 events/day from the live `outage_events` scraper, the gate clears in
+roughly **4–5 days** of continuous ingest. The auto-train workflow at
+`.github/workflows/train-outage-risk.yml` runs weekly and will pick it up.
+
+---
+
 
 ## What's deployed today
 
