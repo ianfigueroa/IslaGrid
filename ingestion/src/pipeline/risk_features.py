@@ -14,8 +14,10 @@ from __future__ import annotations
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
+
+from math import asin, cos, radians, sin, sqrt
 
 from .risk import GridInputs, classify
 from .supabase_client import supabase
@@ -324,7 +326,125 @@ def run() -> int:
             island.status,
             len(rows),
         )
+
+    # Persist the same per-muni features in the ML-shape `outage_features`
+    # table so the LightGBM trainer/predictor has something to consume. We're
+    # writing the heuristic's input vector — the model only becomes live once
+    # enough rows accumulate AND the trainer passes its Brier gate.
+    _persist_ml_features(
+        sb=sb,
+        now=now,
+        muni_ids=muni_ids,
+        latest_weather=latest_weather,
+        grid=grid,
+        planned_active=planned_active,
+        muni_centroids=muni_centroids,
+    )
     return len(rows)
+
+
+def _haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lon1, lat1 = radians(a[0]), radians(a[1])
+    lon2, lat2 = radians(b[0]), radians(b[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    h = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    return 2 * 6371.0 * asin(sqrt(h))
+
+
+# Genera PR's major generating stations (subset of lib/plants.ts — kept here so
+# the ingestion pipeline doesn't depend on the Next.js app's source tree).
+_GENERATING_STATIONS: list[tuple[float, float]] = [
+    (-66.108, 18.452),  # San Juan
+    (-66.140, 18.451),  # Palo Seco
+    (-66.762, 17.985),  # Costa Sur
+    (-66.224, 17.953),  # Aguirre
+    (-66.660, 18.479),  # Cambalache
+    (-67.180, 18.215),  # Mayaguez
+    (-66.115, 17.943),  # AES Guayama
+    (-66.778, 17.974),  # EcoEléctrica
+    (-66.234, 17.946),  # Jobos
+]
+
+
+def _persist_ml_features(
+    *,
+    sb: Any,
+    now: datetime,
+    muni_ids: list[str],
+    latest_weather: dict[str, dict[str, Any]],
+    grid: dict[str, Any] | None,
+    planned_active: set[str],
+    muni_centroids: dict[str, tuple[float, float]],
+) -> int:
+    if not muni_ids:
+        return 0
+
+    # Count recent outage events per muni (last 7 days) in one query.
+    seven_days_ago = (now - timedelta(days=7)).isoformat()
+    try:
+        recent = (
+            sb.table("outage_events")
+            .select("municipality_id, started_at")
+            .gte("started_at", seven_days_ago)
+            .execute()
+            .data
+        ) or []
+    except Exception as exc:  # noqa: BLE001
+        log.warning("outage_events lookup failed (%s); recent_outages_7d = 0", exc)
+        recent = []
+    recent_counts: dict[str, int] = {}
+    for row in recent:
+        mid = row.get("municipality_id")
+        if not mid:
+            continue
+        recent_counts[mid] = recent_counts.get(mid, 0) + 1
+
+    grid_stress_val = _grid_stress(grid)
+    payload: list[dict[str, Any]] = []
+    for muni_id in muni_ids:
+        weather = latest_weather.get(muni_id) or {}
+        cen = muni_centroids.get(muni_id)
+        dist_km: float | None = None
+        if cen:
+            dist_km = round(
+                min(_haversine_km(cen, p) for p in _GENERATING_STATIONS), 2
+            )
+        payload.append(
+            {
+                "ts": now.isoformat(),
+                "municipality_id": muni_id,
+                "temp_c": weather.get("temp_c"),
+                "wind_kph": weather.get("wind_kph"),
+                "gust_kph": weather.get("gust_kph"),
+                "precip_mm": weather.get("precip_mm"),
+                "prob_precip": weather.get("prob_precip"),
+                "alert_level": weather.get("alert_level"),
+                "grid_stress": grid_stress_val,
+                "planned_work_within_24h": muni_id in planned_active,
+                "recent_outages_7d": recent_counts.get(muni_id, 0),
+                "distance_to_nearest_plant_km": dist_km,
+                "elevation_m": None,  # DEM lookup deferred — model handles NULLs as 0.
+                "hour_of_day": now.hour,
+                "day_of_week": now.weekday(),
+                "month": now.month,
+            }
+        )
+
+    # Chunk to stay under the PostgREST request size cap.
+    written = 0
+    for start in range(0, len(payload), 500):
+        chunk = payload[start : start + 500]
+        try:
+            sb.table("outage_features").upsert(
+                chunk, on_conflict="ts,municipality_id"
+            ).execute()
+            written += len(chunk)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("outage_features upsert failed (%s); skipping chunk", exc)
+            break
+    log.info("outage_features: wrote %d rows", written)
+    return written
 
 
 if __name__ == "__main__":
