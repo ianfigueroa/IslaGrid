@@ -418,11 +418,18 @@ export function GridMap({
     setVis("alerts-stroke", activeLayers.has("weather-alerts"));
     setVis("quakes-circle", activeLayers.has("quakes"));
     // AEE/PREPA feeder outages ride along with the "outages-live" toggle.
+    // The muni-overlay smear (LUMA region totals) also rides this toggle but
+    // its loader decides whether to actually show it (only when AEEPR was
+    // empty); off here just covers the user toggling the pill back off.
     const showOutages = activeLayers.has("outages-live");
     setVis("feeders-outage-fill", showOutages);
     setVis("feeders-outage-stroke", showOutages);
     setVis("feeders-loadshed-fill", showOutages);
     setVis("feeders-loadshed-stroke", showOutages);
+    if (!showOutages) {
+      setVis("muni-outage-overlay-fill", false);
+      setVis("muni-outage-overlay-stroke", false);
+    }
     const showPlanned = activeLayers.has("planned-work");
     setVis("planned-work-halo", showPlanned);
     setVis("planned-work-dot", showPlanned);
@@ -641,6 +648,10 @@ export function GridMap({
       if (!res.ok) return;
       const fc = await res.json();
       if (!fc || !Array.isArray(fc.features)) return;
+      // AEEPR feeders are often empty between pushes; the muni overlay
+      // smears the LUMA region totals across munis so the user still sees
+      // affected areas. Load it in parallel so both paint together.
+      void loadMuniOutageOverlayInto(map, fc.features.length === 0);
       const existing = map.getSource("aeepr-feeders") as
         | maplibregl.GeoJSONSource
         | undefined;
@@ -711,6 +722,89 @@ export function GridMap({
       // eslint-disable-next-line no-console
       console.error("[GridMap] feeder outages failed", err);
       onMapErrorRef.current?.("AEE/PREPA feeder outages failed to load.");
+    }
+  }
+
+  /**
+   * Region-level outage overlay. Draws affected munis as red translucent
+   * polygons when AEEPR feeders are empty (the common case). Honest about
+   * granularity: each muni's tint reflects its REGION's count, not a per-
+   * muni measurement.
+   */
+  async function loadMuniOutageOverlayInto(map: MlMap, showWhenLoaded: boolean) {
+    try {
+      const res = await fetch("/api/outages/muni-overlay", { cache: "no-store" });
+      if (!res.ok) return;
+      const fc = (await res.json()) as {
+        type: "FeatureCollection";
+        features: GeoJSON.Feature[];
+        total_customers?: number;
+      };
+      if (!fc || !Array.isArray(fc.features)) return;
+      const existing = map.getSource("muni-outage-overlay") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (existing) {
+        existing.setData(fc as GeoJSON.GeoJSON);
+      } else {
+        map.addSource("muni-outage-overlay", {
+          type: "geojson",
+          data: fc as GeoJSON.GeoJSON,
+        });
+        map.addLayer(
+          {
+            id: "muni-outage-overlay-fill",
+            type: "fill",
+            source: "muni-outage-overlay",
+            paint: {
+              "fill-color": "#ef4444",
+              // Opacity scales with the region's customer count on a log
+              // curve so a 30-customer event isn't invisible next to a
+              // 10k-customer one.
+              "fill-opacity": [
+                "interpolate",
+                ["linear"],
+                [
+                  "log10",
+                  ["max", 1, ["get", "region_customers_out"]],
+                ],
+                1, 0.08,   // 10
+                2, 0.18,   // 100
+                3, 0.32,   // 1k
+                4, 0.5,    // 10k+
+              ],
+            },
+          },
+          "municipalities-outline",
+        );
+        map.addLayer(
+          {
+            id: "muni-outage-overlay-stroke",
+            type: "line",
+            source: "muni-outage-overlay",
+            paint: {
+              "line-color": "#fecaca",
+              "line-width": 0.8,
+              "line-opacity": 0.7,
+            },
+          },
+          "municipalities-outline",
+        );
+      }
+      // Visibility tracks the outages-live toggle, but we only paint when
+      // the AEEPR layer was empty — if AEEPR has data, those polygons are
+      // strictly better and we hide the smear.
+      const visible = showWhenLoaded && activeLayersRef.current.has("outages-live");
+      const vis = visible ? "visible" : "none";
+      if (map.getLayer("muni-outage-overlay-fill")) {
+        map.setLayoutProperty("muni-outage-overlay-fill", "visibility", vis);
+      }
+      if (map.getLayer("muni-outage-overlay-stroke")) {
+        map.setLayoutProperty("muni-outage-overlay-stroke", "visibility", vis);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[GridMap] muni outage overlay failed", err);
     }
   }
 
@@ -1100,11 +1194,21 @@ export function GridMap({
       source: "osm-power",
       filter: ["==", ["get", "kind"], "substation"],
       paint: {
-        "circle-radius": 3,
+        // Zoom-scaled so the 544 substations are visible at the default
+        // zoom (~6.5) without clumping into one blob when zoomed in.
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          6, 3,
+          8, 4.5,
+          11, 6,
+          14, 8,
+        ],
         "circle-color": "#94a3b8",
-        "circle-stroke-color": themeRef.current === "dark" ? "#07101f" : "#ffffff",
-        "circle-stroke-width": 1,
-        "circle-opacity": 0.7,
+        "circle-stroke-color": themeRef.current === "dark" ? "#0b1a33" : "#ffffff",
+        "circle-stroke-width": 1.4,
+        "circle-opacity": 0.92,
       },
     });
 
