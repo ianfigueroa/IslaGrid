@@ -22,19 +22,15 @@ export interface ApiKey {
   ratePerDay: number;
 }
 
-let warnedMissingPepper = false;
-
 export function hashKey(key: string): string {
   const pepper = process.env.API_KEY_PEPPER;
   if (!pepper) {
-    if (
-      process.env.NODE_ENV === "production" &&
-      !warnedMissingPepper
-    ) {
-      warnedMissingPepper = true;
-      // eslint-disable-next-line no-console
-      console.error(
-        "[api-keys] API_KEY_PEPPER unset in production. Keys fall back to plain SHA-256.",
+    // In production a missing pepper means stored hashes are precomputable
+    // from any low-entropy key. Refuse to start the request rather than
+    // silently degrade to plain SHA-256 the way the old code did.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "API_KEY_PEPPER must be set in production. Refusing to hash keys with SHA-256-only fallback.",
       );
     }
     return crypto.createHash("sha256").update(key).digest("hex");
