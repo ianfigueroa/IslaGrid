@@ -10,6 +10,7 @@ import {
   Info,
   LifeBuoy,
   Map as MapIcon,
+  MapPin,
   Menu,
   Moon,
   Satellite,
@@ -30,11 +31,12 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/" as Route,         label: "Map",      Icon: MapIcon,         hint: "Live grid + weather" },
-  { href: "/bill" as Route,     label: "Bill",     Icon: Calculator,      hint: "Estimate your kWh bill" },
-  { href: "/solar" as Route,    label: "Solar",    Icon: Sun,             hint: "Is solar worth it?" },
-  { href: "/battery" as Route,  label: "Battery",  Icon: BatteryCharging, hint: "Backup sizing" },
-  { href: "/disaster" as Route, label: "Disaster", Icon: LifeBuoy,        hint: "Storm mode",         variant: "emergency" },
+  { href: "/" as Route,         label: "Map",            Icon: MapIcon,         hint: "Live grid + weather" },
+  { href: "/m" as Route,        label: "Municipalities", Icon: MapPin,          hint: "Reliability scorecard for all 78" },
+  { href: "/bill" as Route,     label: "Bill",           Icon: Calculator,      hint: "Estimate your kWh bill" },
+  { href: "/solar" as Route,    label: "Solar",          Icon: Sun,             hint: "Is solar worth it?" },
+  { href: "/battery" as Route,  label: "Battery",        Icon: BatteryCharging, hint: "Backup sizing" },
+  { href: "/disaster" as Route, label: "Disaster",       Icon: LifeBuoy,        hint: "Storm mode",         variant: "emergency" },
 ];
 
 /**

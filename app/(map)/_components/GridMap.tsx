@@ -203,7 +203,12 @@ const DEMAND_FILL: Record<string, string> = {
 
 interface Props {
   onSelectMunicipality?: (id: string, name: string) => void;
-  onSelectPlant?: (id: string, name: string, fuel?: string) => void;
+  onSelectPlant?: (
+    id: string,
+    name: string,
+    fuel?: string,
+    capacityMw?: number | null,
+  ) => void;
   onMapError?: (message: string) => void;
   activeLayers: Set<ActiveLayerKey>;
   theme: "dark" | "light";
@@ -255,23 +260,25 @@ export function GridMap({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: styleFor(effectiveBasemap),
-      center: [-66.5, 18.23],
-      // Pulled all the way back to fit the island with generous margin so the
-      // pills and panels don't crowd the coast on desktop.
-      zoom: 6.9,
+      center: [-66.5, 18.225],
+      // Pulled way back so the whole island sits comfortably inside the
+      // viewport with the floating chrome around it. Earlier 6.9/7.4 values
+      // still felt cramped against the pills + panels.
+      zoom: 6.5,
       // pr.pmtiles covers PR + USVI at zoom 0–14; MapLibre over-zooms
       // (stretches) z14 tiles up to 16 so we stay crisp at street level
       // without shipping building-detail tiles. Lower bound keeps the user
       // from zooming out to ocean-only views.
-      minZoom: 6.4,
+      minZoom: 5.8,
       maxZoom: 16,
       // Match pr.pmtiles' actual bbox (read from the v3 header). Earlier code
       // used a wider box that included USVI, but the basemap has no tiles east
       // of -65.2°, so panning over there left an empty white strip. If we ever
-      // regenerate pr.pmtiles wider, bump these too.
+      // regenerate pr.pmtiles wider, bump these too. The bounds box is padded
+      // slightly so users can pan/zoom out for breathing room.
       maxBounds: [
-        [-67.95, 17.85],
-        [-65.2, 18.55],
+        [-68.3, 17.5],
+        [-65.0, 18.85],
       ],
       attributionControl: { compact: true },
     });
@@ -1201,10 +1208,18 @@ export function GridMap({
             ? String(rawId)
             : "";
       const name = typeof p.name === "string" ? p.name : "";
+      const capRaw = p.capacity_mw;
+      const capNum =
+        typeof capRaw === "number"
+          ? capRaw
+          : typeof capRaw === "string"
+            ? Number(capRaw)
+            : null;
       onSelPlantRef.current?.(
         idStr || name || "plant",
         name || "Unnamed plant",
         (p.fuel as string | undefined) ?? undefined,
+        capNum != null && Number.isFinite(capNum) ? capNum : null,
       );
     });
   }
