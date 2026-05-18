@@ -127,7 +127,18 @@ def run(window_days: int = 14) -> int:
         )
 
     if events:
-        sb.table("outage_events").upsert(events, on_conflict="id").execute()
+        # Surface upsert failures with context. supabase-py raises APIError on
+        # HTTP non-2xx already, but the bare stack trace doesn't tell us how
+        # many events were in-flight — wrap so a future failure is debuggable.
+        try:
+            sb.table("outage_events").upsert(events, on_conflict="id").execute()
+        except Exception as e:
+            log.error(
+                "outage_events: upsert failed for %d events: %s",
+                len(events),
+                e,
+            )
+            raise
     log.info("outage_events: extracted %d events from last %d days", len(events), window_days)
     return len(events)
 
