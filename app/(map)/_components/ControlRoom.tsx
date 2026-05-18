@@ -14,6 +14,7 @@ import { IntelligencePanel, type PanelSelection } from "./IntelligencePanel";
 import type { UpdateItem } from "./UpdateTimeline";
 import { EmptyStateNote } from "./EmptyStateNote";
 import { MunicipalitySummary } from "./MunicipalitySummary";
+import { PlantSummary } from "./PlantSummary";
 import { MapErrorBanner } from "./MapErrorBanner";
 import { ReportSheet } from "./ReportSheet";
 import { EmptyLayerToast } from "./EmptyLayerToast";
@@ -80,7 +81,9 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     };
   }, []);
 
-  // Refresh the snapshot once a minute so the status pill stays current.
+  // Refresh the snapshot every 30s so the status pill stays current. The
+  // upstream ingest tops out at ~5 min, so polling faster doesn't buy
+  // freshness — 30s just shortens the worst-case stale window the user sees.
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -91,7 +94,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       } catch {
         /* keep prior */
       }
-    }, 60_000);
+    }, 30_000);
     return () => clearInterval(t);
   }, []);
 
@@ -189,12 +192,11 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
             title,
             subtitle: fuel ? `Fuel: ${fuel}` : "Power plant",
             body: (
-              <p className="text-xs text-text-3">
-                Source: OpenStreetMap (community-mapped). Not utility-grade.
-                <br />
-                Live output (where available) joins from datos.pr.gov; refresh
-                in 5 min cycles.
-              </p>
+              <PlantSummary
+                plantId={id}
+                fallbackName={title}
+                fallbackFuel={fuel}
+              />
             ),
           })
         }

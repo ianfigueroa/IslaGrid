@@ -256,12 +256,15 @@ export function GridMap({
       container: containerRef.current,
       style: styleFor(effectiveBasemap),
       center: [-66.5, 18.23],
-      zoom: 8.4,
+      // Zoom 7.8 fits the whole island with a comfortable margin; 8.4 cropped
+      // the western coast on common laptop widths and made the panels feel
+      // crowded on first paint.
+      zoom: 7.8,
       // pr.pmtiles covers PR + USVI at zoom 0–14; MapLibre over-zooms
       // (stretches) z14 tiles up to 16 so we stay crisp at street level
       // without shipping building-detail tiles. Lower bound keeps the user
       // from zooming out to ocean-only views.
-      minZoom: 7,
+      minZoom: 6.8,
       maxZoom: 16,
       // Match pr.pmtiles' actual bbox (read from the v3 header). Earlier code
       // used a wider box that included USVI, but the basemap has no tiles east

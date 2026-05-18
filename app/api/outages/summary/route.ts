@@ -7,7 +7,9 @@ import type {
 } from "@/lib/outages-summary-types";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
+// LUMA's regions feed lands every ~5 min; cache for 30s so the banner and
+// panel reflect a new push within one client poll cycle.
+export const revalidate = 30;
 
 interface FeederRow {
   feeder_id: string;
@@ -20,6 +22,15 @@ interface FeederRow {
 interface MunicipalityRef {
   id: string;
   name: string;
+}
+
+interface LumaRegionRow {
+  region_id: string;
+  region_name: string;
+  customers_affected: number | null;
+  customers_served: number | null;
+  source_last_updated_at: string | null;
+  ts: string;
 }
 
 /**
@@ -60,7 +71,17 @@ export async function GET() {
   }
   try {
     const supabase = getServerSupabase();
-    const [feedersRes, munisRes] = await Promise.all([
+    // LUMA's regions feed is the authoritative customer-count source — it
+    // matches miluma.lumapr.com/outages/status exactly. AEEPR feeder rows are
+    // the per-municipality breakdown when present, but their `status='SI'`
+    // filter goes empty between feeder pushes; we used to read only AEEPR and
+    // the banner would lie about "0 customers" while LUMA showed thousands.
+    const [lumaRes, feedersRes, munisRes] = await Promise.all([
+      supabase
+        .from("luma_outage_latest")
+        .select(
+          "region_id, region_name, customers_affected, customers_served, source_last_updated_at, ts",
+        ),
       supabase
         .from("aeepr_feeder_latest")
         .select("feeder_id, region, municipality_label, customers, status, ts")
@@ -68,12 +89,12 @@ export async function GET() {
       supabase.from("municipalities").select("id, name"),
     ]);
 
-    if (feedersRes.error) throw new Error(feedersRes.error.message);
+    if (lumaRes.error) throw new Error(lumaRes.error.message);
 
+    const lumaRegions = (lumaRes.data ?? []) as LumaRegionRow[];
     const feeders = (feedersRes.data ?? []) as Array<FeederRow & { ts: string }>;
     const munis = (munisRes.data ?? []) as MunicipalityRef[];
 
-    // name → id map, accent-insensitive for resilience to feeder label drift.
     const stripAccents = (s: string) =>
       s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
     const muniByName = new Map<string, MunicipalityRef>();
@@ -81,53 +102,96 @@ export async function GET() {
       muniByName.set(stripAccents(m.name), m);
     }
 
-    // group region → muni → { customers, feeders }
-    const byRegion = new Map<
+    // Per-region muni rollup from AEEPR feeders (when available).
+    const feederByRegion = new Map<
       string,
       Map<string, { customers: number; feeders: number }>
     >();
-    let totalCustomers = 0;
-    let totalFeeders = 0;
-    let newestTs = "";
+    let feederTotalFeeders = 0;
+    let feederNewestTs = "";
 
     for (const f of feeders) {
       const region = normalizeRegion(f.region);
       const muniLabel = f.municipality_label?.trim() || "Unknown";
       const customers = typeof f.customers === "number" ? f.customers : 0;
-      totalCustomers += customers;
-      totalFeeders += 1;
-      if (f.ts > newestTs) newestTs = f.ts;
-      const regionMap = byRegion.get(region) ?? new Map();
+      feederTotalFeeders += 1;
+      if (f.ts > feederNewestTs) feederNewestTs = f.ts;
+      const regionMap = feederByRegion.get(region) ?? new Map();
       const cur = regionMap.get(muniLabel) ?? { customers: 0, feeders: 0 };
       cur.customers += customers;
       cur.feeders += 1;
       regionMap.set(muniLabel, cur);
-      byRegion.set(region, regionMap);
+      feederByRegion.set(region, regionMap);
     }
 
-    const groups: RegionGroup[] = Array.from(byRegion.entries())
-      .map(([region, muniMap]) => {
-        const municipalities: MuniGroup[] = Array.from(muniMap.entries())
-          .map(([name, agg]) => {
-            const ref = muniByName.get(stripAccents(name));
-            return {
-              id: ref?.id ?? null,
-              name: ref?.name ?? name,
-              customers: agg.customers,
-              feeders: agg.feeders,
-            };
-          })
-          .sort((a, b) => b.customers - a.customers);
-        const total_customers = municipalities.reduce(
-          (sum, m) => sum + m.customers,
-          0,
-        );
+    // Build region groups from LUMA totals, attaching the feeder-derived muni
+    // breakdown if any exists for that region.
+    const seenRegions = new Set<string>();
+    let totalCustomers = 0;
+    let lumaNewestTs = "";
+
+    const groups: RegionGroup[] = lumaRegions
+      .map((r) => {
+        const region = normalizeRegion(r.region_name);
+        seenRegions.add(region);
+        const customers_affected =
+          typeof r.customers_affected === "number" ? r.customers_affected : 0;
+        totalCustomers += customers_affected;
+        if (r.ts > lumaNewestTs) lumaNewestTs = r.ts;
+        const muniMap = feederByRegion.get(region);
+        const municipalities: MuniGroup[] = muniMap
+          ? Array.from(muniMap.entries())
+              .map(([name, agg]) => {
+                const ref = muniByName.get(stripAccents(name));
+                return {
+                  id: ref?.id ?? null,
+                  name: ref?.name ?? name,
+                  customers: agg.customers,
+                  feeders: agg.feeders,
+                };
+              })
+              .sort((a, b) => b.customers - a.customers)
+          : [];
         const total_feeders = municipalities.reduce(
           (sum, m) => sum + m.feeders,
           0,
         );
-        return { region, total_customers, total_feeders, municipalities };
+        return {
+          region,
+          total_customers: customers_affected,
+          total_feeders,
+          municipalities,
+        };
       })
+      // Fold in any AEEPR regions LUMA hasn't reported on (rare, but keeps
+      // us from silently dropping data).
+      .concat(
+        Array.from(feederByRegion.entries())
+          .filter(([region]) => !seenRegions.has(region))
+          .map(([region, muniMap]) => {
+            const municipalities: MuniGroup[] = Array.from(muniMap.entries())
+              .map(([name, agg]) => {
+                const ref = muniByName.get(stripAccents(name));
+                return {
+                  id: ref?.id ?? null,
+                  name: ref?.name ?? name,
+                  customers: agg.customers,
+                  feeders: agg.feeders,
+                };
+              })
+              .sort((a, b) => b.customers - a.customers);
+            const total_customers = municipalities.reduce(
+              (sum, m) => sum + m.customers,
+              0,
+            );
+            const total_feeders = municipalities.reduce(
+              (sum, m) => sum + m.feeders,
+              0,
+            );
+            totalCustomers += total_customers;
+            return { region, total_customers, total_feeders, municipalities };
+          }),
+      )
       .sort((a, b) => {
         const ai = REGION_ORDER.indexOf(a.region);
         const bi = REGION_ORDER.indexOf(b.region);
@@ -137,17 +201,18 @@ export async function GET() {
         return b.total_customers - a.total_customers;
       });
 
+    const newestTs = lumaNewestTs || feederNewestTs || new Date().toISOString();
     const body: OutageSummary = {
       total_customers: totalCustomers,
-      total_feeders: totalFeeders,
+      total_feeders: feederTotalFeeders,
       groups,
-      fetched_at: newestTs || new Date().toISOString(),
+      fetched_at: newestTs,
       reason: groups.length === 0 ? "no_data" : undefined,
     };
     return NextResponse.json(body, {
       headers: {
         "Cache-Control":
-          "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
+          "public, max-age=30, s-maxage=30, stale-while-revalidate=60",
       },
     });
   } catch (err) {

@@ -17,8 +17,10 @@ interface Row {
 }
 
 /**
- * Latest weather snapshot per municipality. Powers the map wind layer and any
- * other consumer that needs a one-row-per-muni weather state.
+ * Latest weather snapshot per municipality. Used by the risk-feature pipeline
+ * and any other consumer that needs a one-row-per-muni weather state. (The
+ * map's old wind/rain overlays were removed; this endpoint stayed because the
+ * per-muni risk inputs still need it.)
  *
  * Honest failure: if Supabase isn't configured or the query errors, we return
  * `{items: [], reason: "..."}` instead of fabricating values.
