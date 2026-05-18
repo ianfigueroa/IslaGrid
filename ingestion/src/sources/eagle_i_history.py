@@ -50,6 +50,40 @@ DEFAULT_URL = os.environ.get(
 
 PR_FIPS_STATE = "72"
 
+# FIPS county code (3 digits, zero-padded) → municipalities.id slug. The
+# `eagle_i_outages.municipality_id` column FKs into `municipalities.id`, which
+# uses a hand-curated kebab-case slug (no diacritics) rather than the raw
+# FIPS code. Without this map every Eagle-i row fails the FK and the run
+# aborts on the first batch.
+FIPS_TO_SLUG: dict[str, str] = {
+    "001": "adjuntas",       "003": "aguada",         "005": "aguadilla",
+    "007": "aguas-buenas",   "009": "aibonito",       "011": "anasco",
+    "013": "arecibo",        "015": "arroyo",         "017": "barceloneta",
+    "019": "barranquitas",   "021": "bayamon",        "023": "cabo-rojo",
+    "025": "caguas",         "027": "camuy",          "029": "canovanas",
+    "031": "carolina",       "033": "catano",         "035": "cayey",
+    "037": "ceiba",          "039": "ciales",         "041": "cidra",
+    "043": "coamo",          "045": "comerio",        "047": "corozal",
+    "049": "culebra",        "051": "dorado",         "053": "fajardo",
+    "054": "florida",        "055": "guanica",        "057": "guayama",
+    "059": "guayanilla",     "061": "guaynabo",       "063": "gurabo",
+    "065": "hatillo",        "067": "hormigueros",    "069": "humacao",
+    "071": "isabela",        "073": "jayuya",         "075": "juana-diaz",
+    "077": "juncos",         "079": "lajas",          "081": "lares",
+    "083": "las-marias",     "085": "las-piedras",    "087": "loiza",
+    "089": "luquillo",       "091": "manati",         "093": "maricao",
+    "095": "maunabo",        "097": "mayaguez",       "099": "moca",
+    "101": "morovis",        "103": "naguabo",        "105": "naranjito",
+    "107": "orocovis",       "109": "patillas",       "111": "penuelas",
+    "113": "ponce",          "115": "quebradillas",   "117": "rincon",
+    "119": "rio-grande",     "121": "sabana-grande",  "123": "salinas",
+    "125": "san-german",     "127": "san-juan",       "129": "san-lorenzo",
+    "131": "san-sebastian",  "133": "santa-isabel",   "135": "toa-alta",
+    "137": "toa-baja",       "139": "trujillo-alto",  "141": "utuado",
+    "143": "vega-alta",      "145": "vega-baja",      "147": "vieques",
+    "149": "villalba",       "151": "yabucoa",        "153": "yauco",
+}
+
 
 def _iter_csv_rows(stream: io.BufferedReader) -> Iterator[dict[str, str]]:
     """Yield rows from a gz-or-plain CSV stream, lowercased headers."""
@@ -84,7 +118,10 @@ def _muni_id(fips_state: str, fips_county: str) -> str | None:
         return None
     if not fips_county.isdigit() or len(fips_county) != 3:
         return None
-    return f"72-{fips_county}"
+    # Returning None for unmapped codes is fine — the row still lands in
+    # eagle_i_outages with municipality_id NULL, and downstream label
+    # synthesis just skips it. The FK only applies when a value is present.
+    return FIPS_TO_SLUG.get(fips_county)
 
 
 def _open_archive(url: str) -> Iterator[io.BufferedReader]:
