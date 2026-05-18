@@ -28,6 +28,12 @@ interface Props {
   plantId: string;
   fallbackName?: string;
   fallbackFuel?: string | null;
+  /**
+   * OSM-only plants don't have curated capacity in our list, but the OSM
+   * feature itself often carries a `capacity_mw` tag. The map passes that
+   * through so we can still show a nameplate even when the API returns null.
+   */
+  fallbackCapacityMw?: number | null;
 }
 
 const STATUS_TONE: Record<PlantDetail["status"], { label: string; cls: string; Icon: typeof Power }> = {
@@ -68,7 +74,12 @@ function fmtAge(iso: string | null): string {
   return `${Math.round(ageHr / 24)} d ago`;
 }
 
-export function PlantSummary({ plantId, fallbackName, fallbackFuel }: Props) {
+export function PlantSummary({
+  plantId,
+  fallbackName,
+  fallbackFuel,
+  fallbackCapacityMw,
+}: Props) {
   const [detail, setDetail] = useState<PlantDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,9 +133,19 @@ export function PlantSummary({ plantId, fallbackName, fallbackFuel }: Props) {
   const tone = STATUS_TONE[detail.status];
   const StatusIcon = tone.Icon;
   const fuel = detail.fuel ?? fallbackFuel ?? null;
-  const utilization = detail.utilization_pct;
+  // Prefer API capacity (curated), fall back to whatever the map feature
+  // brought in from OSM so OSM-only plants still show a nameplate.
+  const effectiveCapacityMw =
+    detail.capacity_mw != null ? detail.capacity_mw : fallbackCapacityMw ?? null;
+  const effectiveUtilization =
+    detail.utilization_pct != null
+      ? detail.utilization_pct
+      : effectiveCapacityMw && effectiveCapacityMw > 0 && detail.current_mw != null
+        ? Math.max(0, Math.min(100, (detail.current_mw / effectiveCapacityMw) * 100))
+        : null;
+  const utilization = effectiveUtilization;
   const showCapacityBar =
-    detail.capacity_mw != null && detail.capacity_mw > 0 && detail.current_mw != null;
+    effectiveCapacityMw != null && effectiveCapacityMw > 0 && detail.current_mw != null;
 
   return (
     <div className="space-y-4">
@@ -159,7 +180,7 @@ export function PlantSummary({ plantId, fallbackName, fallbackFuel }: Props) {
             Nameplate
           </div>
           <div className="mt-1 font-mono text-lg tabular-nums text-text-2">
-            {fmtMw(detail.capacity_mw)}
+            {fmtMw(effectiveCapacityMw)}
           </div>
         </div>
       </div>

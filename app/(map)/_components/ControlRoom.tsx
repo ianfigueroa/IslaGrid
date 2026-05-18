@@ -185,7 +185,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
             body: <MunicipalitySummary municipalityId={id} />,
           })
         }
-        onSelectPlant={(id, title, fuel) =>
+        onSelectPlant={(id, title, fuel, capacityMw) =>
           setSelection({
             kind: "plant",
             id,
@@ -196,6 +196,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
                 plantId={id}
                 fallbackName={title}
                 fallbackFuel={fuel}
+                fallbackCapacityMw={capacityMw ?? null}
               />
             ),
           })
