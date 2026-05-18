@@ -111,7 +111,15 @@ def to_xy(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def default_split_dates() -> tuple[datetime, datetime]:
-    """Fixed cutoffs so train/val/test stay reproducible across runs."""
-    val_start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    test_start = datetime(2026, 4, 1, tzinfo=timezone.utc)
+    """Fixed cutoffs so train/val/test stay reproducible across runs.
+
+    Sized to the actual label distribution (Eagle-i ends Dec 2025; live
+    LUMA scraping started May 2026). If we put val_start in 2026 the
+    Eagle-i labels all fall in train and val/test have <20 positives,
+    failing the trainer gate before it can fit anything. Anchoring val
+    inside Eagle-i's tail keeps the time-split valid AND gives the gate
+    real labels to evaluate against.
+    """
+    val_start = datetime(2025, 9, 1, tzinfo=timezone.utc)
+    test_start = datetime(2025, 11, 1, tzinfo=timezone.utc)
     return val_start, test_start
