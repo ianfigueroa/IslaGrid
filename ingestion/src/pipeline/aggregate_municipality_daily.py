@@ -265,11 +265,13 @@ def main() -> int:
         "--backfill-days",
         type=int,
         default=30,
-        help="How many days back to aggregate. Default 30; max 400 to guard against typos.",
+        help="How many days back to aggregate. Default 30; max 5000 (≈13y) for full Eagle-i archive backfills.",
     )
     args = parser.parse_args()
-    if args.backfill_days < 1 or args.backfill_days > 400:
-        parser.error("--backfill-days must be between 1 and 400")
+    # 5000d ≈ 13y — covers the Eagle-i archive (2014→present) with headroom and
+    # still rejects obvious unit-mistakes like passing seconds instead of days.
+    if args.backfill_days < 1 or args.backfill_days > 5000:
+        parser.error("--backfill-days must be between 1 and 5000")
     return 0 if run(args.backfill_days) >= 0 else 1
 
 

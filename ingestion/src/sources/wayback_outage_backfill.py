@@ -37,7 +37,10 @@ CDX = "https://web.archive.org/cdx/search/cdx"
 log = logging.getLogger(__name__)
 
 
-@retry(wait=wait_exponential(min=2, max=15), stop=stop_after_attempt(3), reraise=True)
+# CDX has been flaky in 2025 — frequent 5xx and slow responses. Long timeout
+# + more retries with longer backoff so a transient outage doesn't kill the
+# whole backfill job.
+@retry(wait=wait_exponential(min=5, max=60), stop=stop_after_attempt(6), reraise=True)
 def _cdx_captures(since: str, until: str | None) -> list[tuple[str, str]]:
     """Return [(timestamp14, original_url)] for unique successful captures."""
     params: dict[str, str] = {
@@ -49,7 +52,7 @@ def _cdx_captures(since: str, until: str | None) -> list[tuple[str, str]]:
     }
     if until:
         params["to"] = until.replace("-", "")[:8]
-    with httpx.Client(timeout=60.0, follow_redirects=True) as c:
+    with httpx.Client(timeout=180.0, follow_redirects=True) as c:
         r = c.get(CDX, params=params, headers={"User-Agent": "islagrid-ai/0.1"})
         r.raise_for_status()
         rows = r.json() or []
