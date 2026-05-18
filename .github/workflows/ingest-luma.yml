@@ -1,8 +1,11 @@
 name: ingest-luma
 
 on:
+  # Every 5 minutes so the grid status pill and outage banner reflect the
+  # genuine state on miluma.lumapr.com and genera-pr.com within a few minutes
+  # — 15-min cadence made the UI feel "behind" against the source sites.
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:

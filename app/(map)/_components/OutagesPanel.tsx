@@ -45,7 +45,7 @@ export function OutagesPanel({ open, onClose }: Props) {
       }
     };
     void load();
-    const t = window.setInterval(load, 60_000);
+    const t = window.setInterval(load, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(t);
@@ -82,7 +82,7 @@ export function OutagesPanel({ open, onClose }: Props) {
                 <span className="text-[12px] text-text-2">customers</span>
               </div>
               <span className="mt-1 text-[11px] text-text-3">
-                Source: LUMA feeder map · refreshes every 60s
+                Source: LUMA regions feed · refreshes every 30s
               </span>
             </div>
             <button
@@ -240,7 +240,7 @@ export function useOutagesSummary(): {
       }
     };
     void load();
-    const t = window.setInterval(load, 60_000);
+    const t = window.setInterval(load, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(t);

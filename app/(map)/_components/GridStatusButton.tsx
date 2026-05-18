@@ -43,7 +43,7 @@ export function GridStatusButton({ snapshot, onClick, active }: Props) {
       aria-label={`Grid status: ${meta.label}. Click to open details.`}
       aria-pressed={active}
       className={cn(
-        "pointer-events-auto absolute left-4 top-[4.5rem] z-30 flex h-11 items-center gap-3 rounded-full pl-2.5 pr-4 text-text transition-shadow",
+        "pointer-events-auto absolute left-4 top-[6.5rem] z-30 flex h-11 items-center gap-3 rounded-full pl-2.5 pr-4 text-text transition-shadow",
         active
           ? "glass-strong shadow-[var(--shadow-card-lg)]"
           : "glass hover:shadow-[var(--shadow-card-lg)]",

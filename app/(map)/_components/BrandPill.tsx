@@ -56,7 +56,7 @@ export function BrandPill({ onMap = true, basemap, onBasemapChange }: BrandPillP
       <div
         className={cn(
           "pointer-events-auto absolute z-30 flex items-center gap-2",
-          onMap ? "left-4 top-4" : "left-4 top-4",
+          onMap ? "left-4 top-12" : "left-4 top-12",
         )}
       >
         <motion.button

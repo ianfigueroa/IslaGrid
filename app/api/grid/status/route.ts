@@ -7,7 +7,10 @@ import {
 import { fuseGridSnapshots } from "@/lib/grid-fusion";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
+// Genera/LUMA scrapers run every ~5 min; cache for 20s so the API doesn't
+// hammer Supabase but the UI still picks up new readings within a few
+// hundred milliseconds of the scrape landing.
+export const revalidate = 20;
 
 interface Payload {
   snapshot: GridSnapshot | null;
@@ -72,7 +75,7 @@ export async function GET() {
   return NextResponse.json(body, {
     headers: {
       "Cache-Control":
-        "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
+        "public, max-age=20, s-maxage=20, stale-while-revalidate=60",
     },
   });
 }

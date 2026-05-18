@@ -50,25 +50,17 @@ export async function GET() {
     ],
   };
 
-  // Enrich plants with the latest generation snapshot when possible.
+  // Enrich plants with the latest reading from plant_snapshots (Genera PR's
+  // per-station MW feed). generation_snapshots used to be the join target but
+  // that table is now empty — plant_snapshots is the live source.
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && collection.features.length) {
     const supabase = getServerSupabase();
     const { data } = await supabase
-      .from("generation_snapshots")
-      .select("plant_id, mw, available_mw, ts")
+      .from("plant_snapshots")
+      .select("plant_name, category, output_mw, ts")
       .order("ts", { ascending: false })
       .limit(500);
 
-    const latest = new Map<string, { mw: number | null; available_mw: number | null; ts: string }>();
-    for (const row of data ?? []) {
-      if (!latest.has(row.plant_id)) {
-        latest.set(row.plant_id, { mw: row.mw, available_mw: row.available_mw, ts: row.ts });
-      }
-    }
-
-    // Try multiple join keys: normalized name, OSM id, and a stripped name
-    // (drops parentheticals + common suffixes). Generation feed uses upstream
-    // plant_ids that don't always match OSM `name` exactly.
     const normName = (s: string): string =>
       s
         .toLowerCase()
@@ -77,13 +69,32 @@ export async function GET() {
         .replace(/\s+/g, " ")
         .trim();
 
+    // plant_snapshots is "one row per category per plant per scrape" — sum
+    // categories so a multi-unit plant (e.g. San Juan base + peak) reports
+    // its combined output. Keep the newest ts as the freshness anchor.
+    const latest = new Map<
+      string,
+      { mw: number; ts: string; category: string | null }
+    >();
+    for (const row of data ?? []) {
+      const key = normName(row.plant_name ?? "");
+      if (!key) continue;
+      const mw = typeof row.output_mw === "number" ? row.output_mw : Number(row.output_mw);
+      if (!Number.isFinite(mw)) continue;
+      const existing = latest.get(key);
+      if (existing && existing.ts > row.ts) continue; // older row → skip
+      if (existing && existing.ts === row.ts) {
+        existing.mw += mw;
+        continue;
+      }
+      latest.set(key, { mw, ts: row.ts, category: row.category ?? null });
+    }
+
     for (const f of collection.features) {
       if (f.properties.kind !== "plant" && f.properties.kind !== "generator") continue;
       const candidates = [
-        (f.properties.name ?? "").toLowerCase().trim(),
         normName(f.properties.name ?? ""),
-        f.id,
-        String(f.id).replace(/^(node|way|relation)\//, ""),
+        (f.properties.name ?? "").toLowerCase().trim(),
       ].filter(Boolean);
       const hit = candidates.map((c) => latest.get(c)).find((h) => h);
       if (hit) {
