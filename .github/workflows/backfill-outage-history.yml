@@ -9,8 +9,9 @@ on:
     inputs:
       eagle_i_url:
         description: >-
-          Direct URL to the Eagle-i historical CSV/ZIP release. Leave blank
-          to skip Eagle-i. Find the latest at
+          One or more direct Eagle-i CSV/ZIP URLs, separated by spaces,
+          commas, or newlines. Each is ingested in turn (idempotent).
+          Leave blank to skip Eagle-i. Find the latest at
           https://figshare.com/articles/dataset/24237376.
         required: false
         type: string
@@ -63,8 +64,27 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          EAGLE_I_DATA_URL: ${{ inputs.eagle_i_url }}
-        run: python -m src.sources.eagle_i_history
+          EAGLE_I_URLS: ${{ inputs.eagle_i_url }}
+        # Accept multiple URLs separated by whitespace, commas, or newlines so
+        # the operator can paste all of figshare's per-year CSV links in one
+        # run instead of triggering the workflow once per year.
+        run: |
+          python - <<'PY'
+          import os, re, subprocess, sys
+          raw = os.environ.get("EAGLE_I_URLS", "")
+          urls = [u for u in re.split(r"[\s,]+", raw.strip()) if u]
+          if not urls:
+              print("No Eagle-i URLs after parsing; skipping.")
+              sys.exit(0)
+          for i, url in enumerate(urls, 1):
+              print(f"::group::Eagle-i ingest [{i}/{len(urls)}] {url}")
+              rc = subprocess.call(
+                  [sys.executable, "-m", "src.sources.eagle_i_history", "--url", url]
+              )
+              print("::endgroup::")
+              if rc != 0:
+                  sys.exit(rc)
+          PY
 
       - name: Wayback outage map backfill
         if: success() || failure()
