@@ -102,11 +102,15 @@ def run(window_days: int = 14) -> int:
         muni = _find_municipality(text, index)
         started = row.get("ts") or cutoff
         snippet = text[:280]
-        # Hash the FULL text (not a 120-char truncation) so two distinct
-        # notices that happen to share the same opening line still get
-        # different event ids.
+        # Hash on stable fields only — `source` + `id` (from official_updates,
+        # which itself is a stable hash of the raw notice). DO NOT include
+        # `started_at` here: official_updates.ts gets overwritten with the
+        # latest scrape time on every upsert, so hashing it produced a new
+        # event row per scrape and stacked 6–11 duplicates on the scorecard.
+        # `text` stays in the hash because two distinct notices that happen to
+        # share an id (shouldn't, but defensive) still get different events.
         event_id = "ev:" + hashlib.sha1(
-            f"{row.get('source')}|{started}|{text}".encode("utf-8")
+            f"{row.get('source')}|{row.get('id')}|{text}".encode("utf-8")
         ).hexdigest()[:16]
         events.append(
             {

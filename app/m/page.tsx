@@ -30,17 +30,26 @@ async function loadDirectoryData() {
     return { munis, risk: new Map<string, RiskRow>(), recent: new Map<string, number>() };
   }
   const supa = getServerSupabase();
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const since30dDay = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
-  const [riskRes, dailyRes] = await Promise.all([
+  const since30dIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Aggregate-history runs hourly. When it's catching up (or has just been
+  // wiped after a dedup pass), the rollup table is sparse. Fall back to
+  // live event durations so the directory doesn't render a sea of "—".
+  const [riskRes, dailyRes, eventRes] = await Promise.all([
     supa
       .from("municipality_risk_latest")
       .select("municipality_id, band, risk_score"),
     supa
       .from("municipality_outage_daily")
       .select("municipality_id, outage_hours")
-      .gte("day", since),
+      .gte("day", since30dDay),
+    supa
+      .from("outage_events")
+      .select("municipality_id, started_at, ended_at")
+      .gte("started_at", since30dIso)
+      .limit(5000),
   ]);
   const risk = new Map<string, RiskRow>();
   for (const row of (riskRes.data ?? []) as RiskRow[]) {
@@ -52,6 +61,22 @@ async function loadDirectoryData() {
       row.municipality_id,
       (recent.get(row.municipality_id) ?? 0) + (row.outage_hours ?? 0),
     );
+  }
+  // Live fallback: only fill munis the rollup didn't cover. Hours per event =
+  // (ended_at ?? now) - started_at, clamped to >= 0. Matches the eventHours
+  // helper in lib/reliability.ts so the two read-paths stay consistent.
+  const nowMs = Date.now();
+  for (const row of (eventRes.data ?? []) as Array<{
+    municipality_id: string | null;
+    started_at: string;
+    ended_at: string | null;
+  }>) {
+    const mid = row.municipality_id;
+    if (!mid || recent.has(mid)) continue;
+    const start = new Date(row.started_at).getTime();
+    const end = row.ended_at ? new Date(row.ended_at).getTime() : nowMs;
+    const hrs = Math.max(0, (end - start) / (1000 * 60 * 60));
+    recent.set(mid, (recent.get(mid) ?? 0) + hrs);
   }
   return { munis, risk, recent };
 }

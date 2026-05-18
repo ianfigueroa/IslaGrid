@@ -21,12 +21,18 @@ function ensurePmtilesProtocol() {
 // of a generic city map. Warm cream land + muted teal water in light;
 // deep navy land + abyss water in dark. Roads stay quiet so the data on top
 // (risk, outages, plants) dominates the eye.
+// In Protomaps, "background" is the void color that shows everywhere a
+// pmtiles tile hasn't loaded — including the area beyond our tile bbox.
+// Setting it to the ocean color lets the open water above PR's north coast
+// read as ocean instead of an empty white strip. "water" is the explicit
+// inland-water + coastal fill inside the tile coverage; we keep both in
+// sync so the seam is invisible.
 function flavorFor(theme: "light" | "dark") {
   const base = namedFlavor(theme);
   if (theme === "dark") {
     return {
       ...base,
-      background: "#040b16",
+      background: "#03101c",
       earth: "#0a1726",
       park_a: "#0e2233",
       park_b: "#0c1c2c",
@@ -49,11 +55,11 @@ function flavorFor(theme: "light" | "dark") {
   }
   return {
     ...base,
-    background: "#eef3f5",
+    background: "#bcd8eb",
     earth: "#f7f1e6",
     park_a: "#dfead0",
     park_b: "#e6efd9",
-    water: "#bedce7",
+    water: "#bcd8eb",
     sand: "#f0e6c8",
     beach: "#f3e8c8",
     farmland: "#eee6cf",
@@ -65,22 +71,12 @@ const PMTILES_URL = "/map/pr.pmtiles";
 function protomapsStyle(theme: "light" | "dark"): maplibregl.StyleSpecification {
   // Generate the layer stack from our flavor + the standard OSM source key
   // expected by Protomaps' v4 schema ("protomaps").
-  const themeLayers = protomapsLayers("protomaps", flavorFor(theme), {
+  // Protomaps' generated stack already starts with its own background layer,
+  // and flavorFor() above sets that layer's color to ocean blue. So an extra
+  // prepended ocean-background layer would just be hidden underneath.
+  const layers = protomapsLayers("protomaps", flavorFor(theme), {
     lang: "es",
   }) as maplibregl.LayerSpecification[];
-  // pr.pmtiles only covers PR + immediate waters. Without an explicit
-  // background layer MapLibre paints the area outside the tile extent in
-  // its default "no-data" color (showed up as a pale tan strip above the
-  // island). Prepend an ocean fill so the void reads as more ocean.
-  const oceanColor = theme === "dark" ? "#0b1a2f" : "#bcd8eb";
-  const layers: maplibregl.LayerSpecification[] = [
-    {
-      id: "ocean-background",
-      type: "background",
-      paint: { "background-color": oceanColor },
-    },
-    ...themeLayers,
-  ];
   return {
     version: 8,
     glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",

@@ -1,21 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 
 interface Props {
   data: Array<{ month: string; hours: number }>;
 }
 
+interface HoverPoint {
+  idx: number;
+  x: number;
+  y: number;
+}
+
 /**
- * Lightweight area+line chart with no chart library. Path is built from a
- * Catmull-Rom-ish smoothing for visual softness — readable at narrow widths
- * without dragging in Recharts for one panel.
+ * Lightweight area+line chart with no chart library. The pointer moves a
+ * crosshair across the months and the tooltip pins to the nearest data point
+ * so users can read exact hours without us pulling Recharts in for one panel.
  */
 export function MonthlyHoursChart({ data }: Props) {
-  const { path, areaPath, maxY, points, gridLines } = useMemo(
-    () => buildPath(data, 600, 180),
-    [data],
-  );
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hover, setHover] = useState<HoverPoint | null>(null);
+
+  const built = useMemo(() => buildPath(data, 600, 180), [data]);
 
   if (data.length === 0) {
     return (
@@ -25,8 +31,12 @@ export function MonthlyHoursChart({ data }: Props) {
     );
   }
 
+  const { path, areaPath, maxY, points, gridLines } = built;
+  const activePoint = hover ? points[hover.idx] : null;
+  const activeData = hover ? data[hover.idx] : null;
+
   return (
-    <section className="card px-5 py-5">
+    <section className="card relative px-5 py-5">
       <header className="mb-3 flex items-baseline justify-between">
         <h3 className="text-[13px] font-semibold tracking-tight">
           Outage hours by month
@@ -37,10 +47,33 @@ export function MonthlyHoursChart({ data }: Props) {
       </header>
       <div className="relative">
         <svg
+          ref={svgRef}
           viewBox="0 0 600 180"
           className="h-[180px] w-full"
           preserveAspectRatio="none"
           aria-label="Monthly outage hours"
+          onMouseMove={(e) => {
+            const svg = svgRef.current;
+            if (!svg || points.length === 0) return;
+            const rect = svg.getBoundingClientRect();
+            // Translate pointer x into the 0..600 viewBox.
+            const localX = ((e.clientX - rect.left) / rect.width) * 600;
+            let bestIdx = 0;
+            let bestDx = Infinity;
+            for (let i = 0; i < points.length; i++) {
+              const dx = Math.abs(points[i].x - localX);
+              if (dx < bestDx) {
+                bestDx = dx;
+                bestIdx = i;
+              }
+            }
+            setHover({
+              idx: bestIdx,
+              x: points[bestIdx].x,
+              y: points[bestIdx].y,
+            });
+          }}
+          onMouseLeave={() => setHover(null)}
         >
           {gridLines.map((g, i) => (
             <line
@@ -70,9 +103,44 @@ export function MonthlyHoursChart({ data }: Props) {
             strokeLinecap="round"
           />
           {points.map((p, i) => (
-            <circle key={`p-${i}`} cx={p.x} cy={p.y} r="2.5" fill="#ef4444" />
+            <circle
+              key={`p-${i}`}
+              cx={p.x}
+              cy={p.y}
+              r={hover?.idx === i ? 4 : 2.5}
+              fill="#ef4444"
+            />
           ))}
+          {activePoint ? (
+            <line
+              x1={activePoint.x}
+              x2={activePoint.x}
+              y1={0}
+              y2={180}
+              stroke="#ef4444"
+              strokeOpacity="0.3"
+              strokeDasharray="3 3"
+            />
+          ) : null}
         </svg>
+        {activePoint && activeData ? (
+          <div
+            role="tooltip"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] text-text shadow-lg"
+            style={{
+              left: `${(activePoint.x / 600) * 100}%`,
+              top: 0,
+              transform: "translate(-50%, -110%)",
+            }}
+          >
+            <div className="font-medium">{formatMonthLong(activeData.month)}</div>
+            <div className="font-mono tabular-nums text-text-2">
+              {activeData.hours > 0
+                ? `${activeData.hours.toFixed(1)} outage hours`
+                : "No outages logged"}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-1 flex justify-between text-[10.5px] text-text-3">
           {data.map((d) => (
             <span key={d.month} className="tabular-nums">
@@ -90,6 +158,13 @@ function formatMonth(yearMonth: string): string {
   if (!y || !m) return yearMonth;
   const d = new Date(Date.UTC(y, m - 1, 1));
   return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+
+function formatMonthLong(yearMonth: string): string {
+  const [y, m] = yearMonth.split("-").map(Number);
+  if (!y || !m) return yearMonth;
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 function buildPath(
