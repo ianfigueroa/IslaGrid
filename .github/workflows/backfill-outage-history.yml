@@ -72,9 +72,15 @@ jobs:
           python - <<'PY'
           import os, re, subprocess, sys
           raw = os.environ.get("EAGLE_I_URLS", "")
-          urls = [u for u in re.split(r"[\s,]+", raw.strip()) if u]
+          tokens = [u for u in re.split(r"[\s,]+", raw.strip()) if u]
+          # Only keep real http(s) URLs so a stray word, prompt text, or
+          # log-line paste can't get fed to httpx and crash the step.
+          urls = [u for u in tokens if u.startswith(("http://", "https://"))]
+          dropped = [t for t in tokens if t not in urls]
+          if dropped:
+              print(f"::warning:: ignoring {len(dropped)} non-URL token(s): {dropped[:5]}")
           if not urls:
-              print("No Eagle-i URLs after parsing; skipping.")
+              print("::error:: no http(s) URLs found in eagle_i_url input; skipping.")
               sys.exit(0)
           for i, url in enumerate(urls, 1):
               print(f"::group::Eagle-i ingest [{i}/{len(urls)}] {url}")
