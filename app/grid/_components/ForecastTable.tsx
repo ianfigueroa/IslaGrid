@@ -139,7 +139,7 @@ export function ForecastTable({ rows }: Props) {
                 </Link>
               </td>
               <td className="px-3 py-2.5">
-                <ProbBar pct={r.probability_6h} />
+                <ProbBar pct={r.probability_6h} muniName={r.name} />
               </td>
               <td className="px-3 py-2.5">
                 <span
@@ -213,7 +213,13 @@ function Th({
   );
 }
 
-function ProbBar({ pct }: { pct: number | null }) {
+function ProbBar({
+  pct,
+  muniName,
+}: {
+  pct: number | null;
+  muniName: string;
+}) {
   if (pct == null) {
     return (
       <div className="flex items-center justify-end">
@@ -230,11 +236,18 @@ function ProbBar({ pct }: { pct: number | null }) {
         : value >= 0.1
           ? "bg-warn/60"
           : "bg-ok";
+  // Tooltip: explicit decimal probability + horizon for users hovering.
+  // The fractional value (e.g. 0.196) is what the model actually emitted;
+  // the rounded percentage on screen rounds it for at-a-glance scanning.
+  const tooltip = `${muniName}: ${(value * 100).toFixed(1)}% chance of an outage event in the next 6 hours`;
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-end gap-2" title={tooltip}>
       <div className="relative h-1.5 w-24 overflow-hidden rounded-full bg-surface-2">
         <span
-          className={cn("absolute inset-y-0 left-0 rounded-full", tone)}
+          className={cn(
+            "absolute inset-y-0 left-0 rounded-full transition-[width] duration-300",
+            tone,
+          )}
           style={{ width: `${value * 100}%` }}
         />
       </div>
