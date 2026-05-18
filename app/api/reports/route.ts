@@ -17,7 +17,10 @@ const HOURLY_LIMIT_PER_IP = 30;
  */
 function isAllowedOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
-  if (!origin) return true; // same-origin browser POSTs often omit Origin
+  // A missing Origin header is only acceptable in local dev — production
+  // browsers always emit it on cross-origin requests, and a stripped header
+  // is the easiest way for an attacker to bypass a same-origin check.
+  if (!origin) return process.env.NODE_ENV !== "production";
   const allowed = new Set<string>([
     "http://localhost:3000",
     "http://localhost:3001",
@@ -27,11 +30,13 @@ function isAllowedOrigin(req: Request): boolean {
   return allowed.has(origin);
 }
 
+// Strict shape — note/comment/free-text fields are intentionally absent so
+// nothing user-supplied reaches the DOM as HTML. If freeform notes are
+// ever wanted, they must arrive with length caps + HTML stripping.
 interface SubmitBody {
   type?: string;
   lat?: number;
   lon?: number;
-  note?: string;
 }
 
 export async function POST(req: Request) {

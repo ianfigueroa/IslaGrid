@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 from selectolax.parser import HTMLParser
@@ -24,6 +25,27 @@ URL = f"https://{_HOST}/avisos/"
 SOURCE = f"{_HOST}/avisos"
 
 log = logging.getLogger(__name__)
+
+
+def _safe_href(href: str | None) -> str:
+    """Sanitize a scraped <a href>. Stored in `official_updates.url` and
+    rendered as an <a> target in the UI, so `javascript:` / `data:` schemes
+    would be clickable stored-XSS. Accept only http(s) and site-relative
+    paths; anything else falls back to the source URL itself.
+
+    Mirror of the same helper in `luma_averias.py` — kept inline here for
+    surgical scope; the cleanup commit consolidates both into a shared lib.
+    """
+    if not href:
+        return URL
+    href = href.strip()
+    if href.startswith("/"):
+        return f"https://{_HOST}{href}"
+    try:
+        scheme = urlparse(href).scheme.lower()
+    except ValueError:
+        return URL
+    return href if scheme in ("http", "https") else URL
 
 
 def _fetch() -> str:
@@ -50,7 +72,8 @@ def _parse(html: str) -> list[dict[str, str]]:
         title = title_node.text(strip=True)
         body = " ".join(p.text(strip=True) for p in art.css("p")) or ""
         href = (title_node.css_first("a") or art.css_first("a"))
-        url = href.attributes.get("href", URL) if href else URL
+        raw_url = href.attributes.get("href") if href else None
+        url = _safe_href(raw_url)
         text = f"{title} — {body[:280]}".strip(" —")
         if not text:
             continue
