@@ -76,7 +76,12 @@ export async function GET() {
     // the per-municipality breakdown when present, but their `status='SI'`
     // filter goes empty between feeder pushes; we used to read only AEEPR and
     // the banner would lie about "0 customers" while LUMA showed thousands.
-    const [lumaRes, feedersRes, munisRes] = await Promise.all([
+    // For the trend chip on the banner we also pull the snapshot closest to
+    // 1h ago. Window is 50–70 min so a slightly late ingest still picks
+    // something up.
+    const oneHourAgoStart = new Date(Date.now() - 70 * 60 * 1000).toISOString();
+    const oneHourAgoEnd = new Date(Date.now() - 50 * 60 * 1000).toISOString();
+    const [lumaRes, feedersRes, munisRes, historyRes] = await Promise.all([
       supabase
         .from("luma_outage_latest")
         .select(
@@ -87,6 +92,11 @@ export async function GET() {
         .select("feeder_id, region, municipality_label, customers, status, ts")
         .eq("status", "SI"),
       supabase.from("municipalities").select("id, name"),
+      supabase
+        .from("luma_outage_snapshots")
+        .select("ts, customers_affected")
+        .gte("ts", oneHourAgoStart)
+        .lte("ts", oneHourAgoEnd),
     ]);
 
     if (lumaRes.error) throw new Error(lumaRes.error.message);
@@ -202,11 +212,41 @@ export async function GET() {
       });
 
     const newestTs = lumaNewestTs || feederNewestTs || new Date().toISOString();
+    // Sum the 1h-ago snapshot across regions. If the window has multiple
+    // ingest cycles, bucket by closest ts to the midpoint to avoid mixing
+    // two different snapshots.
+    const historyRows = (historyRes.data ?? []) as Array<{
+      ts: string;
+      customers_affected: number | null;
+    }>;
+    let total_customers_1h_ago: number | null = null;
+    if (historyRows.length > 0) {
+      // Group by ts (each snapshot writes one row per region at the same ts),
+      // then pick the bucket with the most regions (= most complete snapshot).
+      const byTs = new Map<string, number>();
+      for (const r of historyRows) {
+        byTs.set(
+          r.ts,
+          (byTs.get(r.ts) ?? 0) +
+            (typeof r.customers_affected === "number" ? r.customers_affected : 0),
+        );
+      }
+      // Pick the snapshot with the highest total (proxy for "complete").
+      // Ties broken by latest ts.
+      let best: { ts: string; total: number } | null = null;
+      for (const [ts, total] of byTs.entries()) {
+        if (!best || total > best.total || (total === best.total && ts > best.ts)) {
+          best = { ts, total };
+        }
+      }
+      total_customers_1h_ago = best?.total ?? null;
+    }
     const body: OutageSummary = {
       total_customers: totalCustomers,
       total_feeders: feederTotalFeeders,
       groups,
       fetched_at: newestTs,
+      total_customers_1h_ago,
       reason: groups.length === 0 ? "no_data" : undefined,
     };
     return NextResponse.json(body, {
@@ -231,6 +271,7 @@ function emptySummary(reason: OutageSummary["reason"]): OutageSummary {
     total_feeders: 0,
     groups: [],
     fetched_at: new Date().toISOString(),
+    total_customers_1h_ago: null,
     reason,
   };
 }

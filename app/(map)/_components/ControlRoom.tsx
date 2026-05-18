@@ -21,6 +21,7 @@ import { EmptyLayerToast } from "./EmptyLayerToast";
 import { OutagesPanel } from "./OutagesPanel";
 import { OutagesButton } from "./OutagesButton";
 import { OutageBanner } from "./OutageBanner";
+import { RecentChangesCard } from "./RecentChangesCard";
 import type { ActiveLayerKey, Basemap } from "./GridMap";
 
 const GridMap = dynamic(() => import("./GridMap").then((m) => m.GridMap), {
@@ -244,6 +245,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
       <EmptyStateNote visible={snapshot == null} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
+      <RecentChangesCard />
       <ReportSheet />
       <EmptyLayerToast
         message={emptyLayerNote}

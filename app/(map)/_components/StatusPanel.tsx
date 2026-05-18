@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { formatAge } from "@/lib/sources";
 import type { GridSnapshot } from "@/lib/supabase";
 import type { UpdateItem, UpdateTier } from "./UpdateTimeline";
+import { FuelMixBar } from "./FuelMixBar";
 
 const TONE: Record<UpdateTier, string> = {
   official:     "text-ok",
@@ -121,6 +122,9 @@ export function StatusPanel({ open, onClose, snapshot, updates }: Props) {
             <Metric label="Next hour" value={fmt(snapshot?.next_hour_demand_mw)}   unit="MW" sub />
             <Metric label="Peak fcst" value={fmt(snapshot?.peak_demand_forecast_mw)} unit="MW" sub />
           </section>
+
+          {/* Fuel mix — populated when plant_snapshots has fresh data. */}
+          <FuelMixBar />
 
           {/* Reasons */}
           {snapshot?.status_reasons && snapshot.status_reasons.length > 0 ? (

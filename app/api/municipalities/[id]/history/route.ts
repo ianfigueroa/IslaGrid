@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   computeMunicipalityHistory,
-  computeMuniPercentile,
+  computeIslandStats,
   WINDOW_DAYS,
   type MunicipalityHistory,
   type WindowKey,
@@ -42,15 +42,19 @@ export async function GET(
 
   try {
     const supabase = getServerSupabase();
-    // Run history + percentile in parallel — percentile needs to scan all
-    // municipios so it's the slower of the two; running them concurrently
-    // shaves ~150ms off the API response on warm queries.
-    const [history, percentile] = await Promise.all([
+    // Run history + island stats in parallel — the island scan is the slower
+    // of the two; running them concurrently shaves ~150ms off the warm query.
+    const [history, island] = await Promise.all([
       computeMunicipalityHistory(supabase, id, windowKey),
-      computeMuniPercentile(supabase, id, windowKey),
+      computeIslandStats(supabase, id, windowKey),
     ]);
     const body: Payload = {
-      history: { ...history, percentile },
+      history: {
+        ...history,
+        percentile: island.percentile,
+        island_avg_hours: island.avg_hours,
+        island_median_hours: island.median_hours,
+      },
     };
     return NextResponse.json(body, {
       headers: {

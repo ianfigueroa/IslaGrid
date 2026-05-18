@@ -65,6 +65,12 @@ export interface MunicipalityHistory {
   monthly: Array<{ month: string; hours: number }>;
   /** Percentile rank across all 78 munis. 0 = best, 100 = worst. */
   percentile: number;
+  /** Mean outage hours across all munis with data in this window. Gives the
+   *  user a reference point for whether their number is normal. */
+  island_avg_hours: number;
+  /** Median outage hours — more robust to outliers than the mean for the
+   *  typical-household framing. */
+  island_median_hours: number;
   /** Estimated annual household cost in USD. */
   annual_cost_usd: number;
   /** When the rollup table was last updated for this muni. null if served live. */
@@ -152,15 +158,27 @@ export async function computeMunicipalityHistory(
   return rollupFromEvents(events, causeByEvent, municipalityId, windowKey, windowStart);
 }
 
+export interface IslandStats {
+  percentile: number;
+  /** Mean outage hours across munis with data. */
+  avg_hours: number;
+  /** Median outage hours — more useful than mean when a few munis dominate. */
+  median_hours: number;
+}
+
 /**
- * Percentile rank across all municipios. Standalone so the score card can
- * call it without re-fetching everything else. Returns a value in [0, 100].
+ * One scan, three numbers: the muni's percentile rank plus the island-wide
+ * mean and median outage hours in the same window. Replaces the older
+ * computeMuniPercentile (kept as a thin wrapper for back-compat).
+ *
+ * Standalone so the score card can call it without re-fetching everything
+ * else. Returns percentile in [0, 100].
  */
-export async function computeMuniPercentile(
+export async function computeIslandStats(
   supabase: SupabaseClient,
   municipalityId: string,
   windowKey: WindowKey,
-): Promise<number> {
+): Promise<IslandStats> {
   const days = WINDOW_DAYS[windowKey];
   const windowStart = startOfDay(daysAgo(days));
 
@@ -192,10 +210,37 @@ export async function computeMuniPercentile(
   }
 
   const myHours = totals.get(municipalityId) ?? 0;
-  if (totals.size < 2) return 0;
+  if (totals.size < 2) {
+    return { percentile: 0, avg_hours: round2(myHours), median_hours: round2(myHours) };
+  }
   let worseOrEqualCount = 0;
-  for (const v of totals.values()) if (v <= myHours) worseOrEqualCount++;
-  return Math.round((worseOrEqualCount / totals.size) * 100);
+  let sum = 0;
+  const values: number[] = [];
+  for (const v of totals.values()) {
+    if (v <= myHours) worseOrEqualCount++;
+    sum += v;
+    values.push(v);
+  }
+  values.sort((a, b) => a - b);
+  const mid = Math.floor(values.length / 2);
+  const median =
+    values.length % 2 === 0
+      ? (values[mid - 1] + values[mid]) / 2
+      : values[mid];
+  return {
+    percentile: Math.round((worseOrEqualCount / totals.size) * 100),
+    avg_hours: round2(sum / totals.size),
+    median_hours: round2(median),
+  };
+}
+
+/** Back-compat wrapper. New code should call computeIslandStats. */
+export async function computeMuniPercentile(
+  supabase: SupabaseClient,
+  municipalityId: string,
+  windowKey: WindowKey,
+): Promise<number> {
+  return (await computeIslandStats(supabase, municipalityId, windowKey)).percentile;
 }
 
 // ============================================================================
@@ -252,6 +297,8 @@ function rollupFromDaily(
     monthly,
     // percentile is computed separately so the card can refresh independently
     percentile: 0,
+    island_avg_hours: 0,
+    island_median_hours: 0,
     annual_cost_usd: estimateAnnualCost(totalHours, windowKey),
     daily_table_freshness_ts: mostRecentUpdate || null,
     source_path: "daily_rollup",
@@ -308,6 +355,8 @@ function rollupFromEvents(
     calendar,
     monthly,
     percentile: 0,
+    island_avg_hours: 0,
+    island_median_hours: 0,
     annual_cost_usd: estimateAnnualCost(totalHours, windowKey),
     daily_table_freshness_ts: null,
     source_path: "live_aggregate",
@@ -337,6 +386,8 @@ function emptyHistory(
     calendar: fillCalendar([], windowStart),
     monthly: monthlyFromDaily(fillCalendar([], windowStart)),
     percentile: 0,
+    island_avg_hours: 0,
+    island_median_hours: 0,
     annual_cost_usd: 0,
     daily_table_freshness_ts: null,
     source_path: "empty",

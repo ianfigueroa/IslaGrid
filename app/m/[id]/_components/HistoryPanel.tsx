@@ -88,7 +88,11 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
 
       {data ? (
         <>
-          <ReliabilityScore percentile={data.percentile} />
+          <ReliabilityScore
+            percentile={data.percentile}
+            totalHours={data.total_hours}
+            islandMedianHours={data.island_median_hours}
+          />
           <MetricTiles
             totalOutages={data.total_outages}
             totalHours={data.total_hours}

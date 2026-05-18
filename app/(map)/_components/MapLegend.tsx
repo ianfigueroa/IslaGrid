@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Info, X } from "lucide-react";
 import type { LayerKey } from "./LayerRail";
+
+const SEEN_KEY = "islagrid:legend-seen";
 
 interface Props {
   active: Set<LayerKey>;
@@ -46,6 +48,29 @@ const FUEL_SWATCHES: Swatch[] = [
 export function MapLegend({ active }: Props) {
   const [open, setOpen] = useState(false);
 
+  // First visit: auto-open the legend so the colors aren't a mystery. After
+  // any dismissal we remember the choice — repeat visitors don't need a
+  // popover yelling at them every page load.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SEEN_KEY) === "1") return;
+      // Small delay so the map paints first; the popover then animates over it.
+      const t = window.setTimeout(() => setOpen(true), 800);
+      return () => window.clearTimeout(t);
+    } catch {
+      /* localStorage blocked (private mode) — leave the legend closed. */
+    }
+  }, []);
+
+  const close = () => {
+    setOpen(false);
+    try {
+      window.localStorage.setItem(SEEN_KEY, "1");
+    } catch {
+      /* same as above */
+    }
+  };
+
   const showRisk = active.has("outage-risk");
   const showPlants = active.has("generation");
 
@@ -67,7 +92,7 @@ export function MapLegend({ active }: Props) {
               </h3>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 aria-label="Close legend"
                 className="grid size-6 place-items-center rounded-full text-text-2 transition-colors hover:bg-surface-2 hover:text-text"
               >
@@ -93,7 +118,7 @@ export function MapLegend({ active }: Props) {
 
       <motion.button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close() : setOpen(true))}
         whileTap={{ scale: 0.92 }}
         whileHover={{ scale: 1.05 }}
         aria-label="Show map legend"
