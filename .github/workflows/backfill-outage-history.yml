@@ -1,0 +1,113 @@
+name: backfill-outage-history
+
+# Manual-only one-shot. Pulls historical outage data from DOE Eagle-i and the
+# Wayback Machine to seed ML labels + the reliability calendar. Heavy job —
+# Eagle-i's PR slice is hundreds of thousands of rows, Wayback fetches
+# captures one at a time. Expect 10–30 min per run depending on inputs.
+on:
+  workflow_dispatch:
+    inputs:
+      eagle_i_url:
+        description: >-
+          Direct URL to the Eagle-i historical CSV/ZIP release. Leave blank
+          to skip Eagle-i. Find the latest at
+          https://figshare.com/articles/dataset/24237376.
+        required: false
+        type: string
+      wayback_since:
+        description: "Wayback start date (YYYY-MM-DD). Default: 2022-01-01."
+        required: false
+        default: "2022-01-01"
+        type: string
+      wayback_until:
+        description: "Wayback end date (YYYY-MM-DD). Leave blank for today."
+        required: false
+        type: string
+      wayback_limit:
+        description: "Cap on Wayback captures fetched in this run (avoid timeout)."
+        required: false
+        default: "500"
+        type: string
+      rollup_days:
+        description: "Days of history to re-aggregate into municipality_outage_daily."
+        required: false
+        default: "365"
+        type: string
+
+concurrency:
+  group: backfill-outage-history
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        working-directory: ingestion
+        run: pip install -e .[ml]
+
+      - name: Eagle-i historical ingest
+        if: inputs.eagle_i_url != ''
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EAGLE_I_DATA_URL: ${{ inputs.eagle_i_url }}
+        run: python -m src.sources.eagle_i_history
+
+      - name: Wayback outage map backfill
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          python -m src.sources.wayback_outage_backfill \
+            --since "${{ inputs.wayback_since }}" \
+            ${{ inputs.wayback_until && format('--until "{0}"', inputs.wayback_until) || '' }} \
+            --limit ${{ inputs.wayback_limit }}
+
+      # Convert eagle_i 15-min spikes into discrete outage_labels rows. This is
+      # the ML-relevant step — outage_labels is what the trainer joins against
+      # outage_features. Without this, eagle_i data only flows into the
+      # reliability calendar, not the model.
+      - name: Synthesize eagle_i labels
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipeline.eagle_i_to_labels --window-days ${{ inputs.rollup_days }}
+
+      # Pick up any outage_events synthesized from wayback or other paths.
+      - name: Backfill labels from outage_events
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipeline.backfill_outage_labels
+
+      # Rebuild the reliability calendar / monthly chart over the full window.
+      - name: Aggregate municipality daily rollup
+        if: success() || failure()
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipeline.aggregate_municipality_daily --backfill-days ${{ inputs.rollup_days }}
