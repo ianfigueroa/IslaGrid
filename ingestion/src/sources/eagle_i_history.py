@@ -122,20 +122,46 @@ def run(url: str | None = None, batch_size: int = 5000) -> int:
 
     sb = supabase()
     total = 0
+    seen = 0
     batch: list[dict[str, object]] = []
 
     for stream in _open_archive(target):
         for row in _iter_csv_rows(stream):
-            fips_state = (row.get("fips_state_code") or row.get("fips_state") or "").zfill(2)
-            fips_county = (
-                row.get("fips_county_code") or row.get("fips_county") or ""
-            ).zfill(3)
+            seen += 1
+            # ORNL's public Eagle-i CSVs use a single combined `fips_code`
+            # (5-digit county FIPS) rather than separate state/county columns.
+            # Tolerate both shapes so the scraper still works on the older
+            # research releases that did split them.
+            combined = (row.get("fips_code") or row.get("county_fips") or "").strip()
+            if combined and combined.isdigit() and len(combined) >= 4:
+                # Pad to 5 in case leading zero was stripped (e.g. "1001" → "01001").
+                padded = combined.zfill(5)
+                fips_state = padded[:2]
+                fips_county = padded[2:5]
+            else:
+                fips_state = (row.get("fips_state_code") or row.get("fips_state") or "").zfill(2)
+                fips_county = (
+                    row.get("fips_county_code") or row.get("fips_county") or ""
+                ).zfill(3)
             if fips_state != PR_FIPS_STATE:
                 continue
-            ts = _parse_ts(row.get("run_start_time") or row.get("run_time") or row.get("ts") or "")
+            ts = _parse_ts(
+                row.get("run_start_time")
+                or row.get("run_time")
+                or row.get("ts")
+                or row.get("timestamp")
+                or ""
+            )
             if not ts:
                 continue
-            customers_out_raw = row.get("customers_out") or row.get("customers_affected") or "0"
+            # ORNL writes the per-county affected count as `sum`. Older releases
+            # used `customers_out`. Accept both.
+            customers_out_raw = (
+                row.get("sum")
+                or row.get("customers_out")
+                or row.get("customers_affected")
+                or "0"
+            )
             try:
                 customers_out = int(float(customers_out_raw))
             except ValueError:
@@ -163,7 +189,15 @@ def run(url: str | None = None, batch_size: int = 5000) -> int:
             batch, on_conflict="ts,fips_state,fips_county"
         ).execute()
         total += len(batch)
-    log.info("eagle_i: done; %d PR rows", total)
+    log.info("eagle_i: done; scanned %d rows, kept %d PR rows", seen, total)
+    if seen > 0 and total == 0:
+        log.error(
+            "eagle_i: scanned %d rows but kept 0 — the source columns may have "
+            "changed. Expected one of fips_code/county_fips/fips_state. "
+            "First-row header keys: %s",
+            seen,
+            "(see DictReader headers above)",
+        )
     return total
 
 
