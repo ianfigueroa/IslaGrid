@@ -10,6 +10,18 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getServerSupabase, isSupabaseConfigured } from "./supabase";
 
+function dedupeBySnippet<T extends { snippet: string | null }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const r of rows) {
+    const key = (r.snippet ?? "").trim();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(r);
+  }
+  return out;
+}
+
 export interface MunicipalityBasics {
   id: string;
   name: string;
@@ -226,7 +238,11 @@ export async function loadScorecard(id: string): Promise<Scorecard | null> {
         }
       : null,
     plannedWork: (planned.data ?? []) as PlannedWorkInfo[],
-    recentOutages: (outages.data ?? []) as OutageInfo[],
+    // Defensive dedupe: outage_events should be unique-by-id, but a partial
+    // ingestion glitch in the past produced multiple rows with the same
+    // snippet hours apart. Keep the earliest occurrence per snippet so the
+    // scorecard never shows the same Planned Work twice.
+    recentOutages: dedupeBySnippet((outages.data ?? []) as OutageInfo[]),
     reportCount24h,
     history30d: ((history.data ?? []) as Array<{
       ts: string;
