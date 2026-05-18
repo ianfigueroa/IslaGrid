@@ -10,7 +10,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 export type LayerKey =
   | "municipalities"
-  | "grid-now"
   | "generation"
   | "infrastructure"
   | "outage-risk"
@@ -25,7 +24,6 @@ export type LayerKey =
 
 const KNOWN: LayerKey[] = [
   "municipalities",
-  "grid-now",
   "generation",
   "infrastructure",
   "outage-risk",

@@ -151,7 +151,6 @@ const STATUS_FILL: Record<string, string> = {
 
 export type ActiveLayerKey =
   | "municipalities"
-  | "grid-now"
   | "generation"
   | "infrastructure"
   | "planned-work"

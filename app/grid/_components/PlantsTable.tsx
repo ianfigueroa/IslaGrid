@@ -32,7 +32,15 @@ const STATUS_TONE: Record<string, string> = {
   online: "text-ok",
   derated: "text-warn",
   offline: "text-crit",
+  idle: "text-text-3",
+  no_feed: "text-text-3",
   unknown: "text-text-3",
+};
+
+const NO_DATA_LABEL: Record<string, { headline: string; sub: string }> = {
+  idle:    { headline: "Idle",    sub: "not running" },
+  no_feed: { headline: "—",       sub: "no public feed" },
+  unknown: { headline: "—",       sub: "no data" },
 };
 
 export interface PlantRow {
@@ -43,7 +51,7 @@ export interface PlantRow {
   capacity_mw: number;
   current_mw: number | null;
   utilization_pct: number | null;
-  status: "online" | "derated" | "offline" | "unknown";
+  status: "online" | "derated" | "offline" | "idle" | "no_feed" | "unknown";
   ts: string | null;
 }
 
@@ -154,14 +162,18 @@ export function PlantsTable({ plants }: Props) {
               </td>
               <td className="px-3 py-2.5 text-right tabular-nums">
                 {p.current_mw == null ? (
-                  <span className="text-text-3">—</span>
+                  <span className={cn("text-text-3", STATUS_TONE[p.status])}>
+                    {NO_DATA_LABEL[p.status]?.headline ?? "—"}
+                  </span>
                 ) : (
                   <span className={cn("font-semibold", STATUS_TONE[p.status])}>
                     {Math.round(p.current_mw).toLocaleString()} MW
                   </span>
                 )}
                 <div className="mt-0.5 text-[10.5px] text-text-3">
-                  {p.ts ? formatAge(p.ts) : "no data"}
+                  {p.ts
+                    ? formatAge(p.ts)
+                    : NO_DATA_LABEL[p.status]?.sub ?? "no data"}
                 </div>
               </td>
               <td className="w-[28%] px-3 py-2.5">

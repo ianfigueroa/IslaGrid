@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Activity,
   CloudRain,
   Factory,
   Flame,
@@ -36,10 +35,12 @@ const PRIMARY: PillDef[] = [
   { key: "hurricane",      label: "Hurricane", Icon: Globe2 },
 ];
 
-// Everything else lives in the More drawer (legend below).
+// Everything else lives in the More drawer (legend below). The old
+// "Grid status fill" pill was removed — its key (`grid-now`) was declared
+// in the layer union but never wired to a real map source, so toggling it
+// did nothing. The risk-band layer covers the same intent.
 const MORE: PillDef[] = [
   { key: "municipalities", label: "Municipality borders", Icon: Layers },
-  { key: "grid-now",       label: "Grid status fill",     Icon: Activity },
   { key: "infrastructure", label: "Lines & substations",  Icon: Factory },
   { key: "planned-work",   label: "Planned work",         Icon: Wrench },
   { key: "quakes",         label: "Earthquakes",          Icon: Waves },
@@ -49,7 +50,7 @@ const MORE: PillDef[] = [
 type PresetKey = "default" | "storm" | "solar" | "reporter";
 
 const PRESETS: Record<PresetKey, { label: string; layers: LayerKey[] }> = {
-  default:  { label: "Default",  layers: ["municipalities", "grid-now", "generation"] },
+  default:  { label: "Default",  layers: ["municipalities", "outage-risk", "generation"] },
   storm:    { label: "Storm",    layers: ["municipalities", "weather-alerts", "hurricane", "outage-risk", "outages-live"] },
   solar:    { label: "Solar",    layers: ["municipalities", "generation"] },
   reporter: { label: "Reporter", layers: ["municipalities", "reports", "weather-alerts", "outages-live"] },

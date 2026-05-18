@@ -69,7 +69,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     () =>
       new Set<LayerKey>([
         "municipalities",
-        "grid-now",
+        "outage-risk",
         "generation",
       ]),
   );
@@ -164,7 +164,6 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     Array.from(activeLayers).filter((k): k is ActiveLayerKey =>
       [
         "municipalities",
-        "grid-now",
         "generation",
         "infrastructure",
         "planned-work",
