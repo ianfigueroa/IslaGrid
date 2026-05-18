@@ -256,10 +256,9 @@ export function GridMap({
       container: containerRef.current,
       style: styleFor(effectiveBasemap),
       center: [-66.5, 18.23],
-      // Zoom 7.8 fits the whole island with a comfortable margin; 8.4 cropped
-      // the western coast on common laptop widths and made the panels feel
-      // crowded on first paint.
-      zoom: 7.8,
+      // 7.4 fits the island plus Vieques/Culebra with room to spare; 7.8 was
+      // still too close on desktop and the panels crowded the coast.
+      zoom: 7.4,
       // pr.pmtiles covers PR + USVI at zoom 0–14; MapLibre over-zooms
       // (stretches) z14 tiles up to 16 so we stay crisp at street level
       // without shipping building-detail tiles. Lower bound keeps the user
@@ -1190,9 +1189,21 @@ export function GridMap({
       const f = e.features?.[0];
       if (!f) return;
       const p = f.properties as Record<string, string | number | null>;
+      // MapLibre assigns numeric auto-ids (sometimes literal 0) to features
+      // that lack their own id; `??` would let that through. Prefer the
+      // string id when present, otherwise hand the API the plant name and
+      // let it match by normalized name against plant_snapshots.
+      const rawId = f.id;
+      const idStr =
+        typeof rawId === "string" && rawId.length > 0
+          ? rawId
+          : rawId != null && String(rawId) !== "0"
+            ? String(rawId)
+            : "";
+      const name = typeof p.name === "string" ? p.name : "";
       onSelPlantRef.current?.(
-        String(f.id ?? p.name ?? "plant"),
-        String(p.name ?? "Unnamed plant"),
+        idStr || name || "plant",
+        name || "Unnamed plant",
         (p.fuel as string | undefined) ?? undefined,
       );
     });

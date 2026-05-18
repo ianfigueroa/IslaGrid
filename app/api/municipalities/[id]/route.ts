@@ -76,15 +76,23 @@ export async function GET(
   }
 
   const supa = await getServerSupabase();
-  const { data: rows, error } = await supa
-    .from("planned_work")
-    .select(
-      "id, area, work_type, start_ts, end_ts, possible_interruption, source_url, scraped_at",
-    )
-    .eq("municipality_id", feat.properties.id)
-    .gte("end_ts", new Date().toISOString())
-    .order("start_ts", { ascending: true })
-    .limit(10);
+  const [plannedRes, riskRes] = await Promise.all([
+    supa
+      .from("planned_work")
+      .select(
+        "id, area, work_type, start_ts, end_ts, possible_interruption, source_url, scraped_at",
+      )
+      .eq("municipality_id", feat.properties.id)
+      .gte("end_ts", new Date().toISOString())
+      .order("start_ts", { ascending: true })
+      .limit(10),
+    supa
+      .from("municipality_risk_latest")
+      .select("band")
+      .eq("municipality_id", feat.properties.id)
+      .maybeSingle<{ band: string }>(),
+  ]);
+  const { data: rows, error } = plannedRes;
 
   if (error) {
     const summary: Summary = {
@@ -113,6 +121,17 @@ export async function GET(
     source_url: r.source_url,
   }));
 
+  // Planned-work load is the primary status signal — lots of crews dispatched
+  // to one muni reads as strained. When no planned work is on file, fall back
+  // to the heuristic risk band so we don't display a bare "Unknown" while
+  // the risk model has a real opinion.
+  const riskBand = riskRes.data?.band ?? null;
+  const RISK_TO_STATUS: Record<string, Summary["status"]> = {
+    low: "normal",
+    elevated: "watch",
+    high: "strained",
+    severe: "critical",
+  };
   const status: Summary["status"] =
     planned.length >= 5
       ? "strained"
@@ -120,7 +139,9 @@ export async function GET(
         ? "watch"
         : planned.length >= 1
           ? "normal"
-          : "unknown";
+          : riskBand
+            ? (RISK_TO_STATUS[riskBand] ?? "unknown")
+            : "unknown";
   const latest = (rows ?? [])
     .map((r) => r.scraped_at ?? r.start_ts ?? null)
     .filter(Boolean)
