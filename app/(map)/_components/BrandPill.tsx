@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   BatteryCharging,
   Calculator,
   Info,
@@ -32,6 +33,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/" as Route,         label: "Map",            Icon: MapIcon,         hint: "Live grid + weather" },
+  { href: "/grid" as Route,     label: "Grid dashboard", Icon: Activity,        hint: "Every plant + 6h forecast" },
   { href: "/m" as Route,        label: "Municipalities", Icon: MapPin,          hint: "Reliability scorecard for all 78" },
   { href: "/bill" as Route,     label: "Bill",           Icon: Calculator,      hint: "Estimate your kWh bill" },
   { href: "/solar" as Route,    label: "Solar",          Icon: Sun,             hint: "Is solar worth it?" },
