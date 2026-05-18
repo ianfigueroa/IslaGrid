@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { CURATED_PLANTS } from "@/lib/plants";
+import { normName } from "@/lib/plant-naming";
 
 export const dynamic = "force-dynamic";
 // Genera scrapes every ~5 min; cache for 20s so the popover refreshes inside
@@ -38,15 +39,6 @@ interface PlantDetail {
     | "no_snapshot"
     | "unknown_plant"
     | "supabase_error";
-}
-
-function normName(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\b(power\s+plant|planta|central|cc|gt|thermal)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export async function GET(
