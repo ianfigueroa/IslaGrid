@@ -430,10 +430,22 @@ function dominantCause(b: CauseBreakdown): CauseKey {
   return entries[0][0];
 }
 
+// Hard cap for events with `ended_at = NULL`. Most scrapers don't set the
+// end time — they upsert one row per announcement and call it done — so
+// without a cap, an open event from 90 days ago would claim 2,160 hours of
+// "outage time" and inflate every rollup. 8h is a reasonable upper bound
+// for the typical PR planned-work / aviso window; anything longer would
+// realistically have generated a follow-up notice closing it out.
+export const MAX_OPEN_EVENT_HOURS = 8;
+
 function eventHours(started: string, ended: string | null): number {
   const start = new Date(started).getTime();
-  const end = ended ? new Date(ended).getTime() : Date.now();
-  return Math.max(0, (end - start) / (1000 * 60 * 60));
+  if (ended) {
+    const end = new Date(ended).getTime();
+    return Math.max(0, (end - start) / (1000 * 60 * 60));
+  }
+  const elapsed = Math.max(0, (Date.now() - start) / (1000 * 60 * 60));
+  return Math.min(elapsed, MAX_OPEN_EVENT_HOURS);
 }
 
 function fillCalendar(

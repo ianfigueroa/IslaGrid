@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { listMunicipalities } from "@/lib/scorecards";
+import { MAX_OPEN_EVENT_HOURS } from "@/lib/reliability";
 import { SubPageHeader } from "@/app/_components/SubPageHeader";
 import { MunicipalitiesDirectory } from "./_components/MunicipalitiesDirectory";
 
@@ -81,10 +82,12 @@ async function loadDirectoryData() {
       (recent.get(row.municipality_id) ?? 0) + (row.outage_hours ?? 0),
     );
   }
-  // Live fallback: only fill munis the rollup didn't cover. Hours per event =
-  // (ended_at ?? now) - started_at, clamped to >= 0. Matches the eventHours
-  // helper in lib/reliability.ts so the two read-paths stay consistent.
+  // Live fallback: only fill munis the rollup didn't cover. Hours per event
+  // mirror lib/reliability.ts eventHours() — open-ended events are capped at
+  // MAX_OPEN_EVENT_HOURS so an unended announcement from 5 days ago doesn't
+  // claim 120h of outage time (which is how Lares was hitting 1,185h).
   const nowMs = Date.now();
+  const capMs = MAX_OPEN_EVENT_HOURS * 60 * 60 * 1000;
   for (const row of (eventRes.data ?? []) as Array<{
     municipality_id: string | null;
     started_at: string;
@@ -93,7 +96,12 @@ async function loadDirectoryData() {
     const mid = row.municipality_id;
     if (!mid || recent.has(mid)) continue;
     const start = new Date(row.started_at).getTime();
-    const end = row.ended_at ? new Date(row.ended_at).getTime() : nowMs;
+    let end: number;
+    if (row.ended_at) {
+      end = new Date(row.ended_at).getTime();
+    } else {
+      end = Math.min(nowMs, start + capMs);
+    }
     const hrs = Math.max(0, (end - start) / (1000 * 60 * 60));
     recent.set(mid, (recent.get(mid) ?? 0) + hrs);
   }
