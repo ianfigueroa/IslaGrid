@@ -114,23 +114,47 @@ async function loadDashboard(): Promise<{
     }
   }
 
+  // Fuels Genera PR doesn't publish gauges for. Those plants will never get
+  // a hit in latestByPlant, so we render "no feed" rather than implying the
+  // station is offline. AES/EcoEléctrica (private IPPs) ARE published.
+  const NO_FEED_FUELS = new Set(["solar", "wind", "hydro", "landfill", "battery"]);
+
   const plants: PlantRow[] = CURATED_PLANTS.map((p) => {
-    const hit = latestByPlant.get(normName(p.name));
+    // Two-pass match: exact normalized name first, then prefix/contains so a
+    // curated "AES Puerto Rico (Guayama)" matches the bare "AES" gauge title
+    // Genera publishes. Mirrors the loose match in /api/plants/[id].
+    const target = normName(p.name);
+    let hit = latestByPlant.get(target);
+    if (!hit) {
+      for (const [k, v] of latestByPlant) {
+        if (k && (target.startsWith(k) || k.startsWith(target))) {
+          hit = v;
+          break;
+        }
+      }
+    }
     const current_mw = hit?.mw ?? null;
     const ts = hit?.ts ?? null;
     const utilization_pct =
       current_mw != null && p.capacity_mw > 0
         ? Math.max(0, Math.min(110, (current_mw / p.capacity_mw) * 100))
         : null;
-    // Status tiers match the per-plant popover so the two views agree.
-    const status: PlantRow["status"] =
-      current_mw == null
-        ? "unknown"
-        : current_mw <= 0
-          ? "offline"
-          : utilization_pct != null && utilization_pct < 25
-            ? "derated"
-            : "online";
+    // Status tiers:
+    //   no_feed → Genera doesn't expose this fuel (solar/wind/etc.); not a bug
+    //   idle    → diesel peaker we DO scrape but it just isn't running now
+    //   offline → baseload (gas/oil/coal) with a recent zero reading
+    //   derated → producing under 25% of nameplate
+    //   online  → producing 25%+ of nameplate
+    const status: PlantRow["status"] = (() => {
+      if (current_mw == null) {
+        if (NO_FEED_FUELS.has(p.fuel)) return "no_feed";
+        if (p.fuel === "diesel") return "idle";
+        return "unknown";
+      }
+      if (current_mw <= 0) return "offline";
+      if (utilization_pct != null && utilization_pct < 25) return "derated";
+      return "online";
+    })();
     return {
       id: p.id,
       name: p.name,
