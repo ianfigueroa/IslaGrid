@@ -40,6 +40,13 @@ export const CURATED_PLANTS: CuratedPlant[] = [
   { id: "plant:yabucoa",       name: "Yabucoa Peaking Units",     operator: "Genera PR", fuel: "diesel",   capacity_mw: 41,   coords: [-65.879, 18.043] },
   { id: "plant:culebra-diesel", name: "Culebra Diesel",           operator: "Genera PR", fuel: "diesel",   capacity_mw: 6,    coords: [-65.293, 18.305] },
   { id: "plant:vieques-diesel", name: "Vieques Diesel",           operator: "Genera PR", fuel: "diesel",   capacity_mw: 14,   coords: [-65.473, 18.131] },
+  // Daguao: 35 MW peaker on the east coast — Genera publishes it under the
+  // bare title "Daguao". Pairs with Roosevelt Roads area load.
+  { id: "plant:daguao",        name: "Daguao Peaking Units",      operator: "Genera PR", fuel: "diesel",   capacity_mw: 35,   coords: [-65.642, 18.234] },
+  // TM Power Generation: the combined San Juan + Palo Seco temporary mobile
+  // unit fleet Genera published as one aggregated row (~180 MW peak).
+  // Coords are the midpoint of the two host plants.
+  { id: "plant:tm-power-sj-palo-seco", name: "TM Power Generation (San Juan + Palo Seco)", operator: "Genera PR", fuel: "diesel", capacity_mw: 180, coords: [-66.124, 18.452] },
 
   // Independent power producers
   // AES Guayama's nameplate is officially 454 MW (2 × 227 MW CFB units), but
