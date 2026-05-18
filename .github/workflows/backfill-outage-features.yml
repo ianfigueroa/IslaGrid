@@ -33,6 +33,17 @@ jobs:
         working-directory: ingestion
         run: pip install -e .[ml]
 
+      # The Eagle-i raw ticks already cover 2023-2025, but `eagle_i_to_labels`
+      # ran with the default 365-day window the last time it fired, so labels
+      # only span 2025-05 → 2025-12. Re-synthesize across the full archive
+      # so the features backfill below sees the 3-year label history.
+      - name: Re-synthesize eagle_i labels (full 3y window)
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipeline.eagle_i_to_labels --window-days 1200
+
       - name: Backfill outage_features
         working-directory: ingestion
         env:
