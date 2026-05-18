@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   CloudRain,
-  Droplets,
   Factory,
   Flame,
   Globe2,
@@ -14,7 +13,6 @@ import {
   Sliders,
   TriangleAlert,
   Waves,
-  Wind,
   Wrench,
   Zap,
   type LucideIcon,
@@ -31,8 +29,6 @@ interface PillDef {
 }
 
 const PRIMARY: PillDef[] = [
-  { key: "rain-radar",     label: "Rain",     Icon: Droplets },
-  { key: "wind",           label: "Wind",     Icon: Wind },
   { key: "outage-risk",    label: "Risk",     Icon: TriangleAlert },
   { key: "outages-live",   label: "Outages",  Icon: Flame },
   { key: "weather-alerts", label: "Alerts",   Icon: CloudRain },
@@ -53,8 +49,8 @@ const MORE: PillDef[] = [
 type PresetKey = "default" | "storm" | "solar" | "reporter";
 
 const PRESETS: Record<PresetKey, { label: string; layers: LayerKey[] }> = {
-  default:  { label: "Default",  layers: ["municipalities", "grid-now", "generation", "rain-radar"] },
-  storm:    { label: "Storm",    layers: ["municipalities", "rain-radar", "wind", "weather-alerts", "hurricane", "outage-risk", "outages-live"] },
+  default:  { label: "Default",  layers: ["municipalities", "grid-now", "generation"] },
+  storm:    { label: "Storm",    layers: ["municipalities", "weather-alerts", "hurricane", "outage-risk", "outages-live"] },
   solar:    { label: "Solar",    layers: ["municipalities", "generation"] },
   reporter: { label: "Reporter", layers: ["municipalities", "reports", "weather-alerts", "outages-live"] },
 };
