@@ -87,6 +87,10 @@ jobs:
           PY
 
       - name: Wayback outage map backfill
+        # Wayback's CDX API is flaky — let a failure here NOT mark the whole
+        # job red, since Eagle-i is the bigger value-add and we want the
+        # rollup step downstream to still run.
+        continue-on-error: true
         if: success() || failure()
         working-directory: ingestion
         env:
