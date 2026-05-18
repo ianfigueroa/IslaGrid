@@ -1,0 +1,39 @@
+name: backfill-luma-archive
+
+# One-shot ingest of the SuperSonicHub1/luma-energy-outages git archive.
+# Walks every commit that touched service_statistics.json, parses the JSON,
+# and seeds luma_outage_snapshots with daily LUMA region totals going back
+# to Sept 2023 — closing the gap our own 5-min poller can't reach
+# retroactively. Idempotent; safe to re-run.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: backfill-luma-archive
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        working-directory: ingestion
+        run: pip install -e .[ml]
+
+      - name: Backfill LUMA archive
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.sources.luma_archive_backfill
