@@ -18,7 +18,11 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 15 min budget. A fresh Playwright install eats 90s and four scrapers
+    # eat ~60s each; 10 min was cutting it close and one hung page killed
+    # the merge step at the end. The cache below usually brings runtime
+    # under 5 min, so this is headroom not a free-pass.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -27,13 +31,32 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          # Pin the cache key to the chromium version installed by our
+          # Playwright pin; without that the cache is brittle to upstream
+          # browser bumps. We re-resolve the version via the package
+          # metadata so we don't have to hand-edit two files.
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-v1
+
       - name: Install
         working-directory: ingestion
         run: |
           pip install -e .
-          python -m playwright install --with-deps chromium
+          # Only fetch the browser binary on a cache miss. The --with-deps
+          # bit installs system libs which apt-caches on the runner already,
+          # so it's near-instant when the binary is cached.
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
+            python -m playwright install --with-deps chromium
+          else
+            python -m playwright install-deps chromium
+          fi
 
       - name: System Overview
+        timeout-minutes: 3
         working-directory: ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -45,6 +68,7 @@ jobs:
         run: python -m src.sources.luma_system_overview
 
       - name: Planned Works
+        timeout-minutes: 3
         if: success() || failure()
         working-directory: ingestion
         env:
@@ -57,6 +81,7 @@ jobs:
         run: python -m src.sources.luma_planned_work
 
       - name: Genera PR generation
+        timeout-minutes: 3
         if: success() || failure()
         working-directory: ingestion
         env:
@@ -69,6 +94,7 @@ jobs:
         run: python -m src.sources.genera_pr
 
       - name: LUMA outage map (region counts)
+        timeout-minutes: 2
         if: success() || failure()
         working-directory: ingestion
         env:
@@ -82,6 +108,7 @@ jobs:
         run: python -m src.sources.luma_outage_map
 
       - name: BPS PDF (hourly only)
+        timeout-minutes: 3
         if: github.event.schedule == null || endsWith(github.event.schedule, '0 * * * *')
         working-directory: ingestion
         env:
@@ -95,8 +122,12 @@ jobs:
 
       # Must run LAST — merges the freshest LUMA + Genera rows into one
       # authoritative grid_snapshots row that /api/grid/status serves.
+      # `if: always()` so a single hung upstream page (which is the common
+      # failure mode) never blocks us from publishing a merged row from
+      # whichever sources DID succeed.
       - name: Merge grid snapshot
-        if: success() || failure()
+        timeout-minutes: 2
+        if: always()
         working-directory: ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

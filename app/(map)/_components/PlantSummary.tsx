@@ -15,6 +15,7 @@ interface PlantDetail {
   status: "online" | "offline" | "derated" | "unknown";
   utilization_pct: number | null;
   units: Array<{ category: string | null; mw: number; ts: string }>;
+  history_24h?: Array<{ ts: string; mw: number }>;
   ts: string | null;
   matched: boolean;
   reason?:
@@ -191,6 +192,13 @@ export function PlantSummary({
         </div>
       </div>
 
+      {detail.history_24h && detail.history_24h.length >= 3 ? (
+        <PlantSparkline
+          points={detail.history_24h}
+          capacityMw={effectiveCapacityMw}
+        />
+      ) : null}
+
       {showCapacityBar ? (
         <div>
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-text-3">
@@ -274,6 +282,97 @@ export function PlantSummary({
         Source: genera-pr.com · refreshed every 5 min · capacity figures are
         approximate nameplate.
       </p>
+    </div>
+  );
+}
+
+interface SparklineProps {
+  points: Array<{ ts: string; mw: number }>;
+  capacityMw: number | null;
+}
+
+/**
+ * 24h output sparkline for the selected plant. SVG only, no chart lib. The
+ * faint horizontal line is the curated nameplate when known — gives users a
+ * visual reference for how hard the plant is running relative to design.
+ */
+function PlantSparkline({ points, capacityMw }: SparklineProps) {
+  if (points.length < 2) return null;
+  const width = 280;
+  const height = 56;
+  const padTop = 6;
+  const padBottom = 4;
+  const innerH = height - padTop - padBottom;
+  const maxMw = Math.max(
+    1,
+    capacityMw && capacityMw > 0
+      ? capacityMw
+      : points.reduce((m, p) => (p.mw > m ? p.mw : m), 0),
+  );
+  const stepX = width / (points.length - 1);
+  const coords = points.map((p, i) => ({
+    x: i * stepX,
+    y: padTop + (1 - Math.max(0, p.mw) / maxMw) * innerH,
+    mw: p.mw,
+    ts: p.ts,
+  }));
+  const linePath = coords
+    .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${coords[coords.length - 1].x},${height - padBottom} L 0,${height - padBottom} Z`;
+  const capacityY =
+    capacityMw && capacityMw > 0 && capacityMw <= maxMw
+      ? padTop + (1 - capacityMw / maxMw) * innerH
+      : null;
+
+  const firstTs = new Date(points[0].ts);
+  const lastTs = new Date(points[points.length - 1].ts);
+  const fmtHour = (d: Date) =>
+    d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-text-3">
+        <span>Last 24 h</span>
+        <span className="font-mono tabular-nums">
+          {fmtHour(firstTs)} → {fmtHour(lastTs)}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="mt-1.5 h-14 w-full"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`24-hour output: ${Math.round(points[0].mw)} to ${Math.round(points[points.length - 1].mw)} MW`}
+      >
+        <defs>
+          <linearGradient id="plantArea" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="#10b981" stopOpacity="0.35" />
+            <stop offset="1" stopColor="#10b981" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {capacityY !== null ? (
+          <line
+            x1="0"
+            x2={width}
+            y1={capacityY}
+            y2={capacityY}
+            stroke="currentColor"
+            strokeOpacity="0.25"
+            strokeDasharray="3 3"
+            className="text-text-3"
+          />
+        ) : null}
+        <path d={areaPath} fill="url(#plantArea)" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#10b981"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
     </div>
   );
 }

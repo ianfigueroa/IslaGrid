@@ -19,6 +19,12 @@ interface RiskRow {
   risk_score: number | null;
 }
 
+interface PredictionRow {
+  municipality_id: string;
+  probability: number | null;
+  horizon: string;
+}
+
 interface OutageBucket {
   municipality_id: string;
   outage_hours: number;
@@ -27,7 +33,12 @@ interface OutageBucket {
 async function loadDirectoryData() {
   const munis = await listMunicipalities();
   if (!isSupabaseConfigured()) {
-    return { munis, risk: new Map<string, RiskRow>(), recent: new Map<string, number>() };
+    return {
+      munis,
+      risk: new Map<string, RiskRow>(),
+      recent: new Map<string, number>(),
+      predictions: new Map<string, number>(),
+    };
   }
   const supa = getServerSupabase();
   const since30dDay = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -37,7 +48,7 @@ async function loadDirectoryData() {
   // Aggregate-history runs hourly. When it's catching up (or has just been
   // wiped after a dedup pass), the rollup table is sparse. Fall back to
   // live event durations so the directory doesn't render a sea of "—".
-  const [riskRes, dailyRes, eventRes] = await Promise.all([
+  const [riskRes, dailyRes, eventRes, predRes] = await Promise.all([
     supa
       .from("municipality_risk_latest")
       .select("municipality_id, band, risk_score"),
@@ -50,6 +61,14 @@ async function loadDirectoryData() {
       .select("municipality_id, started_at, ended_at")
       .gte("started_at", since30dIso)
       .limit(5000),
+    // 6h outage probability per muni — when the LightGBM gate fails, this
+    // table is filled by the heuristic fallback so it's never empty in
+    // production. Surface it on the directory so users see a forecast next
+    // to the risk band.
+    supa
+      .from("outage_predictions_latest")
+      .select("municipality_id, probability, horizon")
+      .eq("horizon", "6h"),
   ]);
   const risk = new Map<string, RiskRow>();
   for (const row of (riskRes.data ?? []) as RiskRow[]) {
@@ -78,11 +97,17 @@ async function loadDirectoryData() {
     const hrs = Math.max(0, (end - start) / (1000 * 60 * 60));
     recent.set(mid, (recent.get(mid) ?? 0) + hrs);
   }
-  return { munis, risk, recent };
+  const predictions = new Map<string, number>();
+  for (const row of (predRes.data ?? []) as PredictionRow[]) {
+    if (typeof row.probability === "number") {
+      predictions.set(row.municipality_id, row.probability);
+    }
+  }
+  return { munis, risk, recent, predictions };
 }
 
 export default async function MunicipalitiesIndexPage() {
-  const { munis, risk, recent } = await loadDirectoryData();
+  const { munis, risk, recent, predictions } = await loadDirectoryData();
   const items = munis.map((m) => {
     const r = risk.get(m.id);
     return {
@@ -97,6 +122,7 @@ export default async function MunicipalitiesIndexPage() {
         | "unknown",
       score: r?.risk_score ?? null,
       hours30d: recent.get(m.id) ?? 0,
+      probability6h: predictions.get(m.id) ?? null,
     };
   });
 

@@ -23,6 +23,12 @@ export interface OutageSummary {
   total_feeders: number;
   groups: RegionGroup[];
   fetched_at: string;
+  /**
+   * Customers-affected total from ~1h ago, used to render the trend chip on
+   * the banner. null when there's no comparable snapshot (cold start, or
+   * upstream changed schema).
+   */
+  total_customers_1h_ago: number | null;
   reason?: "supabase_unconfigured" | "supabase_error" | "no_data";
   error?: string;
 }

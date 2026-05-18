@@ -5,6 +5,11 @@ import { useMemo } from "react";
 interface Props {
   /** 0..100 percentile. Higher = worse, per Lumatrack convention. */
   percentile: number;
+  /** Total outage hours for this muni in the selected window. */
+  totalHours: number;
+  /** Island-wide median outage hours in the same window — anchor for "are
+   *  we normal?". */
+  islandMedianHours: number;
 }
 
 /**
@@ -12,12 +17,20 @@ interface Props {
  * library. Color ramps from green (best) → red (worst) so the user can read
  * the severity even with the number muted.
  */
-export function ReliabilityScore({ percentile }: Props) {
+export function ReliabilityScore({
+  percentile,
+  totalHours,
+  islandMedianHours,
+}: Props) {
   const safe = Math.max(0, Math.min(100, Math.round(percentile)));
   const { stroke, label } = useMemo(() => toneFor(safe), [safe]);
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
   const dash = (safe / 100) * circumference;
+  const compare = useMemo(
+    () => compareToIsland(totalHours, islandMedianHours),
+    [totalHours, islandMedianHours],
+  );
 
   return (
     <section className="card flex flex-col items-center gap-3 px-6 py-7">
@@ -68,8 +81,28 @@ export function ReliabilityScore({ percentile }: Props) {
       <p className="text-center text-[12.5px] text-text-2">
         {label}
       </p>
+      {compare ? (
+        <p className="text-center text-[11.5px] text-text-3">
+          {compare}
+        </p>
+      ) : null}
     </section>
   );
+}
+
+function compareToIsland(totalHours: number, median: number): string | null {
+  if (median <= 0 || totalHours <= 0) return null;
+  const ratio = totalHours / median;
+  const islandLabel = `${Math.round(median).toLocaleString()} h island median`;
+  if (ratio >= 1.25) {
+    const pct = Math.round((ratio - 1) * 100);
+    return `${Math.round(totalHours).toLocaleString()} h here · ${pct}% above the ${islandLabel}.`;
+  }
+  if (ratio <= 0.8) {
+    const pct = Math.round((1 - ratio) * 100);
+    return `${Math.round(totalHours).toLocaleString()} h here · ${pct}% below the ${islandLabel}.`;
+  }
+  return `${Math.round(totalHours).toLocaleString()} h here · roughly in line with the ${islandLabel}.`;
 }
 
 function toneFor(score: number): { stroke: string; label: string } {

@@ -12,9 +12,11 @@ export interface DirectoryItem {
   band: "low" | "elevated" | "high" | "severe" | "unknown";
   score: number | null;
   hours30d: number;
+  /** 6-hour outage probability in [0,1]. null when no prediction exists. */
+  probability6h: number | null;
 }
 
-type SortKey = "name" | "band" | "hours";
+type SortKey = "name" | "band" | "hours" | "forecast";
 
 const BAND_ORDER: Record<DirectoryItem["band"], number> = {
   severe: 0,
@@ -57,6 +59,12 @@ export function MunicipalitiesDirectory({ items }: { items: DirectoryItem[] }) {
         const diff = BAND_ORDER[a.band] - BAND_ORDER[b.band];
         return diff !== 0 ? diff : a.name.localeCompare(b.name);
       }
+      if (sort === "forecast") {
+        const ap = a.probability6h ?? -1;
+        const bp = b.probability6h ?? -1;
+        const diff = bp - ap;
+        return diff !== 0 ? diff : a.name.localeCompare(b.name);
+      }
       // hours desc
       const diff = b.hours30d - a.hours30d;
       return diff !== 0 ? diff : a.name.localeCompare(b.name);
@@ -78,7 +86,7 @@ export function MunicipalitiesDirectory({ items }: { items: DirectoryItem[] }) {
           />
         </label>
         <div role="group" aria-label="Sort by" className="flex h-11 items-center gap-1 rounded-xl border border-line bg-surface px-1">
-          {(["name", "band", "hours"] as SortKey[]).map((k) => (
+          {(["name", "band", "hours", "forecast"] as SortKey[]).map((k) => (
             <button
               key={k}
               type="button"
@@ -91,7 +99,13 @@ export function MunicipalitiesDirectory({ items }: { items: DirectoryItem[] }) {
                   : "text-text-2 hover:bg-surface-2 hover:text-text",
               )}
             >
-              {k === "name" ? "A–Z" : k === "band" ? "Risk" : "30d hours"}
+              {k === "name"
+                ? "A–Z"
+                : k === "band"
+                  ? "Risk"
+                  : k === "hours"
+                    ? "30d hours"
+                    : "6h forecast"}
             </button>
           ))}
         </div>
@@ -122,6 +136,14 @@ export function MunicipalitiesDirectory({ items }: { items: DirectoryItem[] }) {
                     >
                       {m.band}
                     </span>
+                    {m.probability6h != null ? (
+                      <span
+                        className="font-mono tabular-nums"
+                        title="Probability of an unplanned outage in the next 6 hours"
+                      >
+                        {Math.round(m.probability6h * 100)}% in 6h
+                      </span>
+                    ) : null}
                     {m.population != null ? (
                       <span>{m.population.toLocaleString()} residents</span>
                     ) : null}
