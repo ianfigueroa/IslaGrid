@@ -65,9 +65,22 @@ const PMTILES_URL = "/map/pr.pmtiles";
 function protomapsStyle(theme: "light" | "dark"): maplibregl.StyleSpecification {
   // Generate the layer stack from our flavor + the standard OSM source key
   // expected by Protomaps' v4 schema ("protomaps").
-  const layers = protomapsLayers("protomaps", flavorFor(theme), {
+  const themeLayers = protomapsLayers("protomaps", flavorFor(theme), {
     lang: "es",
   }) as maplibregl.LayerSpecification[];
+  // pr.pmtiles only covers PR + immediate waters. Without an explicit
+  // background layer MapLibre paints the area outside the tile extent in
+  // its default "no-data" color (showed up as a pale tan strip above the
+  // island). Prepend an ocean fill so the void reads as more ocean.
+  const oceanColor = theme === "dark" ? "#0b1a2f" : "#bcd8eb";
+  const layers: maplibregl.LayerSpecification[] = [
+    {
+      id: "ocean-background",
+      type: "background",
+      paint: { "background-color": oceanColor },
+    },
+    ...themeLayers,
+  ];
   return {
     version: 8,
     glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
@@ -1124,17 +1137,20 @@ export function GridMap({
       type: "line",
       source: "municipalities",
       paint: {
-        "line-color": themeRef.current === "dark" ? "#94a3b8" : "#1e293b",
+        // Dark mode needs a brighter stroke since the basemap is nearly black
+        // and the previous slate-400 + 0.55 opacity dissolved into it.
+        "line-color": themeRef.current === "dark" ? "#cbd5f5" : "#1e293b",
         "line-width": [
           "interpolate", ["linear"], ["zoom"],
-          7, 0.5,
-          9, 0.9,
-          11, 1.4,
+          6, themeRef.current === "dark" ? 0.9 : 0.5,
+          7, themeRef.current === "dark" ? 1.2 : 0.7,
+          9, themeRef.current === "dark" ? 1.6 : 1.0,
+          11, themeRef.current === "dark" ? 2.0 : 1.4,
         ],
         "line-opacity": [
           "case",
           ["boolean", ["feature-state", "hover"], false], 1,
-          0.55,
+          themeRef.current === "dark" ? 0.85 : 0.55,
         ],
       },
     });

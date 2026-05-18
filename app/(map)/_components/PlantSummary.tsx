@@ -137,13 +137,19 @@ export function PlantSummary({
   // brought in from OSM so OSM-only plants still show a nameplate.
   const effectiveCapacityMw =
     detail.capacity_mw != null ? detail.capacity_mw : fallbackCapacityMw ?? null;
-  const effectiveUtilization =
+  const rawUtilization =
     detail.utilization_pct != null
       ? detail.utilization_pct
       : effectiveCapacityMw && effectiveCapacityMw > 0 && detail.current_mw != null
-        ? Math.max(0, Math.min(100, (detail.current_mw / effectiveCapacityMw) * 100))
+        ? (detail.current_mw / effectiveCapacityMw) * 100
         : null;
-  const utilization = effectiveUtilization;
+  // Clamp display to 100% — when a plant temporarily exceeds nameplate we
+  // shouldn't render "112%" like the bar is overflowing. Surface the raw
+  // figure as a tooltip-friendly fact next to the bar.
+  const utilization =
+    rawUtilization != null ? Math.max(0, Math.min(100, rawUtilization)) : null;
+  const utilizationExceedsNameplate =
+    rawUtilization != null && rawUtilization > 100;
   const showCapacityBar =
     effectiveCapacityMw != null && effectiveCapacityMw > 0 && detail.current_mw != null;
 
@@ -189,8 +195,16 @@ export function PlantSummary({
         <div>
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-text-3">
             <span>Utilization</span>
-            <span className="font-mono tabular-nums text-text-2">
+            <span
+              className="font-mono tabular-nums text-text-2"
+              title={
+                utilizationExceedsNameplate
+                  ? "Current output exceeds the stated nameplate — likely co-located peakers or under-reported capacity."
+                  : undefined
+              }
+            >
               {utilization != null ? `${utilization.toFixed(0)}%` : "—"}
+              {utilizationExceedsNameplate ? "+" : ""}
             </span>
           </div>
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">

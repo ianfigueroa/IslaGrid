@@ -124,42 +124,60 @@ function RegionRow({ group }: { group: RegionGroup }) {
   const [open, setOpen] = useState(false);
   const top = group.municipalities.slice(0, 5);
   const more = group.municipalities.length - top.length;
+  // When AEEPR feeders are empty there's no muni breakdown to drill into; the
+  // chevron would open an empty list and the "0 feeders" caption was lying
+  // about the underlying source. Collapse to a static row in that case.
+  const expandable = group.municipalities.length > 0;
 
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-2"
-      >
-        <span
-          className={cn(
-            "mt-0.5 size-2 shrink-0 rounded-full",
-            severityDot(group.total_customers),
-          )}
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[14px] font-semibold text-text">
-              {group.region}
-            </span>
-            <span className="flex shrink-0 items-center gap-1 text-[12px] text-text-2 tabular-nums">
-              <Users className="size-3" aria-hidden />
-              {group.total_customers.toLocaleString()}
-            </span>
-          </div>
-          <span className="text-[11px] text-text-3">
-            {group.total_feeders} feeder{group.total_feeders === 1 ? "" : "s"}
+  const RowInner = (
+    <>
+      <span
+        className={cn(
+          "mt-0.5 size-2 shrink-0 rounded-full",
+          severityDot(group.total_customers),
+        )}
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-[14px] font-semibold text-text">
+            {group.region}
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-[12px] text-text-2 tabular-nums">
+            <Users className="size-3" aria-hidden />
+            {group.total_customers.toLocaleString()}
           </span>
         </div>
-        {open ? (
+        <span className="text-[11px] text-text-3">
+          {expandable
+            ? `${group.total_feeders} feeder${group.total_feeders === 1 ? "" : "s"}`
+            : "Region-level estimate · per-feeder data unavailable"}
+        </span>
+      </div>
+      {expandable ? (
+        open ? (
           <ChevronDown className="size-4 shrink-0 text-text-3" aria-hidden />
         ) : (
           <ChevronRight className="size-4 shrink-0 text-text-3" aria-hidden />
-        )}
-      </button>
-      {open ? (
+        )
+      ) : null}
+    </>
+  );
+
+  return (
+    <li>
+      {expandable ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-2"
+        >
+          {RowInner}
+        </button>
+      ) : (
+        <div className="flex items-center gap-3 px-5 py-3">{RowInner}</div>
+      )}
+      {expandable && open ? (
         <ul className="border-t border-line bg-surface/50 pb-2">
           {(more > 0 ? group.municipalities : top).map((m) => (
             <li key={`${group.region}-${m.name}`}>
@@ -184,7 +202,7 @@ function RegionRow({ group }: { group: RegionGroup }) {
             </li>
           ))}
         </ul>
-      ) : top.length > 0 ? (
+      ) : expandable && top.length > 0 ? (
         <ul className="border-t border-line bg-surface/30 pb-2">
           {top.map((m) => (
             <li
