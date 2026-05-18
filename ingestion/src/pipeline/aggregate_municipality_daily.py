@@ -265,13 +265,24 @@ def upsert(aggs: dict[tuple[str, date], DailyAgg]) -> int:
     payload = _to_payload(aggs.values())
     if not payload:
         return 0
-    # Chunk so very large backfills don't blow the request size limit.
+    # Chunk so very large backfills don't blow the request size limit. On a
+    # chunk failure, log which slice + size before re-raising so a long
+    # backfill is debuggable instead of just emitting a bare stack trace.
     written = 0
     for start in range(0, len(payload), 500):
         chunk = payload[start : start + 500]
-        supabase().table("municipality_outage_daily").upsert(
-            chunk, on_conflict="municipality_id,day"
-        ).execute()
+        try:
+            supabase().table("municipality_outage_daily").upsert(
+                chunk, on_conflict="municipality_id,day"
+            ).execute()
+        except Exception as e:
+            log.error(
+                "municipality_outage_daily: upsert failed at offset %d (chunk size %d): %s",
+                start,
+                len(chunk),
+                e,
+            )
+            raise
         written += len(chunk)
     return written
 

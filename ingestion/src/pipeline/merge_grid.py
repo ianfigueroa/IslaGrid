@@ -166,7 +166,16 @@ def run() -> int:
         "source_stale": all_stale,
         "raw_key": None,
     }
-    supabase().table("grid_snapshots").insert(row).execute()
+    try:
+        supabase().table("grid_snapshots").insert(row).execute()
+    except Exception as e:
+        log.error(
+            "merge_grid: insert failed for status=%s sources=%s: %s",
+            verdict.status,
+            used,
+            e,
+        )
+        raise
     log.info(
         "merge_grid: wrote merged row status=%s demand=%s gen=%s avail=%s sources=%s",
         verdict.status,

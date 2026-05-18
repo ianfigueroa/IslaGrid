@@ -120,6 +120,14 @@ def _resolve_blobs(
         check=True,
     )
     out_lines = p.stdout.decode("utf-8", "replace").splitlines()
+    # `git cat-file --batch-check` emits one line per input ref, in order.
+    # A length mismatch means we'd silently zip+truncate and lose snapshot
+    # days. Refuse rather than ingest a corrupt subset.
+    if len(out_lines) != len(commits):
+        raise RuntimeError(
+            f"git cat-file output mismatch: {len(commits)} refs in, "
+            f"{len(out_lines)} lines out. Refusing to truncate via zip()."
+        )
     resolved: list[tuple[str, datetime, str]] = []
     for (sha, ts), line in zip(commits, out_lines):
         parts = line.strip().split()
