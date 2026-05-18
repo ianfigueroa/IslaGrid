@@ -105,15 +105,29 @@ def _kind_to_bucket(
 def _fetch_events(window_start: datetime) -> list[dict[str, Any]]:
     """Pull outage_events with their cause prediction, joined in app code
     because PostgREST doesn't do the JOIN we want without a view."""
-    events = (
-        supabase()
-        .table("outage_events")
-        .select("id, municipality_id, started_at, ended_at, kind")
-        .gte("started_at", window_start.isoformat())
-        .execute()
-        .data
-        or []
-    )
+    # PostgREST caps responses at 1000 rows by default — paginate so multi-year
+    # backfills don't silently truncate.
+    page_size = 1000
+    offset = 0
+    events: list[dict[str, Any]] = []
+    while True:
+        chunk = (
+            supabase()
+            .table("outage_events")
+            .select("id, municipality_id, started_at, ended_at, kind")
+            .gte("started_at", window_start.isoformat())
+            .order("started_at", desc=False)
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data
+            or []
+        )
+        if not chunk:
+            break
+        events.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
     if not events:
         return []
     ids = [e["id"] for e in events]
@@ -142,16 +156,30 @@ def _fetch_eagle_i(window_start: datetime) -> list[dict[str, Any]]:
     (muni, day) so the rollup can show SAIDI-equivalents later. Today we don't
     convert these into outage_hours (would double-count with outage_events),
     only into customer_minutes."""
-    rows = (
-        supabase()
-        .table("eagle_i_outages")
-        .select("municipality_id, ts, customers_out")
-        .gte("ts", window_start.isoformat())
-        .not_.is_("municipality_id", "null")
-        .execute()
-        .data
-        or []
-    )
+    # 3 years × 6 munis × 96 ticks/day ≈ 630k rows. PostgREST's default 1000-
+    # row cap silently truncates this — paginate so the rollup sees every tick.
+    page_size = 1000
+    offset = 0
+    rows: list[dict[str, Any]] = []
+    while True:
+        chunk = (
+            supabase()
+            .table("eagle_i_outages")
+            .select("municipality_id, ts, customers_out")
+            .gte("ts", window_start.isoformat())
+            .not_.is_("municipality_id", "null")
+            .order("ts", desc=False)
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data
+            or []
+        )
+        if not chunk:
+            break
+        rows.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
     return rows
 
 
