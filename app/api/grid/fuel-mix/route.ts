@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { CURATED_PLANTS } from "@/lib/plants";
+import { normName } from "@/lib/plant-naming";
+import { FUEL_COLOR } from "@/lib/fuel-colors";
 
 export const dynamic = "force-dynamic";
 // Genera scrapes every ~5 min; cache for 30s so StatusPanel renders the
@@ -19,31 +21,6 @@ export interface FuelMixPayload {
   ts: string | null;
   slices: FuelSlice[];
   reason?: "supabase_unconfigured" | "no_snapshot" | "supabase_error";
-}
-
-// Match the FUEL_COLOR palette in GridMap.tsx so legend swatches and the
-// stacked bar use the same hues. Kept inline rather than importing from a
-// client component to avoid pulling MapLibre into the API route bundle.
-const FUEL_COLOR: Record<string, string> = {
-  oil: "#c2865a",
-  diesel: "#c2865a",
-  gas: "#d97706",
-  coal: "#6b7280",
-  solar: "#f5b942",
-  wind: "#94a3b8",
-  hydro: "#38bdf8",
-  landfill: "#84cc16",
-  battery: "#2dd4bf",
-  unknown: "#525252",
-};
-
-function normName(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\b(power\s+plant|planta|central|cc|gt|thermal)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 interface SnapshotRow {

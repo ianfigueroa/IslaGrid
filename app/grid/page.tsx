@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getServerSupabase, isSupabaseConfigured, type GridSnapshot } from "@/lib/supabase";
 import { CURATED_PLANTS } from "@/lib/plants";
+import { normName } from "@/lib/plant-naming";
 import { listMunicipalities } from "@/lib/scorecards";
 import { SubPageHeader } from "@/app/_components/SubPageHeader";
 import { IslandTotals } from "./_components/IslandTotals";
@@ -15,18 +16,6 @@ export const metadata: Metadata = {
   description:
     "Live generation per plant, island demand, and the next-6h outage forecast for every Puerto Rico municipality.",
 };
-
-// Mirrors the name normalizer in /api/plants so we collapse plant_snapshots
-// rows onto the curated nameplate list without "Aguirre" leaking into
-// "Aguirre Solar" or similar near-misses.
-function normName(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\b(power\s+plant|planta|central|cc|gt|thermal)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 interface PlantSnapshotRow {
   plant_name: string;

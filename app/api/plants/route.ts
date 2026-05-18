@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getServerSupabase } from "@/lib/supabase";
 import { curatedPlantsAsFeatures } from "@/lib/plants";
+import { normName } from "@/lib/plant-naming";
 
 interface OsmFeature {
   type: "Feature";
@@ -60,14 +61,6 @@ export async function GET() {
       .select("plant_name, category, output_mw, ts")
       .order("ts", { ascending: false })
       .limit(500);
-
-    const normName = (s: string): string =>
-      s
-        .toLowerCase()
-        .replace(/\([^)]*\)/g, "")
-        .replace(/\b(power\s+plant|planta|central|cc|gt|thermal)\b/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
 
     // plant_snapshots is "one row per category per plant per scrape" — sum
     // categories so a multi-unit plant (e.g. San Juan base + peak) reports

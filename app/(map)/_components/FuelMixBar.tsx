@@ -2,19 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FuelMixPayload, FuelSlice } from "@/app/api/grid/fuel-mix/route";
-
-const FUEL_LABEL: Record<string, string> = {
-  oil: "Oil",
-  diesel: "Diesel",
-  gas: "Natural gas",
-  coal: "Coal",
-  solar: "Solar",
-  wind: "Wind",
-  hydro: "Hydro",
-  landfill: "Landfill gas",
-  battery: "Battery",
-  unknown: "Other",
-};
+import { FUEL_LABEL } from "@/lib/fuel-colors";
 
 /**
  * Horizontal stacked bar showing the live fuel mix that's making the

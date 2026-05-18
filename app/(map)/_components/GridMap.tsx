@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { layers as protomapsLayers, namedFlavor } from "@protomaps/basemaps";
+import { FUEL_COLOR } from "@/lib/fuel-colors";
 
 // Register the pmtiles:// protocol with MapLibre once per page load. Calling
 // this twice is harmless — addProtocol replaces the previous handler — but
@@ -123,19 +124,8 @@ function styleFor(basemap: Basemap): maplibregl.StyleSpecification {
   return protomapsStyle(basemap === "dark" ? "dark" : "light");
 }
 
-// Soft, warm fuel palette — no AI-tech cyan
-const FUEL_COLOR: Record<string, string> = {
-  oil: "#c2865a",
-  diesel: "#c2865a",
-  gas: "#d97706",
-  coal: "#6b7280",
-  solar: "#f5b942",
-  wind: "#94a3b8",
-  hydro: "#38bdf8",
-  landfill: "#84cc16",
-  battery: "#2dd4bf",
-  unknown: "#525252",
-};
+// Fuel palette lives in lib/fuel-colors.ts so the map, the fuel-mix bar, and
+// the plant tables can't drift apart. Imported below.
 
 // Per-municipality status fill — kept warm + readable over the Protomaps
 // light flavor. Saturation stays mid so colors register without overpowering

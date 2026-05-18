@@ -3,30 +3,7 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatAge } from "@/lib/sources";
-
-const FUEL_COLOR: Record<string, string> = {
-  gas: "#7dd3fc",
-  oil: "#fb923c",
-  diesel: "#f59e0b",
-  coal: "#94a3b8",
-  solar: "#facc15",
-  wind: "#22d3ee",
-  hydro: "#38bdf8",
-  landfill: "#a3e635",
-  battery: "#c084fc",
-};
-
-const FUEL_LABEL: Record<string, string> = {
-  gas: "Natural gas",
-  oil: "Oil",
-  diesel: "Diesel",
-  coal: "Coal",
-  solar: "Solar",
-  wind: "Wind",
-  hydro: "Hydro",
-  landfill: "Landfill gas",
-  battery: "Battery",
-};
+import { fuelColor, fuelLabel } from "@/lib/fuel-colors";
 
 const STATUS_TONE: Record<string, string> = {
   online: "text-ok",
@@ -150,10 +127,10 @@ export function PlantsTable({ plants }: Props) {
                   <span
                     aria-hidden
                     className="size-2 rounded-full"
-                    style={{ backgroundColor: FUEL_COLOR[p.fuel] ?? "#64748b" }}
+                    style={{ backgroundColor: fuelColor(p.fuel) }}
                   />
                   <span className="text-text-2">
-                    {FUEL_LABEL[p.fuel] ?? p.fuel}
+                    {fuelLabel(p.fuel)}
                   </span>
                 </span>
               </td>
@@ -244,7 +221,7 @@ function UtilBar({
   if (pct == null) {
     return <span className="text-[11px] text-text-3">—</span>;
   }
-  const color = FUEL_COLOR[fuel] ?? "#64748b";
+  const color = fuelColor(fuel);
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <div className="flex items-center gap-2">
