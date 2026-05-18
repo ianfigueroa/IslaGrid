@@ -75,8 +75,11 @@ export function FuelMixBar() {
 }
 
 function SliceRow({ slice }: { slice: FuelSlice }) {
+  // Tooltip on each legend row mirrors the stacked-bar segment so users can
+  // hover either surface to read exact MW + share.
+  const tooltip = `${FUEL_LABEL[slice.fuel] ?? slice.fuel} · ${slice.mw.toLocaleString()} MW · ${Math.round(slice.share * 100)}%`;
   return (
-    <li className="flex items-center gap-1.5 text-text-2">
+    <li className="flex items-center gap-1.5 text-text-2" title={tooltip}>
       <span
         aria-hidden
         className="size-2 shrink-0 rounded-full"
@@ -84,7 +87,7 @@ function SliceRow({ slice }: { slice: FuelSlice }) {
       />
       <span className="truncate">{FUEL_LABEL[slice.fuel] ?? slice.fuel}</span>
       <span className="ml-auto font-mono tabular-nums text-text-3">
-        {Math.round(slice.share * 100)}%
+        {slice.mw.toLocaleString()} MW · {Math.round(slice.share * 100)}%
       </span>
     </li>
   );

@@ -154,7 +154,12 @@ export function PlantsTable({ plants }: Props) {
                 </div>
               </td>
               <td className="w-[28%] px-3 py-2.5">
-                <UtilBar pct={p.utilization_pct} fuel={p.fuel} />
+                <UtilBar
+                  pct={p.utilization_pct}
+                  fuel={p.fuel}
+                  currentMw={p.current_mw}
+                  capacityMw={p.capacity_mw}
+                />
               </td>
             </tr>
           ))}
@@ -214,23 +219,28 @@ function Th({
 function UtilBar({
   pct,
   fuel,
+  currentMw,
+  capacityMw,
 }: {
   pct: number | null;
   fuel: string;
+  currentMw: number | null;
+  capacityMw: number;
 }) {
   if (pct == null) {
     return <span className="text-[11px] text-text-3">—</span>;
   }
   const color = fuelColor(fuel);
   const clamped = Math.max(0, Math.min(100, pct));
+  // Tooltip surfaces the exact numbers the bar represents — Genera's gauge
+  // value, nameplate capacity, and the percentage utilization — so hovering
+  // is enough to read the row without expanding anything.
+  const tooltip = `${Math.round(currentMw ?? 0).toLocaleString()} MW of ${capacityMw.toLocaleString()} MW nameplate (${Math.round(pct)}%)`;
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2"
-        title={`${Math.round(pct)}% of nameplate`}
-      >
+    <div className="group flex items-center gap-2" title={tooltip}>
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
         <span
-          className="absolute inset-y-0 left-0 rounded-full"
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
           style={{ width: `${clamped}%`, backgroundColor: color }}
         />
       </div>
