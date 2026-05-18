@@ -42,7 +42,11 @@ export const CURATED_PLANTS: CuratedPlant[] = [
   { id: "plant:vieques-diesel", name: "Vieques Diesel",           operator: "Genera PR", fuel: "diesel",   capacity_mw: 14,   coords: [-65.473, 18.131] },
 
   // Independent power producers
-  { id: "plant:aes-pr",        name: "AES Puerto Rico (Guayama)", operator: "AES",          fuel: "coal",  capacity_mw: 454, coords: [-66.115, 17.943] },
+  // AES Guayama's nameplate is officially 454 MW (2 × 227 MW CFB units), but
+  // the genera-pr.com live feed regularly reports ~500 MW gross including the
+  // co-located peakers and waste-heat recovery. Use the gross-summer cap so
+  // utilization stays sane on busy days.
+  { id: "plant:aes-pr",        name: "AES Puerto Rico (Guayama)", operator: "AES",          fuel: "coal",  capacity_mw: 545, coords: [-66.115, 17.943] },
   { id: "plant:ecoelectrica",  name: "EcoEléctrica (Peñuelas)",   operator: "EcoEléctrica", fuel: "gas",   capacity_mw: 507, coords: [-66.778, 17.974] },
 
   // Utility-scale renewables

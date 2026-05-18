@@ -38,7 +38,7 @@ interface Props {
 }
 
 export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   // No auto-theme. Light by default; the toggle in the brand menu is the only
   // way to switch. (We used to flip back to dark every night based on local
@@ -47,14 +47,23 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
   const [snapshot, setSnapshot] = useState<GridSnapshot | null>(initialSnapshot);
   const [updates] = useState<UpdateItem[]>(initialUpdates);
-  // Basemap is independent of theme — Satellite mode is just a different
-  // raster layer underneath, not a UI color change.
+  // Basemap and UI theme are coupled by default — picking a dark basemap
+  // from the drawer also flips the chrome to dark so the floating pills
+  // don't look out of place. Satellite leaves the UI theme untouched (the
+  // user explicitly picked imagery; their theme choice still stands).
   const [basemap, setBasemap] = useState<Basemap>(() => (theme === "dark" ? "dark" : "light"));
-  // Keep basemap in sync when the user toggles the theme via the menu, unless
-  // they've explicitly picked Satellite.
   useEffect(() => {
     setBasemap((prev) => (prev === "satellite" ? "satellite" : theme === "dark" ? "dark" : "light"));
   }, [theme]);
+  const handleBasemapChange = useCallback(
+    (next: Basemap) => {
+      setBasemap(next);
+      if (next === "dark" && theme !== "dark") setTheme("dark");
+      else if (next === "light" && theme !== "light") setTheme("light");
+      // "satellite" is theme-agnostic — leave UI theme alone.
+    },
+    [theme, setTheme],
+  );
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
     () =>
       new Set<LayerKey>([
@@ -204,7 +213,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       />
 
       <OutageBanner />
-      <BrandPill basemap={basemap} onBasemapChange={setBasemap} />
+      <BrandPill basemap={basemap} onBasemapChange={handleBasemapChange} />
       <GridStatusButton
         snapshot={snapshot}
         active={panelOpen}
