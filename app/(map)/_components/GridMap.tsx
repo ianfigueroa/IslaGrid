@@ -140,17 +140,6 @@ const STATUS_FILL: Record<string, string> = {
   unknown: "#cbd5e1",
 };
 
-// Wind speed → hex color stops (matches Windy's wind layer). kph values.
-const WIND_STOPS = [
-  [0, "#dbeafe"],
-  [10, "#bae6fd"],
-  [25, "#7dd3fc"],
-  [40, "#38bdf8"],
-  [60, "#0284c7"],
-  [80, "#7c3aed"],
-  [110, "#dc2626"],
-] as const;
-
 export type ActiveLayerKey =
   | "municipalities"
   | "grid-now"
@@ -163,9 +152,7 @@ export type ActiveLayerKey =
   | "outages-live"
   | "weather-alerts"
   | "hurricane"
-  | "quakes"
-  | "rain-radar"
-  | "wind";
+  | "quakes";
 
 // NWS event types → severity color. Falls back to a neutral amber for unknowns.
 const ALERT_COLOR: Record<string, string> = {
@@ -276,9 +263,13 @@ export function GridMap({
       // from zooming out to ocean-only views.
       minZoom: 7,
       maxZoom: 16,
+      // Match pr.pmtiles' actual bbox (read from the v3 header). Earlier code
+      // used a wider box that included USVI, but the basemap has no tiles east
+      // of -65.2°, so panning over there left an empty white strip. If we ever
+      // regenerate pr.pmtiles wider, bump these too.
       maxBounds: [
-        [-68.5, 17.4],
-        [-64.4, 19.1],
+        [-67.95, 17.85],
+        [-65.2, 18.55],
       ],
       attributionControl: { compact: true },
     });
@@ -307,19 +298,6 @@ export function GridMap({
       }
       addDataLayers(map);
       applyLayerVisibility(map);
-      // setStyle() wipes runtime layers including the rain-radar frames. If
-      // the user had rain on, reset state and restart so the animation
-      // resumes after a theme swap (otherwise the frames just disappear).
-      if (activeLayersRef.current.has("rain-radar")) {
-        rainStateRef.current.frames = [];
-        rainStateRef.current.cursor = 0;
-        if (rainStateRef.current.timer != null) {
-          window.clearInterval(rainStateRef.current.timer);
-          rainStateRef.current.timer = null;
-        }
-        startRainRadar(map);
-      }
-      if (activeLayersRef.current.has("wind")) void loadWindInto(map);
       if (activeLayersRef.current.has("outages-live")) void loadFeederOutagesInto(map);
       if (activeLayersRef.current.has("planned-work")) void loadPlannedWorkInto(map);
     });
@@ -358,12 +336,6 @@ export function GridMap({
 
     return () => {
       ro.disconnect();
-      // Clear the rain animation timer before tearing down the map so it
-      // doesn't keep firing against a removed canvas.
-      if (rainStateRef.current.timer != null) {
-        window.clearInterval(rainStateRef.current.timer);
-        rainStateRef.current.timer = null;
-      }
       map.remove();
       mapRef.current = null;
     };
@@ -395,9 +367,6 @@ export function GridMap({
       void loadFeederOutagesInto(map);
     } else clearOutageMarkers();
     if (activeLayers.has("planned-work")) void loadPlannedWorkInto(map);
-    if (activeLayers.has("rain-radar")) startRainRadar(map);
-    else stopRainRadar(map);
-    if (activeLayers.has("wind")) void loadWindInto(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
 
@@ -406,179 +375,6 @@ export function GridMap({
   function clearOutageMarkers() {
     for (const m of outageMarkersRef.current) m.remove();
     outageMarkersRef.current = [];
-  }
-
-  // Rain-radar animation state. RainViewer publishes a manifest with ~12 past
-  // frames (a moving 2-hour window). We add one raster source per frame and
-  // step through them with `raster-opacity` so the map "plays" precipitation.
-  const rainStateRef = useRef<{
-    frames: { id: string; time: number }[];
-    cursor: number;
-    timer: number | null;
-  }>({ frames: [], cursor: 0, timer: null });
-
-  function stopRainRadar(map: MlMap) {
-    const s = rainStateRef.current;
-    if (s.timer != null) {
-      window.clearInterval(s.timer);
-      s.timer = null;
-    }
-    // purgeRainLayers catches both our tracked frames and any orphans.
-    purgeRainLayers(map);
-    s.frames = [];
-    s.cursor = 0;
-  }
-
-  // Remove ANY rain-* layers/sources still attached to the map, including
-  // orphans left behind by a hot-reload or an aborted earlier run. Without
-  // this, a stale layer (added before a code change) keeps rendering its old
-  // tiles — which is how "Zoom Level Not Supported" ends up tiling the whole
-  // viewport even after the URL is fixed.
-  function purgeRainLayers(map: MlMap) {
-    const style = map.getStyle();
-    for (const layer of style.layers ?? []) {
-      if (layer.id.startsWith("rain-") && map.getLayer(layer.id)) {
-        map.removeLayer(layer.id);
-      }
-    }
-    for (const srcId of Object.keys(style.sources ?? {})) {
-      if (srcId.startsWith("rain-") && map.getSource(srcId)) {
-        map.removeSource(srcId);
-      }
-    }
-  }
-
-  function startRainRadar(map: MlMap) {
-    // No-op if already running.
-    if (rainStateRef.current.timer != null) return;
-    void (async () => {
-      try {
-        // Clear any orphan rain layers before we add a fresh stack.
-        purgeRainLayers(map);
-        const res = await fetch("https://api.rainviewer.com/public/weather-maps.json", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        type RVManifest = {
-          host: string;
-          radar?: { past?: Array<{ path: string; time: number }> };
-        };
-        const json = (await res.json()) as RVManifest;
-        const past = json.radar?.past ?? [];
-        if (past.length === 0) return;
-        // Use the last 8 frames — enough to "play" the storm without spamming
-        // the GPU with too many concurrent raster layers.
-        const frames = past.slice(-8);
-        const host = json.host;
-        // Insert as a stack BENEATH the muni outline so borders stay sharp.
-        const beforeId = map.getLayer("municipalities-outline")
-          ? "municipalities-outline"
-          : undefined;
-        for (const f of frames) {
-          const id = `rain-${f.time}`;
-          if (map.getSource(id)) continue;
-          map.addSource(id, {
-            type: "raster",
-            // RainViewer radar data only exists through zoom 7. At z8+ BOTH
-            // the /256/ and /512/ endpoints return a "Zoom Level Not
-            // Supported" placeholder PNG (a uniform rgba(0,0,0,140) image) —
-            // WITH a 200 status, so it can't be caught as a network error.
-            // Setting source maxzoom:7 makes MapLibre request z7 tiles and
-            // over-zoom (stretch) them for display at z8-16, so we never hit
-            // the broken tiles. minzoom 3 + PR bounds keep us off world tiles.
-            tiles: [`${host}${f.path}/512/{z}/{x}/{y}/2/1_1.png`],
-            tileSize: 512,
-            minzoom: 3,
-            maxzoom: 7,
-            bounds: [-68.5, 17.4, -64.4, 19.1],
-            attribution:
-              '<a href="https://www.rainviewer.com" target="_blank" rel="noreferrer">RainViewer</a>',
-          });
-          map.addLayer(
-            {
-              id,
-              type: "raster",
-              source: id,
-              paint: { "raster-opacity": 0 },
-            },
-            beforeId,
-          );
-        }
-        rainStateRef.current.frames = frames.map((f) => ({
-          id: `rain-${f.time}`,
-          time: f.time,
-        }));
-        rainStateRef.current.cursor = 0;
-        const tick = () => {
-          const m = mapRef.current;
-          const s = rainStateRef.current;
-          if (!m || s.frames.length === 0) return;
-          for (let i = 0; i < s.frames.length; i++) {
-            if (!m.getLayer(s.frames[i].id)) continue;
-            m.setPaintProperty(
-              s.frames[i].id,
-              "raster-opacity",
-              i === s.cursor ? 0.65 : 0,
-            );
-          }
-          s.cursor = (s.cursor + 1) % s.frames.length;
-        };
-        tick();
-        // 600ms per frame ≈ 5s loop for 8 frames — visible motion, no jitter.
-        rainStateRef.current.timer = window.setInterval(tick, 600);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[GridMap] rain radar failed", err);
-        onMapErrorRef.current?.("Rain radar failed to load.");
-      }
-    })();
-  }
-
-  async function loadWindInto(map: MlMap) {
-    if (map.getLayer("wind-fill")) return;
-    // Concurrent callers (style.load + activeLayers effect) can both pass the
-    // pre-fetch check; the post-await guard below catches that race.
-    try {
-      // Pull the latest hour of weather snapshots per muni. The endpoint is
-      // already served by /api/weather/latest; if not present, fall back to
-      // the risk endpoint which includes wind_kph indirectly via reasons.
-      const res = await fetch("/api/weather/latest", { cache: "no-store" });
-      if (!res.ok) return;
-      const json = (await res.json()) as {
-        items?: Array<{ municipality_id: string; wind_kph?: number; gust_kph?: number }>;
-      };
-      const byId = new Map<string, number>();
-      for (const r of json.items ?? []) {
-        const w = Math.max(r.gust_kph ?? 0, r.wind_kph ?? 0);
-        if (w > 0) byId.set(r.municipality_id, w);
-      }
-      if (!map.getSource("municipalities")) return;
-      for (const [id, w] of byId) {
-        map.setFeatureState({ source: "municipalities", id }, { wind_kph: w });
-      }
-      if (map.getLayer("wind-fill")) return;
-      map.addLayer(
-        {
-          id: "wind-fill",
-          type: "fill",
-          source: "municipalities",
-          paint: {
-            "fill-color": [
-              "interpolate",
-              ["linear"],
-              ["coalesce", ["feature-state", "wind_kph"], 0],
-              ...WIND_STOPS.flatMap(([v, c]) => [v as number, c as string]),
-            ],
-            "fill-opacity": 0.42,
-          },
-        },
-        "municipalities-outline",
-      );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[GridMap] wind load failed", err);
-      onMapErrorRef.current?.("Wind layer failed to load.");
-    }
   }
 
   function applyLayerVisibility(map: MlMap) {
@@ -612,7 +408,6 @@ export function GridMap({
     setVis("alerts-fill", activeLayers.has("weather-alerts"));
     setVis("alerts-stroke", activeLayers.has("weather-alerts"));
     setVis("quakes-circle", activeLayers.has("quakes"));
-    setVis("wind-fill", activeLayers.has("wind"));
     // AEE/PREPA feeder outages ride along with the "outages-live" toggle.
     const showOutages = activeLayers.has("outages-live");
     setVis("feeders-outage-fill", showOutages);
@@ -622,7 +417,6 @@ export function GridMap({
     const showPlanned = activeLayers.has("planned-work");
     setVis("planned-work-halo", showPlanned);
     setVis("planned-work-dot", showPlanned);
-    // rain frames are managed via startRainRadar / stopRainRadar
   }
 
   async function loadHurricaneInto(map: MlMap) {
@@ -1323,15 +1117,28 @@ export function GridMap({
       FUEL_COLOR.unknown,
     ] as unknown as maplibregl.ExpressionSpecification;
 
-    // OSM tags individual PV panels, wind turbines, and battery cells as
-    // separate `generator` nodes — rendering them all paints fake clusters
-    // on top of solar farms. Restrict the plant layer to `kind: "plant"`
-    // (the consolidated facility polygon) so each plant is exactly one dot.
+    // Show consolidated facilities (`kind: "plant"`) AND any named generator
+    // node. PR's OSM coverage maps most large stations as named generators
+    // (e.g. "Planta Hidroeléctrica de Río Blanco") rather than plant polygons,
+    // so filtering on `plant` alone left the layer empty. Unnamed generator
+    // nodes (the thousands of individual PV/turbine cells) are still dropped
+    // to avoid fake clusters over solar farms.
+    const PLANT_FILTER = [
+      "all",
+      ["any",
+        ["==", ["get", "kind"], "plant"],
+        ["==", ["get", "kind"], "generator"],
+      ],
+      ["has", "name"],
+      ["!=", ["get", "name"], null],
+      ["!=", ["get", "name"], ""],
+    ] as unknown as maplibregl.ExpressionSpecification;
+
     map.addLayer({
       id: "osm-plants-glow",
       type: "circle",
       source: "osm-power",
-      filter: ["==", ["get", "kind"], "plant"],
+      filter: PLANT_FILTER,
       paint: {
         "circle-radius": [
           "interpolate",
@@ -1352,7 +1159,7 @@ export function GridMap({
       id: "osm-plants",
       type: "circle",
       source: "osm-power",
-      filter: ["==", ["get", "kind"], "plant"],
+      filter: PLANT_FILTER,
       paint: {
         "circle-radius": [
           "interpolate",

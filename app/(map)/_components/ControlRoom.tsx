@@ -16,6 +16,10 @@ import { EmptyStateNote } from "./EmptyStateNote";
 import { MunicipalitySummary } from "./MunicipalitySummary";
 import { MapErrorBanner } from "./MapErrorBanner";
 import { ReportSheet } from "./ReportSheet";
+import { EmptyLayerToast } from "./EmptyLayerToast";
+import { OutagesPanel } from "./OutagesPanel";
+import { OutagesButton } from "./OutagesButton";
+import { OutageBanner } from "./OutageBanner";
 import type { ActiveLayerKey, Basemap } from "./GridMap";
 
 const GridMap = dynamic(() => import("./GridMap").then((m) => m.GridMap), {
@@ -56,12 +60,16 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "municipalities",
         "grid-now",
         "generation",
-        "rain-radar",
       ]),
   );
   const [selection, setSelection] = useState<PanelSelection | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [outagesOpen, setOutagesOpen] = useState(false);
+  const [emptyLayerNote, setEmptyLayerNote] = useState<string | null>(null);
+  // Tracks which layers we've already probed-when-empty since the user opened
+  // the session. Without this, every render of an empty layer would re-toast.
+  const [probedEmpty, setProbedEmpty] = useState<Set<LayerKey>>(new Set());
 
   // Tag the body so global CSS can lock scroll on the map route only.
   // Subpages (bill, solar, battery, disaster) need to scroll normally.
@@ -91,6 +99,51 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
     setActiveLayers(next);
   }, []);
 
+  // Probe layers that often render empty (no active storm in the Atlantic
+  // basin, no recent quakes) so the user knows the toggle worked. We only
+  // probe each layer once per session — if the user toggles off + on we don't
+  // nag them again.
+  useEffect(() => {
+    type Probe = {
+      key: LayerKey;
+      url: string;
+      message: string;
+      isEmpty: (json: unknown) => boolean;
+    };
+    const probes: Probe[] = [
+      {
+        key: "hurricane",
+        url: "/api/hurricanes/active",
+        message: "No active storms in the Atlantic basin right now.",
+        isEmpty: (j) =>
+          !!j &&
+          typeof j === "object" &&
+          Array.isArray((j as { features?: unknown[] }).features) &&
+          (j as { features: unknown[] }).features.length === 0,
+      },
+    ];
+    for (const probe of probes) {
+      if (!activeLayers.has(probe.key)) continue;
+      if (probedEmpty.has(probe.key)) continue;
+      // Mark as probed eagerly so concurrent re-renders don't refire.
+      setProbedEmpty((prev) => {
+        const next = new Set(prev);
+        next.add(probe.key);
+        return next;
+      });
+      void (async () => {
+        try {
+          const res = await fetch(probe.url, { cache: "no-store" });
+          if (!res.ok) return;
+          const json: unknown = await res.json();
+          if (probe.isEmpty(json)) setEmptyLayerNote(probe.message);
+        } catch {
+          /* network error already surfaces via the map layer's own handler */
+        }
+      })();
+    }
+  }, [activeLayers, probedEmpty]);
+
   useLayerUrlState(activeLayers, setLayers);
 
   // GridMap only knows about a subset of the rail's layer keys.
@@ -109,8 +162,6 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         "weather-alerts",
         "hurricane",
         "quakes",
-        "rain-radar",
-        "wind",
       ].includes(k),
     ),
   );
@@ -149,11 +200,22 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         }
       />
 
+      <OutageBanner />
       <BrandPill basemap={basemap} onBasemapChange={setBasemap} />
       <GridStatusButton
         snapshot={snapshot}
         active={panelOpen}
-        onClick={() => setPanelOpen((v) => !v)}
+        onClick={() => {
+          setPanelOpen((v) => !v);
+          if (outagesOpen) setOutagesOpen(false);
+        }}
+      />
+      <OutagesButton
+        active={outagesOpen}
+        onClick={() => {
+          setOutagesOpen((v) => !v);
+          if (panelOpen) setPanelOpen(false);
+        }}
       />
       <StatusPanel
         open={panelOpen}
@@ -161,12 +223,20 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
         snapshot={snapshot}
         updates={updates}
       />
+      <OutagesPanel
+        open={outagesOpen}
+        onClose={() => setOutagesOpen(false)}
+      />
       <LayerPills active={activeLayers} onSetActive={setLayers} />
       <MapLegend active={activeLayers} />
 
       <EmptyStateNote visible={snapshot == null} />
       <IntelligencePanel selection={selection} onClose={() => setSelection(null)} />
       <ReportSheet />
+      <EmptyLayerToast
+        message={emptyLayerNote}
+        onDismiss={() => setEmptyLayerNote(null)}
+      />
       <MapErrorBanner message={mapError} onDismiss={() => setMapError(null)} />
     </main>
   );

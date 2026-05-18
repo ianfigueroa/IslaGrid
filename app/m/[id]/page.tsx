@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadScorecard } from "@/lib/scorecards";
 import { SubPageHeader } from "@/app/_components/SubPageHeader";
 import { MunicipalityScorecard } from "./MunicipalityScorecard";
+import { HistoryPanel } from "./_components/HistoryPanel";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -38,16 +39,25 @@ export default async function MunicipalityPage({ params }: Props) {
     <div className="min-h-dvh bg-bg text-text">
       <SubPageHeader title={`${data.basics.name} scorecard`} />
       <main className="px-4 py-10 sm:px-8">
-        <div className="mx-auto w-full max-w-3xl">
-          <p className="mb-3 text-[11px]">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+          <p className="text-[11px]">
             <a
               href="/m"
               className="text-text-3 underline-offset-2 hover:text-text-2 hover:underline"
             >
-              ← All municipalities
+              ← How&apos;s the power in your neighborhood?
             </a>
           </p>
-          <MunicipalityScorecard data={data} />
+          <HistoryPanel
+            municipalityId={id}
+            municipalityName={data.basics.name}
+          />
+          <div className="border-t border-line pt-8">
+            <h2 className="mb-4 text-[18px] font-semibold tracking-tight">
+              Right now
+            </h2>
+            <MunicipalityScorecard data={data} />
+          </div>
         </div>
       </main>
     </div>

@@ -21,9 +21,7 @@ export type LayerKey =
   | "hurricane"
   | "quakes"
   | "solar"
-  | "demand"
-  | "rain-radar"
-  | "wind";
+  | "demand";
 
 const KNOWN: LayerKey[] = [
   "municipalities",
@@ -39,8 +37,6 @@ const KNOWN: LayerKey[] = [
   "quakes",
   "solar",
   "demand",
-  "rain-radar",
-  "wind",
 ];
 
 export function encodeLayers(active: Set<LayerKey>): string {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getServerSupabase } from "@/lib/supabase";
+import { curatedPlantsAsFeatures } from "@/lib/plants";
 
 interface OsmFeature {
   type: "Feature";
@@ -34,6 +35,20 @@ export async function GET() {
   } catch {
     // file not committed yet — return an empty collection rather than 500.
   }
+
+  // Splice in the curated plant list. OSM only carries scattered generator
+  // nodes for PR, so without this seed the Plants layer would render almost
+  // nothing recognizable. Curated entries win when an OSM feature shares the
+  // same id (drop the OSM duplicate to avoid stacked dots).
+  const curated = curatedPlantsAsFeatures();
+  const curatedIds = new Set(curated.map((f) => f.id));
+  collection = {
+    ...collection,
+    features: [
+      ...curated as unknown as OsmFeature[],
+      ...collection.features.filter((f) => !curatedIds.has(f.id)),
+    ],
+  };
 
   // Enrich plants with the latest generation snapshot when possible.
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && collection.features.length) {
