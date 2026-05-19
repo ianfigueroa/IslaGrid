@@ -14,7 +14,7 @@ import logging
 import pathlib
 import sys
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -38,19 +38,36 @@ def _latest_run() -> dict[str, Any] | None:
         return None
 
 
-def _load_model(run_id: str):
+def _load_model(run_id: str) -> tuple[Any, Callable[[np.ndarray], np.ndarray]]:
+    # We save only the isotonic regressor's threshold arrays (X_thresholds_,
+    # y_thresholds_). Reconstructing a real `IsotonicRegression` from those
+    # would need `f_` (a scipy interp1d), which depends on sklearn internals
+    # that have changed across versions and crashed predict on prod with
+    # `AttributeError: 'IsotonicRegression' object has no attribute 'f_'`.
+    # `np.interp` with the saved thresholds is mathematically equivalent to
+    # `IsotonicRegression(out_of_bounds="clip").predict` (numpy clamps at
+    # the endpoints by default) and has zero sklearn-version coupling.
     import lightgbm as lgb
-    from sklearn.isotonic import IsotonicRegression
 
     run_dir = ROOT / run_id
     booster = lgb.Booster(model_file=str(run_dir / "model.txt"))
-    cal = IsotonicRegression(out_of_bounds="clip")
-    cal.X_thresholds_ = np.load(run_dir / "calibrator_x.npy")
-    cal.y_thresholds_ = np.load(run_dir / "calibrator_y.npy")
-    cal.X_min_ = cal.X_thresholds_[0]
-    cal.X_max_ = cal.X_thresholds_[-1]
-    cal._build_f = lambda *a, **k: None  # type: ignore[attr-defined]
-    return booster, cal
+    cal_x = np.load(run_dir / "calibrator_x.npy")
+    cal_y = np.load(run_dir / "calibrator_y.npy")
+    if cal_x.shape != cal_y.shape:
+        raise ValueError(
+            f"calibrator x/y shape mismatch for run {run_id}: "
+            f"{cal_x.shape} vs {cal_y.shape}"
+        )
+    if cal_x.size < 2:
+        raise ValueError(
+            f"calibrator for run {run_id} has only {cal_x.size} point(s); "
+            "need ≥2 to interpolate"
+        )
+
+    def calibrate(raw: np.ndarray) -> np.ndarray:
+        return np.interp(raw, cal_x, cal_y)
+
+    return booster, calibrate
 
 
 def _heuristic_fallback(features: list[dict[str, Any]]) -> list[float]:
@@ -67,24 +84,53 @@ def _heuristic_fallback(features: list[dict[str, Any]]) -> list[float]:
     return out
 
 
+# Page size for scanning outage_features. PR has 78 munis, so 5000 rows is
+# typically ~64 latest rows per muni — plenty to find one fresh row each.
+# If the table ever grows so dense that 5000 doesn't cover one row per muni
+# we log a warning and page again rather than silently skipping munis.
+_FEATURES_PAGE_SIZE = 5000
+
+
 def _latest_features() -> list[dict[str, Any]]:
-    rows = (
-        supabase()
-        .table("outage_features")
-        .select(",".join(["ts", "municipality_id", *FEATURE_COLS]))
-        .order("ts", desc=True)
-        .limit(5000)
-        .execute()
-        .data
-    ) or []
+    """Return one freshest row per municipality_id.
+
+    Pages through outage_features in 5000-row chunks (desc by ts) until we
+    have a row for every muni present OR until we run out. Avoids the silent
+    "older munis dropped" failure mode when the table grows large.
+    """
+    sb = supabase()
     seen: set[str] = set()
     out: list[dict[str, Any]] = []
-    for row in rows:
-        muni = row["municipality_id"]
-        if muni in seen:
-            continue
-        seen.add(muni)
-        out.append(row)
+    offset = 0
+    while True:
+        rows = (
+            sb.table("outage_features")
+            .select(",".join(["ts", "municipality_id", *FEATURE_COLS]))
+            .order("ts", desc=True)
+            .range(offset, offset + _FEATURES_PAGE_SIZE - 1)
+            .execute()
+            .data
+        ) or []
+        if not rows:
+            break
+        for row in rows:
+            muni = row["municipality_id"]
+            if muni in seen:
+                continue
+            seen.add(muni)
+            out.append(row)
+        if len(rows) < _FEATURES_PAGE_SIZE:
+            break
+        offset += _FEATURES_PAGE_SIZE
+        # Soft cap so a runaway table can't OOM the runner. 50k rows ≈ ~640
+        # newest entries per muni — more than enough for "latest per muni."
+        if offset >= 50_000:
+            log.warning(
+                "_latest_features: scanned %d rows without exhausting; %d munis covered",
+                offset,
+                len(seen),
+            )
+            break
     return out
 
 
@@ -128,15 +174,23 @@ def run() -> int:
             dtype=float,
         )
         raw = booster.predict(X)  # type: ignore[union-attr]
-        probs = np.clip(calibrator.predict(raw), 0.05, 0.95)  # type: ignore[union-attr]
+        probs = np.clip(calibrator(raw), 0.05, 0.95)  # type: ignore[misc]
         model_version = latest["run"]  # type: ignore[index]
     else:
         probs = np.array(_heuristic_fallback(rows))
         model_version = f"heuristic:v1-{now.strftime('%Y%m%d')}"
 
     payload = []
+    skipped_parse = 0
     for row, prob in zip(rows, probs):
-        feature_ts = datetime.fromisoformat(str(row["ts"]).replace("Z", "+00:00"))
+        # Tolerate mixed-microsecond ISO timestamps (live cron writes
+        # `...:00+00:00`, backfill writes `...:00.057693+00:00`). A bad row
+        # shouldn't kill the whole run — log and skip.
+        try:
+            feature_ts = datetime.fromisoformat(str(row["ts"]).replace("Z", "+00:00"))
+        except ValueError:
+            skipped_parse += 1
+            continue
         freshness_s = int((now - feature_ts).total_seconds())
         # Honesty rail: stale features get no published prediction.
         if freshness_s > 2 * HORIZON_SECONDS:
@@ -154,10 +208,25 @@ def run() -> int:
             }
         )
 
+    if skipped_parse:
+        log.warning("outage_predictions: skipped %d rows with unparseable ts", skipped_parse)
+
     if payload:
-        supabase().table("outage_predictions").upsert(
-            payload, on_conflict="ts,municipality_id,horizon"
-        ).execute()
+        # Upsert failures must surface — silently swallowing them publishes
+        # nothing while logging a confident success line, hiding real outages
+        # from the dashboard.
+        try:
+            supabase().table("outage_predictions").upsert(
+                payload, on_conflict="ts,municipality_id,horizon"
+            ).execute()
+        except Exception as exc:
+            log.error(
+                "outage_predictions upsert failed (%d rows, model_version=%s): %s",
+                len(payload),
+                model_version,
+                exc,
+            )
+            raise
     log.info("outage_predictions: wrote %d rows (model_version=%s)", len(payload), model_version)
     return len(payload)
 

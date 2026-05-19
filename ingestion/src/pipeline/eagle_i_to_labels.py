@@ -164,11 +164,20 @@ def run(window_days: int = 365) -> int:
     written = 0
     for start in range(0, len(payload), 500):
         chunk = payload[start : start + 500]
-        sb.table("outage_labels").upsert(
-            chunk,
-            on_conflict="municipality_id,started_at,source",
-            ignore_duplicates=True,
-        ).execute()
+        try:
+            sb.table("outage_labels").upsert(
+                chunk,
+                on_conflict="municipality_id,started_at,source",
+                ignore_duplicates=True,
+            ).execute()
+        except Exception as exc:
+            log.error(
+                "outage_labels upsert failed at offset %d (chunk size %d): %s",
+                start,
+                len(chunk),
+                exc,
+            )
+            raise
         written += len(chunk)
     log.info("eagle_i_to_labels: wrote %d events across %d munis", written, len(by_muni))
     return written
