@@ -104,7 +104,13 @@ def time_split(df: pd.DataFrame,
 
 
 def to_xy(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    X = df[FEATURE_COLS].astype(float).fillna(0.0).to_numpy()
+    # Don't fillna(0) — LightGBM handles NaN natively by learning a
+    # missing-value branch per split. Converting null → 0 hides that
+    # signal and lets the heuristic (which also treats null as 0)
+    # match the model on every weather-missing row. With NaNs preserved
+    # the model can learn "weather is unknown → probability X" while
+    # the heuristic stays stuck at probability(0,0,0).
+    X = df[FEATURE_COLS].astype(float).to_numpy()
     y = df["y"].astype(int).to_numpy()
     w = df["label_confidence"].astype(float).to_numpy()
     return X, y, w
