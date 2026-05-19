@@ -114,8 +114,17 @@ def run() -> int:
             use_model = False
 
     if use_model:
+        # Preserve NaN for genuinely-missing values rather than coercing to 0.
+        # LightGBM was trained with NaN-aware splits; feeding zeros now would
+        # route every missing-weather row down the wrong branch.
+        def _cell(v: Any) -> float:
+            try:
+                return float(v) if v is not None else float("nan")
+            except (TypeError, ValueError):
+                return float("nan")
+
         X = np.array(
-            [[float(r.get(c) or 0) for c in FEATURE_COLS] for r in rows],
+            [[_cell(r.get(c)) for c in FEATURE_COLS] for r in rows],
             dtype=float,
         )
         raw = booster.predict(X)  # type: ignore[union-attr]
