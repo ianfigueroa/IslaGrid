@@ -86,6 +86,9 @@ LUMA_REGIONS: dict[str, list[str]] = {
         "cayey",
         "aibonito",
         "barranquitas",
+        "patillas",
+        "arroyo",
+        "guayama",
     ],
     "mayaguez": [
         "mayaguez",

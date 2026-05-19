@@ -67,6 +67,7 @@ LUMA_REGIONS: dict[str, list[str]] = {
         "caguas", "aguas-buenas", "san-lorenzo", "gurabo", "juncos",
         "las-piedras", "humacao", "naguabo", "yabucoa", "maunabo",
         "cidra", "cayey", "aibonito", "barranquitas",
+        "patillas", "arroyo", "guayama",
     ],
     "Mayagüez": [
         "mayaguez", "hormigueros", "san-german", "cabo-rojo", "lajas",
