@@ -52,10 +52,16 @@ def _attach_label(features: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
         features["label_confidence"] = 1.0
         return features
     features = features.copy()
-    features["ts"] = pd.to_datetime(features["ts"], utc=True)
+    # format='ISO8601' tolerates the mixed-microsecond shapes our data carries
+    # (live cron writes `...:00+00:00`, backfill writes `...:00.057693+00:00`).
+    # Default pandas inference locks onto the first row's format and rejects
+    # the rest with a crash.
+    features["ts"] = pd.to_datetime(features["ts"], utc=True, format="ISO8601")
     labels = labels.copy()
     if not labels.empty:
-        labels["started_at"] = pd.to_datetime(labels["started_at"], utc=True)
+        labels["started_at"] = pd.to_datetime(
+            labels["started_at"], utc=True, format="ISO8601"
+        )
 
     features["y"] = 0
     features["label_confidence"] = 1.0
