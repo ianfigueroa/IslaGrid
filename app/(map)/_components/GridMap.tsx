@@ -433,154 +433,185 @@ export function GridMap({
     setVis("planned-work-dot", showPlanned);
   }
 
-  async function loadHurricaneInto(map: MlMap) {
+  /**
+   * Shared loader for layers that fetch a GeoJSON FeatureCollection, then
+   * either update an existing MapLibre source or add it + a stack of layers.
+   * Returns the loaded FC (or null on fetch/parse failure) so callers can
+   * chain follow-up work (e.g. feeders → muni overlay).
+   */
+  async function loadGeoJsonSource(opts: {
+    map: MlMap;
+    url: string;
+    sourceId: string;
+    errorMsg: string;
+    transform?: (json: unknown) => GeoJSON.FeatureCollection | null;
+    /** Each layer is added in order. `before` is the existing layer id to
+     *  insert beneath (matches MapLibre's `addLayer(layer, beforeId)` API). */
+    layers: Array<{ layer: maplibregl.LayerSpecification; before?: string }>;
+    /** Called once per new source — useful for click/hover binding. */
+    onAttach?: (map: MlMap) => void;
+    warnOnly?: boolean;
+  }): Promise<GeoJSON.FeatureCollection | null> {
+    const { map, url, sourceId, errorMsg, transform, layers, onAttach, warnOnly } = opts;
     try {
-      const res = await fetch("/api/hurricanes/active", { cache: "no-store" });
-      if (!res.ok) return;
-      const fc = await res.json();
-      if (!fc || !Array.isArray(fc.features)) return;
-      const existing = map.getSource("hurricane") as
-        | maplibregl.GeoJSONSource
-        | undefined;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return null;
+      const json: unknown = await res.json();
+      const fc = transform
+        ? transform(json)
+        : (json && typeof json === "object" && Array.isArray((json as { features?: unknown[] }).features)
+            ? (json as GeoJSON.FeatureCollection)
+            : null);
+      if (!fc) return null;
+      const existing = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
       if (existing) {
         existing.setData(fc);
-      } else {
-        map.addSource("hurricane", { type: "geojson", data: fc });
-        map.addLayer({
-          id: "hurricane-cone-fill",
-          type: "fill",
-          source: "hurricane",
-          filter: ["==", ["get", "kind"], "cone"],
-          paint: {
-            "fill-color": "#facc15",
-            "fill-opacity": 0.12,
-          },
-        });
-        map.addLayer({
-          id: "hurricane-cone-stroke",
-          type: "line",
-          source: "hurricane",
-          filter: ["==", ["get", "kind"], "cone"],
-          paint: {
-            "line-color": "#fde047",
-            "line-width": 1.4,
-            "line-dasharray": [2, 2],
-            "line-opacity": 0.7,
-          },
-        });
-        map.addLayer({
-          id: "hurricane-track",
-          type: "line",
-          source: "hurricane",
-          filter: ["==", ["get", "kind"], "track"],
-          paint: {
-            "line-color": "#fef08a",
-            "line-width": 2,
-            "line-opacity": 0.9,
-          },
-        });
+        return fc;
       }
+      map.addSource(sourceId, { type: "geojson", data: fc });
+      for (const { layer, before } of layers) {
+        if (before && map.getLayer(before)) map.addLayer(layer, before);
+        else map.addLayer(layer);
+      }
+      onAttach?.(map);
+      return fc;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[GridMap] hurricane load failed", err);
-      onMapErrorRef.current?.("Hurricane forecast failed to load.");
+      (warnOnly ? console.warn : console.error)(`[GridMap] ${sourceId} load failed`, err);
+      if (!warnOnly) onMapErrorRef.current?.(errorMsg);
+      return null;
     }
+  }
+
+  async function loadHurricaneInto(map: MlMap) {
+    await loadGeoJsonSource({
+      map,
+      url: "/api/hurricanes/active",
+      sourceId: "hurricane",
+      errorMsg: "Hurricane forecast failed to load.",
+      layers: [
+        {
+          layer: {
+            id: "hurricane-cone-fill",
+            type: "fill",
+            source: "hurricane",
+            filter: ["==", ["get", "kind"], "cone"],
+            paint: { "fill-color": "#facc15", "fill-opacity": 0.12 },
+          },
+        },
+        {
+          layer: {
+            id: "hurricane-cone-stroke",
+            type: "line",
+            source: "hurricane",
+            filter: ["==", ["get", "kind"], "cone"],
+            paint: {
+              "line-color": "#fde047",
+              "line-width": 1.4,
+              "line-dasharray": [2, 2],
+              "line-opacity": 0.7,
+            },
+          },
+        },
+        {
+          layer: {
+            id: "hurricane-track",
+            type: "line",
+            source: "hurricane",
+            filter: ["==", ["get", "kind"], "track"],
+            paint: { "line-color": "#fef08a", "line-width": 2, "line-opacity": 0.9 },
+          },
+        },
+      ],
+    });
   }
 
   async function loadAlertsInto(map: MlMap) {
-    try {
-      const res = await fetch("/api/weather/alerts", { cache: "no-store" });
-      if (!res.ok) return;
-      const fc = await res.json();
-      if (!fc || !Array.isArray(fc.features)) return;
+    await loadGeoJsonSource({
+      map,
+      url: "/api/weather/alerts",
+      sourceId: "alerts",
+      errorMsg: "NWS alerts failed to load.",
       // Tag each feature with a resolved color so we can render via a
       // 'get' expression rather than a long match in MapLibre.
-      type AlertFeature = GeoJSON.Feature<GeoJSON.Geometry, { event?: string; _color?: string }>;
-      for (const f of fc.features as AlertFeature[]) {
-        f.properties = {
-          ...f.properties,
-          _color: alertFillFor(f.properties?.event ?? ""),
-        };
-      }
-      const existing = map.getSource("alerts") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (existing) {
-        existing.setData(fc);
-      } else {
-        map.addSource("alerts", { type: "geojson", data: fc });
-        map.addLayer({
-          id: "alerts-fill",
-          type: "fill",
-          source: "alerts",
-          paint: {
-            "fill-color": ["coalesce", ["get", "_color"], "#facc15"],
-            "fill-opacity": 0.18,
+      transform: (json) => {
+        if (!json || typeof json !== "object") return null;
+        const fc = json as GeoJSON.FeatureCollection;
+        if (!Array.isArray(fc.features)) return null;
+        for (const f of fc.features) {
+          const props = (f.properties ?? {}) as { event?: string };
+          f.properties = { ...props, _color: alertFillFor(props.event ?? "") };
+        }
+        return fc;
+      },
+      layers: [
+        {
+          layer: {
+            id: "alerts-fill",
+            type: "fill",
+            source: "alerts",
+            paint: {
+              "fill-color": ["coalesce", ["get", "_color"], "#facc15"],
+              "fill-opacity": 0.18,
+            },
           },
-        });
-        map.addLayer({
-          id: "alerts-stroke",
-          type: "line",
-          source: "alerts",
-          paint: {
-            "line-color": ["coalesce", ["get", "_color"], "#facc15"],
-            "line-width": 1.2,
-            "line-opacity": 0.8,
+        },
+        {
+          layer: {
+            id: "alerts-stroke",
+            type: "line",
+            source: "alerts",
+            paint: {
+              "line-color": ["coalesce", ["get", "_color"], "#facc15"],
+              "line-width": 1.2,
+              "line-opacity": 0.8,
+            },
           },
-        });
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[GridMap] alerts load failed", err);
-      onMapErrorRef.current?.("NWS alerts failed to load.");
-    }
+        },
+      ],
+    });
   }
 
   async function loadQuakesInto(map: MlMap) {
-    try {
-      const res = await fetch("/api/quakes", { cache: "no-store" });
-      if (!res.ok) return;
-      const fc = await res.json();
-      if (!fc || !Array.isArray(fc.features)) return;
-      const existing = map.getSource("quakes") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (existing) {
-        existing.setData(fc);
-      } else {
-        map.addSource("quakes", { type: "geojson", data: fc });
-        map.addLayer({
-          id: "quakes-circle",
-          type: "circle",
-          source: "quakes",
-          paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["coalesce", ["to-number", ["get", "mag"]], 2],
-              2, 3,
-              4, 7,
-              6, 13,
-            ],
-            "circle-color": "#a855f7",
-            "circle-opacity": 0.55,
-            "circle-stroke-color": "#f5d0fe",
-            "circle-stroke-width": 1,
+    await loadGeoJsonSource({
+      map,
+      url: "/api/quakes",
+      sourceId: "quakes",
+      errorMsg: "USGS earthquakes failed to load.",
+      layers: [
+        {
+          layer: {
+            id: "quakes-circle",
+            type: "circle",
+            source: "quakes",
+            paint: {
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["coalesce", ["to-number", ["get", "mag"]], 2],
+                2, 3,
+                4, 7,
+                6, 13,
+              ],
+              "circle-color": "#a855f7",
+              "circle-opacity": 0.55,
+              "circle-stroke-color": "#f5d0fe",
+              "circle-stroke-width": 1,
+            },
           },
-        });
-        map.on("click", "quakes-circle", (e) => {
+        },
+      ],
+      onAttach: (m) => {
+        m.on("click", "quakes-circle", (e) => {
           const f = e.features?.[0];
           if (!f) return;
-          const p = f.properties as { mag?: number; place?: string; url?: string; title?: string };
-          // eslint-disable-next-line no-alert
-          if (p?.url && typeof window !== "undefined") window.open(p.url, "_blank", "noopener");
+          const p = f.properties as { url?: string };
+          if (p?.url && typeof window !== "undefined") {
+            window.open(p.url, "_blank", "noopener");
+          }
         });
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[GridMap] quakes load failed", err);
-      onMapErrorRef.current?.("USGS earthquakes failed to load.");
-    }
+      },
+    });
   }
 
   async function loadOutageMarkersInto(map: MlMap) {
@@ -641,86 +672,66 @@ export function GridMap({
   }
 
   async function loadFeederOutagesInto(map: MlMap) {
-    try {
-      const res = await fetch("/api/outages/feeders", { cache: "no-store" });
-      if (!res.ok) return;
-      const fc = await res.json();
-      if (!fc || !Array.isArray(fc.features)) return;
-      // AEEPR feeders are often empty between pushes; the muni overlay
-      // smears the LUMA region totals across munis so the user still sees
-      // affected areas. Load it in parallel so both paint together.
-      void loadMuniOutageOverlayInto(map, fc.features.length === 0);
-      const existing = map.getSource("aeepr-feeders") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (existing) {
-        existing.setData(fc);
-        return;
-      }
-      map.addSource("aeepr-feeders", { type: "geojson", data: fc });
-      // Active outage feeders — red. Tucked above the muni outline so they
-      // don't blow out the choropleth, but still under labels.
-      map.addLayer(
+    const fc = await loadGeoJsonSource({
+      map,
+      url: "/api/outages/feeders",
+      sourceId: "aeepr-feeders",
+      errorMsg: "AEE/PREPA feeder outages failed to load.",
+      layers: [
         {
-          id: "feeders-outage-fill",
-          type: "fill",
-          source: "aeepr-feeders",
-          filter: ["==", ["get", "kind"], "outage"],
-          paint: {
-            "fill-color": "#ef4444",
-            "fill-opacity": 0.42,
+          // Active outage feeders — red. Tucked above the muni outline so they
+          // don't blow out the choropleth, but still under labels.
+          layer: {
+            id: "feeders-outage-fill",
+            type: "fill",
+            source: "aeepr-feeders",
+            filter: ["==", ["get", "kind"], "outage"],
+            paint: { "fill-color": "#ef4444", "fill-opacity": 0.42 },
           },
+          before: "municipalities-outline",
         },
-        "municipalities-outline",
-      );
-      map.addLayer(
         {
-          id: "feeders-outage-stroke",
-          type: "line",
-          source: "aeepr-feeders",
-          filter: ["==", ["get", "kind"], "outage"],
-          paint: {
-            "line-color": "#fee2e2",
-            "line-width": 1.1,
-            "line-opacity": 0.9,
+          layer: {
+            id: "feeders-outage-stroke",
+            type: "line",
+            source: "aeepr-feeders",
+            filter: ["==", ["get", "kind"], "outage"],
+            paint: { "line-color": "#fee2e2", "line-width": 1.1, "line-opacity": 0.9 },
           },
+          before: "municipalities-outline",
         },
-        "municipalities-outline",
-      );
-      // Projected load-shed feeders — amber dashed.
-      map.addLayer(
         {
-          id: "feeders-loadshed-fill",
-          type: "fill",
-          source: "aeepr-feeders",
-          filter: ["==", ["get", "kind"], "load_shed"],
-          paint: {
-            "fill-color": "#f59e0b",
-            "fill-opacity": 0.28,
+          // Projected load-shed feeders — amber dashed.
+          layer: {
+            id: "feeders-loadshed-fill",
+            type: "fill",
+            source: "aeepr-feeders",
+            filter: ["==", ["get", "kind"], "load_shed"],
+            paint: { "fill-color": "#f59e0b", "fill-opacity": 0.28 },
           },
+          before: "municipalities-outline",
         },
-        "municipalities-outline",
-      );
-      map.addLayer(
         {
-          id: "feeders-loadshed-stroke",
-          type: "line",
-          source: "aeepr-feeders",
-          filter: ["==", ["get", "kind"], "load_shed"],
-          paint: {
-            "line-color": "#fde68a",
-            "line-width": 1,
-            "line-opacity": 0.85,
-            "line-dasharray": [2, 2],
+          layer: {
+            id: "feeders-loadshed-stroke",
+            type: "line",
+            source: "aeepr-feeders",
+            filter: ["==", ["get", "kind"], "load_shed"],
+            paint: {
+              "line-color": "#fde68a",
+              "line-width": 1,
+              "line-opacity": 0.85,
+              "line-dasharray": [2, 2],
+            },
           },
+          before: "municipalities-outline",
         },
-        "municipalities-outline",
-      );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[GridMap] feeder outages failed", err);
-      onMapErrorRef.current?.("AEE/PREPA feeder outages failed to load.");
-    }
+      ],
+    });
+    // AEEPR feeders are often empty between pushes; the muni overlay smears
+    // the LUMA region totals across munis so the user still sees affected
+    // areas. Trigger it in parallel based on whether AEEPR had data.
+    void loadMuniOutageOverlayInto(map, !fc || fc.features.length === 0);
   }
 
   /**
@@ -730,27 +741,15 @@ export function GridMap({
    * muni measurement.
    */
   async function loadMuniOutageOverlayInto(map: MlMap, showWhenLoaded: boolean) {
-    try {
-      const res = await fetch("/api/outages/muni-overlay", { cache: "no-store" });
-      if (!res.ok) return;
-      const fc = (await res.json()) as {
-        type: "FeatureCollection";
-        features: GeoJSON.Feature[];
-        total_customers?: number;
-      };
-      if (!fc || !Array.isArray(fc.features)) return;
-      const existing = map.getSource("muni-outage-overlay") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (existing) {
-        existing.setData(fc as GeoJSON.GeoJSON);
-      } else {
-        map.addSource("muni-outage-overlay", {
-          type: "geojson",
-          data: fc as GeoJSON.GeoJSON,
-        });
-        map.addLayer(
-          {
+    await loadGeoJsonSource({
+      map,
+      url: "/api/outages/muni-overlay",
+      sourceId: "muni-outage-overlay",
+      errorMsg: "Muni outage overlay failed to load.",
+      warnOnly: true,
+      layers: [
+        {
+          layer: {
             id: "muni-outage-overlay-fill",
             type: "fill",
             source: "muni-outage-overlay",
@@ -762,10 +761,7 @@ export function GridMap({
               "fill-opacity": [
                 "interpolate",
                 ["linear"],
-                [
-                  "log10",
-                  ["max", 1, ["get", "region_customers_out"]],
-                ],
+                ["log10", ["max", 1, ["get", "region_customers_out"]]],
                 1, 0.08,   // 10
                 2, 0.18,   // 100
                 3, 0.32,   // 1k
@@ -773,36 +769,29 @@ export function GridMap({
               ],
             },
           },
-          "municipalities-outline",
-        );
-        map.addLayer(
-          {
+          before: "municipalities-outline",
+        },
+        {
+          layer: {
             id: "muni-outage-overlay-stroke",
             type: "line",
             source: "muni-outage-overlay",
-            paint: {
-              "line-color": "#fecaca",
-              "line-width": 0.8,
-              "line-opacity": 0.7,
-            },
+            paint: { "line-color": "#fecaca", "line-width": 0.8, "line-opacity": 0.7 },
           },
-          "municipalities-outline",
-        );
-      }
-      // Visibility tracks the outages-live toggle, but we only paint when
-      // the AEEPR layer was empty — if AEEPR has data, those polygons are
-      // strictly better and we hide the smear.
-      const visible = showWhenLoaded && activeLayersRef.current.has("outages-live");
-      const vis = visible ? "visible" : "none";
-      if (map.getLayer("muni-outage-overlay-fill")) {
-        map.setLayoutProperty("muni-outage-overlay-fill", "visibility", vis);
-      }
-      if (map.getLayer("muni-outage-overlay-stroke")) {
-        map.setLayoutProperty("muni-outage-overlay-stroke", "visibility", vis);
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn("[GridMap] muni outage overlay failed", err);
+          before: "municipalities-outline",
+        },
+      ],
+    });
+    // Visibility tracks the outages-live toggle, but we only paint when the
+    // AEEPR layer was empty — if AEEPR has data, those polygons are strictly
+    // better and we hide the smear.
+    const vis =
+      showWhenLoaded && activeLayersRef.current.has("outages-live") ? "visible" : "none";
+    if (map.getLayer("muni-outage-overlay-fill")) {
+      map.setLayoutProperty("muni-outage-overlay-fill", "visibility", vis);
+    }
+    if (map.getLayer("muni-outage-overlay-stroke")) {
+      map.setLayoutProperty("muni-outage-overlay-stroke", "visibility", vis);
     }
   }
 
@@ -983,50 +972,40 @@ export function GridMap({
   }
 
   async function loadReportsInto(map: MlMap) {
-    try {
-      const res = await fetch("/api/reports/aggregate", { cache: "no-store" });
-      if (!res.ok) throw new Error(`/api/reports/aggregate ${res.status}`);
-      const fc = await res.json();
-      if (!fc || !Array.isArray(fc.features)) return;
-      const existing = map.getSource("reports") as
-        | maplibregl.GeoJSONSource
-        | undefined;
-      if (existing) {
-        existing.setData(fc);
-        return;
-      }
-      map.addSource("reports", { type: "geojson", data: fc });
-      map.addLayer({
-        id: "reports-hex-fill",
-        type: "fill",
-        source: "reports",
-        paint: {
-          "fill-color": [
-            "match",
-            ["coalesce", ["get", "band"], "low"],
-            "low",    REPORT_FILL.low,
-            "medium", REPORT_FILL.medium,
-            "high",   REPORT_FILL.high,
-            REPORT_FILL.low,
-          ],
-          "fill-opacity": 0.35,
+    await loadGeoJsonSource({
+      map,
+      url: "/api/reports/aggregate",
+      sourceId: "reports",
+      errorMsg: "Community reports failed to load.",
+      layers: [
+        {
+          layer: {
+            id: "reports-hex-fill",
+            type: "fill",
+            source: "reports",
+            paint: {
+              "fill-color": [
+                "match",
+                ["coalesce", ["get", "band"], "low"],
+                "low",    REPORT_FILL.low,
+                "medium", REPORT_FILL.medium,
+                "high",   REPORT_FILL.high,
+                REPORT_FILL.low,
+              ],
+              "fill-opacity": 0.35,
+            },
+          },
         },
-      });
-      map.addLayer({
-        id: "reports-hex-stroke",
-        type: "line",
-        source: "reports",
-        paint: {
-          "line-color": "#facc15",
-          "line-opacity": 0.5,
-          "line-width": 0.8,
+        {
+          layer: {
+            id: "reports-hex-stroke",
+            type: "line",
+            source: "reports",
+            paint: { "line-color": "#facc15", "line-opacity": 0.5, "line-width": 0.8 },
+          },
         },
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[GridMap] reports load failed", err);
-      onMapErrorRef.current?.("Community reports failed to load.");
-    }
+      ],
+    });
   }
 
   async function loadRiskInto(map: MlMap) {
