@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { normalizeRegionName } from "@/lib/luma-regions";
 import type {
   MuniGroup,
   OutageSummary,
@@ -48,19 +49,11 @@ const REGION_ORDER = [
 ];
 
 function normalizeRegion(raw: string | null): string {
-  if (!raw) return "Other";
-  // Region feed sometimes uses "T&D San Juan" or all-caps; normalize.
-  const cleaned = raw.replace(/^T&D\s+/i, "").trim();
-  const upper = cleaned.toLowerCase();
-  for (const canonical of REGION_ORDER) {
-    if (canonical.toLowerCase() === upper) return canonical;
-  }
-  // Accent-insensitive fallback (Bayamon vs Bayamón, Mayaguez vs Mayagüez).
-  const stripAccents = (s: string) =>
-    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  for (const canonical of REGION_ORDER) {
-    if (stripAccents(canonical) === stripAccents(cleaned)) return canonical;
-  }
+  const canonical = normalizeRegionName(raw);
+  if (canonical) return canonical;
+  // Non-canonical region name — keep the cleaned label so it still appears
+  // as its own "Other"-ish bucket instead of getting silently dropped.
+  const cleaned = (raw ?? "").replace(/^T&D\s+/i, "").trim();
   return cleaned || "Other";
 }
 
