@@ -52,6 +52,9 @@ export const LUMA_REGIONS = {
     "cayey",
     "aibonito",
     "barranquitas",
+    "patillas",
+    "arroyo",
+    "guayama",
   ],
   "Mayagüez": [
     "mayaguez",
