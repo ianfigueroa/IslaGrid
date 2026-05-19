@@ -204,9 +204,18 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
 
     events = _fetch_events(window_start)
     open_event_caps = 0
+    skipped_planned = 0
     for event in events:
         muni_id = event.get("municipality_id")
         if not muni_id:
+            continue
+        # Planned-work announcements describe FUTURE scheduled work, not
+        # customer outages that already happened. Counting them inflated the
+        # daily rollup with thousands of phantom outage-hours per muni —
+        # they belong in the planned-work map layer, not reliability history.
+        kind = event.get("kind")
+        if kind == "planned":
+            skipped_planned += 1
             continue
         started = _parse_ts(event.get("started_at"))
         if not started:
@@ -223,7 +232,7 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
             ended = raw_ended
         if ended < started:
             continue
-        bucket = _kind_to_bucket(event.get("kind"), event.get("_cause"))
+        bucket = _kind_to_bucket(kind, event.get("_cause"))
         for day, hours in _split_event_by_day(started, ended):
             key = (muni_id, day)
             agg = aggs.get(key) or DailyAgg(muni_id, day)
@@ -233,6 +242,12 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
                 agg.outage_events += 1
             setattr(agg, bucket, getattr(agg, bucket) + hours)
             aggs[key] = agg
+    if skipped_planned:
+        log.info(
+            "municipality_outage_daily: skipped %d planned-work events "
+            "(forecasts, not historical outages)",
+            skipped_planned,
+        )
 
     if open_event_caps:
         log.warning(
