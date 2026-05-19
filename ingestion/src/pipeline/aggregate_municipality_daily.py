@@ -50,6 +50,11 @@ CAUSE_TO_BUCKET: dict[str, str] = {
 }
 DEFAULT_BUCKET = "cause_unknown_hours"
 
+# Hard cap for events with ended_at = NULL. Matches lib/reliability.ts
+# MAX_OPEN_EVENT_HOURS so the two paths agree on how long an "open" event
+# can plausibly inflate history before we treat it as a stuck notice.
+MAX_OPEN_EVENT_HOURS = 8
+
 
 @dataclass
 class DailyAgg:
@@ -198,6 +203,7 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
     aggs: dict[tuple[str, date], DailyAgg] = {}
 
     events = _fetch_events(window_start)
+    open_event_caps = 0
     for event in events:
         muni_id = event.get("municipality_id")
         if not muni_id:
@@ -205,7 +211,16 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
         started = _parse_ts(event.get("started_at"))
         if not started:
             continue
-        ended = _parse_ts(event.get("ended_at")) or datetime.now(UTC)
+        raw_ended = _parse_ts(event.get("ended_at"))
+        if raw_ended is None:
+            # ended_at missing — most scrapers don't set it. Cap so a stale
+            # announcement doesn't claim days of "outage time".
+            cap = started + timedelta(hours=MAX_OPEN_EVENT_HOURS)
+            ended = min(datetime.now(UTC), cap)
+            if ended == cap:
+                open_event_caps += 1
+        else:
+            ended = raw_ended
         if ended < started:
             continue
         bucket = _kind_to_bucket(event.get("kind"), event.get("_cause"))
@@ -218,6 +233,14 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
                 agg.outage_events += 1
             setattr(agg, bucket, getattr(agg, bucket) + hours)
             aggs[key] = agg
+
+    if open_event_caps:
+        log.warning(
+            "municipality_outage_daily: capped %d open events at %dh "
+            "(ended_at=NULL fallback)",
+            open_event_caps,
+            MAX_OPEN_EVENT_HOURS,
+        )
 
     eagle = _fetch_eagle_i(window_start)
     # Eagle-i samples every 15 min. customer-minutes per sample = customers * 15.
