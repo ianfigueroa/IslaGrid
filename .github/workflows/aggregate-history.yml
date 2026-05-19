@@ -10,7 +10,7 @@ on:
       backfill_days:
         description: "How many days back to aggregate (1–400)"
         required: false
-        default: "30"
+        default: "365"
 
 concurrency:
   group: aggregate-history
@@ -35,14 +35,29 @@ jobs:
         working-directory: ingestion
         run: pip install -e .
 
-      - name: Aggregate municipality outage rollup
+      # Convert LUMA's region-level customer-affected snapshots into discrete
+      # unplanned outage events so `outage_events` reflects real customer
+      # outages (it used to contain only planned-work announcements).
+      - name: Detect unplanned outage episodes from LUMA snapshots
         working-directory: ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          python -m src.pipeline.luma_snapshots_to_events \
+            --backfill-days ${{ github.event.inputs.backfill_days || '365' }}
+
+      - name: Aggregate municipality outage rollup
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # 365d default keeps the rolling year populated — the 31–365d window
+        # used to silently drop to 0 hours because the hourly run only
+        # touched the last 30 days.
+        run: |
           python -m src.pipeline.aggregate_municipality_daily \
-            --backfill-days ${{ github.event.inputs.backfill_days || '30' }}
+            --backfill-days ${{ github.event.inputs.backfill_days || '365' }}
 
       # Fill the ~50 munis that LUMA never publishes per-incident data for
       # by splitting region-level customer-out hours from
@@ -56,4 +71,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python -m src.pipeline.aggregate_luma_regions_to_munis \
-            --backfill-days ${{ github.event.inputs.backfill_days || '30' }}
+            --backfill-days ${{ github.event.inputs.backfill_days || '365' }}
