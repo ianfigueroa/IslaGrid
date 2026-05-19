@@ -40,9 +40,30 @@ class Split:
     test: pd.DataFrame
 
 
-def _fetch_table(name: str, cols: str) -> pd.DataFrame:
-    rows = supabase().table(name).select(cols).execute().data or []
-    return pd.DataFrame(rows)
+def _fetch_table(name: str, cols: str, page_size: int = 1000) -> pd.DataFrame:
+    # PostgREST caps each response at 1000 rows by default. Without pagination
+    # the trainer silently sees only the first 1000 feature/label rows and
+    # crashes (or, worse, trains on a tiny biased slice). Page until exhausted.
+    sb = supabase()
+    all_rows: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        chunk = (
+            sb.table(name)
+            .select(cols)
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data
+            or []
+        )
+        if not chunk:
+            break
+        all_rows.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
+    log.info("fetched %d rows from %s", len(all_rows), name)
+    return pd.DataFrame(all_rows)
 
 
 def _attach_label(features: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
@@ -73,11 +94,16 @@ def _attach_label(features: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
         mask = features["municipality_id"] == muni_id
         if not mask.any():
             continue
+        masked_idx = features.index[mask]
         ts = features.loc[mask, "ts"]
         for _, label in muni_labels.iterrows():
+            # hit is sized to the masked subset; index into masked_idx
+            # directly instead of ANDing two differently-sized boolean
+            # arrays (which broadcasts and crashes).
             hit = (label["started_at"] >= ts - window) & (label["started_at"] <= ts + window)
-            features.loc[mask & hit.values, "y"] = 1
-            features.loc[mask & hit.values, "label_confidence"] = float(label.get("confidence", 0.5))
+            hit_idx = masked_idx[hit.values]
+            features.loc[hit_idx, "y"] = 1
+            features.loc[hit_idx, "label_confidence"] = float(label.get("confidence", 0.5))
     return features
 
 
