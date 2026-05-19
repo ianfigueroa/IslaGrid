@@ -33,6 +33,26 @@ const GridMap = dynamic(() => import("./GridMap").then((m) => m.GridMap), {
   ),
 });
 
+interface LayerProbe {
+  key: LayerKey;
+  url: string;
+  message: string;
+  isEmpty: (json: unknown) => boolean;
+}
+
+const LAYER_PROBES: LayerProbe[] = [
+  {
+    key: "hurricane",
+    url: "/api/hurricanes/active",
+    message: "No active storms in the Atlantic basin right now.",
+    isEmpty: (j) =>
+      !!j &&
+      typeof j === "object" &&
+      Array.isArray((j as { features?: unknown[] }).features) &&
+      (j as { features: unknown[] }).features.length === 0,
+  },
+];
+
 interface Props {
   initialSnapshot: GridSnapshot | null;
   initialUpdates: UpdateItem[];
@@ -117,43 +137,22 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
   // probe each layer once per session — if the user toggles off + on we don't
   // nag them again.
   useEffect(() => {
-    type Probe = {
-      key: LayerKey;
-      url: string;
-      message: string;
-      isEmpty: (json: unknown) => boolean;
+    const probeLayer = async (probe: LayerProbe) => {
+      try {
+        const res = await fetch(probe.url, { cache: "no-store" });
+        if (!res.ok) return;
+        const json: unknown = await res.json();
+        if (probe.isEmpty(json)) setEmptyLayerNote(probe.message);
+      } catch {
+        /* network error already surfaces via the map layer's own handler */
+      }
     };
-    const probes: Probe[] = [
-      {
-        key: "hurricane",
-        url: "/api/hurricanes/active",
-        message: "No active storms in the Atlantic basin right now.",
-        isEmpty: (j) =>
-          !!j &&
-          typeof j === "object" &&
-          Array.isArray((j as { features?: unknown[] }).features) &&
-          (j as { features: unknown[] }).features.length === 0,
-      },
-    ];
-    for (const probe of probes) {
+    for (const probe of LAYER_PROBES) {
       if (!activeLayers.has(probe.key)) continue;
       if (probedEmpty.has(probe.key)) continue;
       // Mark as probed eagerly so concurrent re-renders don't refire.
-      setProbedEmpty((prev) => {
-        const next = new Set(prev);
-        next.add(probe.key);
-        return next;
-      });
-      void (async () => {
-        try {
-          const res = await fetch(probe.url, { cache: "no-store" });
-          if (!res.ok) return;
-          const json: unknown = await res.json();
-          if (probe.isEmpty(json)) setEmptyLayerNote(probe.message);
-        } catch {
-          /* network error already surfaces via the map layer's own handler */
-        }
-      })();
+      setProbedEmpty((prev) => new Set(prev).add(probe.key));
+      void probeLayer(probe);
     }
   }, [activeLayers, probedEmpty]);
 
