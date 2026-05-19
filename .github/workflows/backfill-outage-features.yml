@@ -51,6 +51,20 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.backfill_outage_features
 
+      # Without this step the trainer ties the heuristic — both see
+      # weather=NaN→0 and the model can't learn anything weather-shaped.
+      # One Open-Meteo call per muni (~78 total) fills temp/wind/gust/precip
+      # across the 3y backfill window. Free non-commercial API, no auth.
+      - name: Backfill weather features (Open-Meteo)
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # Don't fail the workflow if Open-Meteo is having a bad day — we
+        # can still train on grid_stress + temporal features alone.
+        continue-on-error: true
+        run: python -m src.pipeline.backfill_weather_features
+
       # Now that features cover historical labels, try training. The
       # trainer's own gate (val Brier ≥ 5% better than heuristic) decides
       # whether to publish the model — running it here is a no-op if the
