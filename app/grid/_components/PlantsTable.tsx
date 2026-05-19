@@ -30,6 +30,13 @@ export interface PlantRow {
   utilization_pct: number | null;
   status: "online" | "derated" | "offline" | "idle" | "no_feed" | "unknown";
   ts: string | null;
+  /**
+   * True when current_mw was derived from Genera's system-wide category
+   * total split across plants by capacity rather than measured directly.
+   * Solar/wind/hydro/landfill plants are always inferred — Genera doesn't
+   * publish per-plant renewable MW.
+   */
+  inferred?: boolean;
 }
 
 type SortKey = "name" | "fuel" | "capacity" | "output" | "utilization";
@@ -143,8 +150,20 @@ export function PlantsTable({ plants }: Props) {
                     {NO_DATA_LABEL[p.status]?.headline ?? "—"}
                   </span>
                 ) : (
-                  <span className={cn("font-semibold", STATUS_TONE[p.status])}>
+                  <span
+                    className={cn("font-semibold", STATUS_TONE[p.status])}
+                    title={
+                      p.inferred
+                        ? "Estimated — Genera publishes only a system-wide total for this fuel; we distribute it across plants by capacity."
+                        : undefined
+                    }
+                  >
                     {Math.round(p.current_mw).toLocaleString()} MW
+                    {p.inferred ? (
+                      <span className="ml-1 text-[10.5px] font-normal text-text-3">
+                        est.
+                      </span>
+                    ) : null}
                   </span>
                 )}
                 <div className="mt-0.5 text-[10.5px] text-text-3">

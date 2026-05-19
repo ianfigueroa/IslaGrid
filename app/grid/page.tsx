@@ -103,10 +103,42 @@ async function loadDashboard(): Promise<{
     }
   }
 
+  // Genera publishes renewable output as a SYSTEM-WIDE total per fuel
+  // (Solar 118 MW, Viento 98 MW, Hidro 14 MW, Gas de Vertedero 1 MW) —
+  // it doesn't break out per-plant. The scraper stores these under
+  // plant_name='Solar' / 'Viento' / 'Hidro' / 'Gas de Vertedero'. To
+  // give each curated renewable plant a number on the dashboard we
+  // distribute the category total across plants of that fuel weighted
+  // by nameplate capacity. Marked as `inferred` so the UI can show
+  // "est." next to the number — these aren't measured per-plant.
+  const RENEWABLE_KEYS: Record<string, string[]> = {
+    solar: ["solar"],
+    wind: ["viento", "wind"],
+    hydro: ["hidro", "hydro", "hydroelectrico"],
+    landfill: ["gasdevertedero", "landfill", "landfillgas"],
+  };
+  const renewableTotals: Record<string, { mw: number; ts: string }> = {};
+  for (const [fuel, keys] of Object.entries(RENEWABLE_KEYS)) {
+    for (const k of keys) {
+      const hit = latestByPlant.get(k);
+      if (hit) {
+        renewableTotals[fuel] = hit;
+        break;
+      }
+    }
+  }
+  // capacity sum per renewable fuel for proportional split
+  const capacityByFuel: Record<string, number> = {};
+  for (const p of CURATED_PLANTS) {
+    if (RENEWABLE_KEYS[p.fuel]) {
+      capacityByFuel[p.fuel] = (capacityByFuel[p.fuel] ?? 0) + p.capacity_mw;
+    }
+  }
+
   // Fuels Genera PR doesn't publish gauges for. Those plants will never get
   // a hit in latestByPlant, so we render "no feed" rather than implying the
   // station is offline. AES/EcoEléctrica (private IPPs) ARE published.
-  const NO_FEED_FUELS = new Set(["solar", "wind", "hydro", "landfill", "battery"]);
+  const NO_FEED_FUELS = new Set(["battery"]);
 
   const plants: PlantRow[] = CURATED_PLANTS.map((p) => {
     // Two-pass match: exact normalized name first, then prefix/contains so a
@@ -116,12 +148,34 @@ async function loadDashboard(): Promise<{
     let hit = latestByPlant.get(target);
     if (!hit) {
       for (const [k, v] of latestByPlant) {
-        if (k && (target.startsWith(k) || k.startsWith(target))) {
+        if (!k) continue;
+        // Guard: the renewable category buckets (solar/viento/hidro/...) are
+        // 4-7 char generic words that would prefix-match plant names like
+        // "ilumina solar" (contains "solar"). Skip them here — they're
+        // distributed below as inferred renewables.
+        if (RENEWABLE_KEYS[p.fuel]?.includes(k)) continue;
+        if (target.startsWith(k) || k.startsWith(target)) {
           hit = v;
           break;
         }
       }
     }
+
+    // Renewable per-plant inference: if no direct hit, allocate the
+    // system-wide category total across plants of this fuel by capacity.
+    let inferred = false;
+    if (!hit && renewableTotals[p.fuel]) {
+      const cap = capacityByFuel[p.fuel];
+      if (cap && cap > 0) {
+        const total = renewableTotals[p.fuel];
+        hit = {
+          mw: (p.capacity_mw / cap) * total.mw,
+          ts: total.ts,
+        };
+        inferred = true;
+      }
+    }
+
     const current_mw = hit?.mw ?? null;
     const ts = hit?.ts ?? null;
     const utilization_pct =
@@ -154,6 +208,7 @@ async function loadDashboard(): Promise<{
       utilization_pct,
       status,
       ts,
+      inferred,
     };
   });
 
