@@ -1,8 +1,13 @@
 name: ingest-generation
 
 on:
+  # Two schedules at offset times so GitHub Actions free-tier scheduler
+  # is less likely to throttle BOTH at once. Empirically a single */5
+  # gets dropped during peak load and our dashboard goes 30-60min stale.
+  # Two overlapping cadences typically land at least one run per ~5 min.
   schedule:
     - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
   workflow_dispatch:
 
 concurrency:
