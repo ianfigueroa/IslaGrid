@@ -32,7 +32,7 @@ export const WINDOW_DAYS: Record<WindowKey, number> = {
 /** Per-outage-hour estimated cost to the household: food spoilage + lost
  *  productivity. Pulled from FEMA + DOE outage-cost studies (mid-range). One
  *  place to edit if we want to revise the number. */
-export const HOUSEHOLD_COST_PER_OUTAGE_HOUR_USD = 15;
+const HOUSEHOLD_COST_PER_OUTAGE_HOUR_USD = 15;
 
 export type CauseKey =
   | "generation"
@@ -115,7 +115,9 @@ export async function computeMunicipalityHistory(
   windowKey: WindowKey,
 ): Promise<MunicipalityHistory> {
   const days = WINDOW_DAYS[windowKey];
-  const windowStart = startOfDay(daysAgo(days));
+  // Rolling window of exactly `days` calendar days ending today (inclusive).
+  // daysAgo(days - 1) so 30d = today + 29 prior days, not 31.
+  const windowStart = startOfDay(daysAgo(days - 1));
   const windowEnd = startOfDay(daysAgo(-1)); // tomorrow midnight, exclusive
 
   // ---- Try daily rollup ---------------------------------------------------
@@ -168,8 +170,7 @@ export interface IslandStats {
 
 /**
  * One scan, three numbers: the muni's percentile rank plus the island-wide
- * mean and median outage hours in the same window. Replaces the older
- * computeMuniPercentile (kept as a thin wrapper for back-compat).
+ * mean and median outage hours in the same window.
  *
  * Standalone so the score card can call it without re-fetching everything
  * else. Returns percentile in [0, 100].
@@ -180,29 +181,38 @@ export async function computeIslandStats(
   windowKey: WindowKey,
 ): Promise<IslandStats> {
   const days = WINDOW_DAYS[windowKey];
-  const windowStart = startOfDay(daysAgo(days));
+  const windowStart = startOfDay(daysAgo(days - 1));
 
-  // Try daily table first
-  const { data: dailyHours } = await supabase
-    .from("municipality_outage_daily")
-    .select("municipality_id, outage_hours")
-    .gte("day", toISODate(windowStart));
+  // 78 munis × 365 days ≈ 28k rows; PostgREST defaults to 1000 so we paginate.
+  const dailyHours = await fetchAllPages<{
+    municipality_id: string;
+    outage_hours: number;
+  }>((from, to) =>
+    supabase
+      .from("municipality_outage_daily")
+      .select("municipality_id, outage_hours")
+      .gte("day", toISODate(windowStart))
+      .range(from, to),
+  );
 
   const totals = new Map<string, number>();
-  if (dailyHours && dailyHours.length > 0) {
-    for (const r of dailyHours as Array<{ municipality_id: string; outage_hours: number }>) {
+  if (dailyHours.length > 0) {
+    for (const r of dailyHours) {
       totals.set(r.municipality_id, (totals.get(r.municipality_id) ?? 0) + r.outage_hours);
     }
   } else {
-    const { data: events } = await supabase
-      .from("outage_events")
-      .select("municipality_id, started_at, ended_at")
-      .gte("started_at", windowStart.toISOString());
-    for (const e of (events ?? []) as Array<{
+    const events = await fetchAllPages<{
       municipality_id: string | null;
       started_at: string;
       ended_at: string | null;
-    }>) {
+    }>((from, to) =>
+      supabase
+        .from("outage_events")
+        .select("municipality_id, started_at, ended_at")
+        .gte("started_at", windowStart.toISOString())
+        .range(from, to),
+    );
+    for (const e of events) {
       if (!e.municipality_id) continue;
       const hrs = eventHours(e.started_at, e.ended_at);
       totals.set(e.municipality_id, (totals.get(e.municipality_id) ?? 0) + hrs);
@@ -234,18 +244,25 @@ export async function computeIslandStats(
   };
 }
 
-/** Back-compat wrapper. New code should call computeIslandStats. */
-export async function computeMuniPercentile(
-  supabase: SupabaseClient,
-  municipalityId: string,
-  windowKey: WindowKey,
-): Promise<number> {
-  return (await computeIslandStats(supabase, municipalityId, windowKey)).percentile;
-}
-
 // ============================================================================
 // Internal helpers
 // ============================================================================
+
+const PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await page(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    const chunk = data ?? [];
+    out.push(...chunk);
+    if (chunk.length < PAGE_SIZE) break;
+  }
+  return out;
+}
 
 function rollupFromDaily(
   rows: DailyRow[],
@@ -367,7 +384,7 @@ function emptyHistory(
   municipalityId: string,
   windowKey: WindowKey,
 ): MunicipalityHistory {
-  const windowStart = startOfDay(daysAgo(WINDOW_DAYS[windowKey]));
+  const windowStart = startOfDay(daysAgo(WINDOW_DAYS[windowKey] - 1));
   return {
     municipality_id: municipalityId,
     window: windowKey,
