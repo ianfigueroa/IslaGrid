@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, Sun } from "lucide-react";
 import type { MunicipalityHistory } from "@/lib/reliability";
@@ -35,9 +35,12 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
   const [data, setData] = useState<MunicipalityHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Monotonic counter — discards responses for windows the user already
+  // moved past so out-of-order fetches don't paint stale data.
+  const requestSeq = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     const load = async () => {
@@ -48,7 +51,7 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as HistoryResponse;
-        if (cancelled) return;
+        if (seq !== requestSeq.current) return;
         if (json.reason === "supabase_unconfigured") {
           setError("Historical data unavailable — Supabase not configured.");
           setData(null);
@@ -58,16 +61,13 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
           setError(json.error ?? "No history returned.");
         }
       } catch (e) {
-        if (!cancelled)
+        if (seq === requestSeq.current)
           setError(e instanceof Error ? e.message : "Failed to load history.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (seq === requestSeq.current) setLoading(false);
       }
     };
     void load();
-    return () => {
-      cancelled = true;
-    };
   }, [municipalityId, range]);
 
   return (
