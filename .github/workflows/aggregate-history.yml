@@ -43,3 +43,17 @@ jobs:
         run: |
           python -m src.pipeline.aggregate_municipality_daily \
             --backfill-days ${{ github.event.inputs.backfill_days || '30' }}
+
+      # Fill the ~50 munis that LUMA never publishes per-incident data for
+      # by splitting region-level customer-out hours from
+      # `luma_outage_snapshots` across each region's constituent munis.
+      # Runs SECOND so real per-muni data (above) wins; the splitter skips
+      # any (muni, day) that already has a row.
+      - name: Region-split fill-in (silent munis)
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python -m src.pipeline.aggregate_luma_regions_to_munis \
+            --backfill-days ${{ github.event.inputs.backfill_days || '30' }}
