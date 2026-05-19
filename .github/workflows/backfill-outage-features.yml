@@ -44,26 +44,28 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.eagle_i_to_labels --window-days 1200
 
-      - name: Backfill outage_features
+      # Cache daily weather per muni in its own table. One Open-Meteo call
+      # per muni (~78 total) covers the 3y backfill window. Idempotent +
+      # skip-if-cached so subsequent runs are nearly instant. Runs BEFORE
+      # backfill_outage_features so features can join weather inline at
+      # synthesis time — avoids the old per-row PATCH that blew the
+      # 30-min job timeout.
+      - name: Cache daily weather (Open-Meteo)
+        working-directory: ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # Open-Meteo outage shouldn't kill the workflow — trainer can run
+        # on grid_stress + temporal features alone.
+        continue-on-error: true
+        run: python -m src.pipeline.backfill_daily_weather
+
+      - name: Backfill outage_features (joins daily weather inline)
         working-directory: ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.backfill_outage_features
-
-      # Without this step the trainer ties the heuristic — both see
-      # weather=NaN→0 and the model can't learn anything weather-shaped.
-      # One Open-Meteo call per muni (~78 total) fills temp/wind/gust/precip
-      # across the 3y backfill window. Free non-commercial API, no auth.
-      - name: Backfill weather features (Open-Meteo)
-        working-directory: ingestion
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # Don't fail the workflow if Open-Meteo is having a bad day — we
-        # can still train on grid_stress + temporal features alone.
-        continue-on-error: true
-        run: python -m src.pipeline.backfill_weather_features
 
       # Now that features cover historical labels, try training. The
       # trainer's own gate (val Brier ≥ 5% better than heuristic) decides

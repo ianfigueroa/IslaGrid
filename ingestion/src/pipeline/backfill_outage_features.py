@@ -178,6 +178,42 @@ def _load_labels(window_start: datetime) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_daily_weather() -> dict[tuple[str, str], dict[str, float | None]]:
+    """All cached weather rows, keyed by (muni, YYYY-MM-DD). Empty dict when
+    daily_weather_by_muni is empty — script keeps running with NULL weather."""
+    sb = supabase()
+    page = 1000
+    offset = 0
+    out: dict[tuple[str, str], dict[str, float | None]] = {}
+    while True:
+        chunk = (
+            sb.table("daily_weather_by_muni")
+            .select("municipality_id, day, temp_c, wind_kph, gust_kph, precip_mm")
+            .order("day", desc=False)
+            .range(offset, offset + page - 1)
+            .execute()
+            .data
+            or []
+        )
+        if not chunk:
+            break
+        for r in chunk:
+            muni = r.get("municipality_id")
+            day = r.get("day")
+            if not muni or not day:
+                continue
+            out[(muni, str(day))] = {
+                "temp_c": r.get("temp_c"),
+                "wind_kph": r.get("wind_kph"),
+                "gust_kph": r.get("gust_kph"),
+                "precip_mm": r.get("precip_mm"),
+            }
+        if len(chunk) < page:
+            break
+        offset += page
+    return out
+
+
 def _load_luma_archive() -> list[dict[str, Any]]:
     """All LUMA region snapshots — both archive + live feeds."""
     sb = supabase()
@@ -267,6 +303,7 @@ def _build_positives(
     distances: dict[str, float],
     luma_indexed: dict[str, list[tuple[datetime, float]]],
     recent_count: dict[tuple[str, str], int],
+    weather: dict[tuple[str, str], dict[str, float | None]],
 ) -> list[dict[str, Any]]:
     """One feature row per label, timestamped at the label's start."""
     rows: list[dict[str, Any]] = []
@@ -280,10 +317,15 @@ def _build_positives(
         except ValueError:
             continue
         date_key = ts.date().isoformat()
+        w = weather.get((muni, date_key)) or {}
         rows.append(
             {
                 "ts": ts.isoformat(),
                 "municipality_id": muni,
+                "temp_c": w.get("temp_c"),
+                "wind_kph": w.get("wind_kph"),
+                "gust_kph": w.get("gust_kph"),
+                "precip_mm": w.get("precip_mm"),
                 "grid_stress": _grid_stress_at(luma_indexed, muni, ts),
                 "planned_work_within_24h": False,
                 "recent_outages_7d": recent_count.get((muni, date_key), 0),
@@ -301,6 +343,7 @@ def _build_negatives(
     distances: dict[str, float],
     luma_indexed: dict[str, list[tuple[datetime, float]]],
     recent_count: dict[tuple[str, str], int],
+    weather: dict[tuple[str, str], dict[str, float | None]],
 ) -> list[dict[str, Any]]:
     """Random (muni, ts) negatives sampled across the label window.
 
@@ -354,10 +397,15 @@ def _build_negatives(
             if any(abs(ts - lt) <= reject_window for lt in label_times):
                 continue
             date_key = ts.date().isoformat()
+            w = weather.get((muni, date_key)) or {}
             out.append(
                 {
                     "ts": ts.isoformat(),
                     "municipality_id": muni,
+                    "temp_c": w.get("temp_c"),
+                    "wind_kph": w.get("wind_kph"),
+                    "gust_kph": w.get("gust_kph"),
+                    "precip_mm": w.get("precip_mm"),
                     "grid_stress": _grid_stress_at(luma_indexed, muni, ts),
                     "planned_work_within_24h": False,
                     "recent_outages_7d": recent_count.get((muni, date_key), 0),
@@ -435,16 +483,18 @@ def run() -> int:
     sb = supabase()  # noqa: F841 — fail-fast on missing env
     cutoff = datetime.now(UTC) - timedelta(days=BACKFILL_HORIZON_DAYS)
 
-    log.info("Loading centroids + plants + LUMA archive + labels…")
+    log.info("Loading centroids + plants + LUMA archive + weather + labels…")
     centroids = _load_muni_centroids()
     distances = _muni_nearest_plant_km(centroids, _load_plants_coords())
     luma_rows = _load_luma_archive()
     luma_indexed = _index_luma_by_region(luma_rows)
+    weather = _load_daily_weather()
     labels = _load_labels(window_start=datetime(2023, 1, 1, tzinfo=UTC))
     log.info(
-        "Loaded %d centroids, %d luma rows, %d labels (window-wide)",
+        "Loaded %d centroids, %d luma rows, %d weather days, %d labels (window-wide)",
         len(centroids),
         len(luma_rows),
+        len(weather),
         len(labels),
     )
 
@@ -460,10 +510,10 @@ def run() -> int:
 
     recent = _recent_counts(backfill_labels)
     positives = _build_positives(
-        backfill_labels, centroids, distances, luma_indexed, recent
+        backfill_labels, centroids, distances, luma_indexed, recent, weather
     )
     negatives = _build_negatives(
-        backfill_labels, centroids, distances, luma_indexed, recent
+        backfill_labels, centroids, distances, luma_indexed, recent, weather
     )
     log.info(
         "Synthesized %d positive + %d negative feature rows",
