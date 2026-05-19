@@ -402,6 +402,19 @@ def run() -> int:
             )
 
     fuel_mix = _parse_fuel_mix(html)
+    # The on-page fuel-mix widget reports only Genera's thermal portfolio
+    # (LNG/bunker/coal/diesel) and shows renewable as 0% even when third-party
+    # solar/wind/hydro plants are producing. Derive renewable from plant
+    # outputs so the chart reflects total system mix.
+    if plants and total_gen and total_gen > 0:
+        renewable_mw = sum(
+            (p.get("output_mw") or 0)
+            for p in plants
+            if p.get("category") == "renewable"
+        )
+        derived_pct = round(renewable_mw / total_gen * 100, 1)
+        fuel_mix = [f for f in fuel_mix if f.get("fuel_type") != "renewable"]
+        fuel_mix.append({"fuel_type": "renewable", "pct": derived_pct})
     if fuel_mix:
         try:
             supabase().table("fuel_mix_snapshots").insert(
