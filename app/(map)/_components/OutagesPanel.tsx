@@ -15,42 +15,11 @@ interface Props {
 /**
  * Right-side panel listing active outages grouped by LUMA region. Mirrors
  * lumatrackpr.com's "Active outages" sidebar but skinned to match the rest
- * of the IslaGrid chrome. Polls /api/outages/summary on a 60s cadence
- * while open (silent when closed to save battery).
+ * of the IslaGrid chrome. Reads from the shared useOutagesSummary hook so
+ * the banner, button, and panel all share one /api/outages/summary fetch.
  */
 export function OutagesPanel({ open, onClose }: Props) {
-  const [data, setData] = useState<OutageSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/outages/summary", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as OutageSummary;
-        if (!cancelled) {
-          setData(json);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load outages");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    const t = window.setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(t);
-    };
-  }, [open]);
+  const { data, loading, error } = useOutagesSummary();
 
   const total = data?.total_customers ?? 0;
   const dotTone = severityDot(total);
