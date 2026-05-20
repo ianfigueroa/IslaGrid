@@ -83,7 +83,10 @@ export async function GET() {
       supabase
         .from("aeepr_feeder_latest")
         .select("feeder_id, region, municipality_label, customers, status, ts")
-        .eq("status", "SI"),
+        .eq("status", "SI")
+        // PR has >1000 feeders; an island-wide event would otherwise hit
+        // PostgREST's 1000-row default and silently drop affected feeders.
+        .limit(5000),
       supabase.from("municipalities").select("id, name"),
       supabase
         .from("luma_outage_snapshots")

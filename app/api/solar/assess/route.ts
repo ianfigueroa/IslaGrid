@@ -55,6 +55,14 @@ export async function POST(req: Request) {
   let displayName: string | undefined;
 
   if ((lat == null || lon == null) && body.address) {
+    // Cap length before geocoding: a real PR address is well under this,
+    // and the rate limit below only kicks in after a successful geocode.
+    if (body.address.length > 200) {
+      return NextResponse.json(
+        { error: "Address too long." },
+        { status: 400 },
+      );
+    }
     const hit = await geocode(body.address);
     if (!hit) {
       return NextResponse.json(
