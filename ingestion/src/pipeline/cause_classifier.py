@@ -68,7 +68,7 @@ def _weather_at(muni_id: str | None, ts: datetime) -> dict[str, Any] | None:
         .lte("ts", ts.isoformat())
         .order("ts", desc=True)
         .limit(1)
-        .maybeSingle()
+        .maybe_single()
         .execute()
         .data
     )
@@ -83,7 +83,7 @@ def _grid_at(ts: datetime) -> dict[str, Any] | None:
         .lte("ts", ts.isoformat())
         .order("ts", desc=True)
         .limit(1)
-        .maybeSingle()
+        .maybe_single()
         .execute()
         .data
     )
