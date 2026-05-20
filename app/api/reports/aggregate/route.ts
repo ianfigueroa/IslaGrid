@@ -33,7 +33,10 @@ export async function GET() {
   const supa = getServerSupabase();
   const { data, error } = await supa
     .from("community_reports_public")
-    .select("h3, type, report_count, latest_ts");
+    // Lift PostgREST's 1000-row default so a busy event doesn't silently
+    // drop the tail of the map overlay.
+    .select("h3, type, report_count, latest_ts")
+    .limit(20000);
 
   if (error) {
     return NextResponse.json({

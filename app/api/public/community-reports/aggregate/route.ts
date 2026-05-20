@@ -34,7 +34,10 @@ export const GET = publicHandler(
     const supa = getServerSupabase();
     const { data, error } = await supa
       .from("community_reports_public")
-      .select("h3, type, report_count, latest_ts");
+      // Lift PostgREST's 1000-row default so the public aggregate isn't
+      // silently truncated once enough H3 cells accumulate reports.
+      .select("h3, type, report_count, latest_ts")
+      .limit(20000);
     if (error) {
       return NextResponse.json(
         {
