@@ -91,7 +91,7 @@ def _weather_severity(muni_id: str | None) -> tuple[float, str | None]:
         .eq("municipality_id", muni_id)
         .order("ts", desc=True)
         .limit(1)
-        .maybeSingle()
+        .maybe_single()
         .execute()
         .data
     )
