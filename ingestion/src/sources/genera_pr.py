@@ -297,6 +297,18 @@ def _parse_plants(gauges: list[dict[str, Any]]) -> list[dict[str, Any]]:
             category = expected[idx][1]
             used[idx] = True
         rows.append({"plant_name": title, "category": category, "output_mw": mw})
+    # Surface mapping drift loudly: any plant Genera renders that we can't
+    # categorize is excluded from the renewable-percentage derivation below
+    # and from the per-category dashboards, so missing entries silently
+    # distort the fuel mix. Log them once per run so PLANTS_BY_CATEGORY can
+    # be kept in sync.
+    unknown = [r["plant_name"] for r in rows if r["category"] == "unknown"]
+    if unknown:
+        log.warning(
+            "genera_pr: %d plant(s) not in PLANTS_BY_CATEGORY (treated as unknown): %s",
+            len(unknown),
+            ", ".join(sorted(set(unknown))),
+        )
     return rows
 
 
@@ -415,6 +427,24 @@ def run() -> int:
         derived_pct = round(renewable_mw / total_gen * 100, 1)
         fuel_mix = [f for f in fuel_mix if f.get("fuel_type") != "renewable"]
         fuel_mix.append({"fuel_type": "renewable", "pct": derived_pct})
+    # Integrity check: percentages should sum to 100±2. If Genera adds/renames
+    # a fuel column or our renewable derivation drifts, log a WARN and
+    # proportionally renormalize so downstream consumers (FUEL MIX widget,
+    # carbon-intensity calc) don't quietly publish a sum that's not 100.
+    if fuel_mix:
+        total_pct = sum(float(f.get("pct") or 0) for f in fuel_mix)
+        if total_pct > 0 and abs(total_pct - 100) > 2:
+            log.warning(
+                "genera_pr: fuel_mix percentages sum to %.1f%% (expected 100); "
+                "renormalizing. raw mix=%s",
+                total_pct,
+                fuel_mix,
+            )
+            scale = 100.0 / total_pct
+            fuel_mix = [
+                {**f, "pct": round(float(f.get("pct") or 0) * scale, 1)}
+                for f in fuel_mix
+            ]
     if fuel_mix:
         try:
             supabase().table("fuel_mix_snapshots").insert(
