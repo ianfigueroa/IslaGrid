@@ -141,12 +141,60 @@ export async function POST(req: Request) {
     }
   }
 
+  // Pull the rolling 12-month outage hours for the closest municipality so
+  // resilience scoring reflects this specific site, not a flat 6 h/mo
+  // island-wide default. If anything fails — no centroids, no daily rollup,
+  // RPC missing — we silently fall back to the default inside assess().
+  let outageHoursPerMonth: number | undefined;
+  let nearestMuniId: string | null = null;
+  if (isSupabaseConfigured()) {
+    try {
+      const supa = getServerSupabase();
+      const { data: centroids } = await supa.rpc("municipality_centroids");
+      const arr = (centroids ?? []) as Array<{ id: string; lat: number; lon: number }>;
+      if (arr.length > 0) {
+        // Cheap O(n) nearest centroid on 78 munis. Equirectangular
+        // approximation is plenty accurate at PR latitudes for nearest
+        // neighbor on land — we're not measuring distance, just ranking.
+        nearestMuniId = arr.reduce<{ id: string; d2: number } | null>(
+          (best, m) => {
+            const dlat = m.lat - lat!;
+            const dlon = (m.lon - lon!) * Math.cos((lat! * Math.PI) / 180);
+            const d2 = dlat * dlat + dlon * dlon;
+            return !best || d2 < best.d2 ? { id: m.id, d2 } : best;
+          },
+          null,
+        )?.id ?? null;
+      }
+      if (nearestMuniId) {
+        const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+        const { data: daily } = await supa
+          .from("municipality_outage_daily")
+          .select("outage_hours")
+          .eq("municipality_id", nearestMuniId)
+          .gte("day", since);
+        if (daily && daily.length > 0) {
+          const totalHours = daily.reduce(
+            (s: number, r: { outage_hours: number }) => s + Number(r.outage_hours ?? 0),
+            0,
+          );
+          outageHoursPerMonth = Math.round((totalHours / 12) * 10) / 10;
+        }
+      }
+    } catch {
+      /* keep the default outage assumption */
+    }
+  }
+
   const result = assess({
     monthlyKwh,
     effectiveRatePerKwh: effectivePerKwh,
     annualKwhFromPv: pv.acAnnualKwh,
     systemKw,
     withBattery: !!body.withBattery,
+    outageHoursPerMonth,
   });
 
   // Persist (best-effort) so the dataset of "who asked about solar" exists.
@@ -188,5 +236,7 @@ export async function POST(req: Request) {
       capacityFactor: pv.capacityFactor,
     },
     assessment: result,
+    nearest_municipality_id: nearestMuniId,
+    outage_hours_per_month_used: outageHoursPerMonth ?? null,
   });
 }
