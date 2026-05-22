@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { formatAge } from "@/lib/sources";
+import { formatAge, SOURCES, type SourceId } from "@/lib/sources";
 import type { GridSnapshot } from "@/lib/supabase";
 
 const STATUS_TONE: Record<string, string> = {
@@ -20,9 +20,31 @@ const STATUS_LABEL: Record<string, string> = {
   unknown: "Status unknown",
 };
 
+// Plain-language definitions surfaced as `title` tooltips on the metric
+// labels. LUMA and Genera each use these terms slightly differently and the
+// dashboard has historically been silent about which definition it's
+// publishing — these match the merge-grid priority order (LUMA wins for
+// demand/reserve; Genera wins for generation/capacity).
+const METRIC_HINT: Record<string, string> = {
+  Demand: "Current system load (MW). Source: LUMA Resumen del Sistema.",
+  Generation: "Sum of plant outputs reported by Genera right now (MW). Excludes plants with no recent feed.",
+  Reserve: "Operational reserve: spare generation available within minutes (MW). LUMA's published number.",
+  Capacity: "Available capacity: total generation that *could* be online if needed (MW). Genera when available, else demand + reserve.",
+  "Next hour": "LUMA's forecast of demand for the next hour (MW).",
+  "Peak fcst": "LUMA's forecast of today's peak demand (MW).",
+};
+
 function fmt(n: number | null | undefined): string {
   if (n == null) return "—";
   return Math.round(n).toLocaleString();
+}
+
+function sourceDisplay(source: string | null | undefined): string {
+  if (!source) return "—";
+  // Sources table covers official IDs; fall back to the raw string for
+  // anything new that hasn't been registered yet.
+  const meta = SOURCES[source as SourceId];
+  return meta?.display ?? source;
 }
 
 interface Props {
@@ -51,8 +73,17 @@ export function IslandTotals({ snapshot }: Props) {
             {STATUS_LABEL[status] ?? STATUS_LABEL.unknown}
           </span>
         </div>
-        <span className="text-[11px] text-text-3">
-          Source: {snapshot?.source ?? "—"} · {snapshot?.ts ? formatAge(snapshot.ts) : "no snapshot"}
+        <span
+          className="text-[11px] text-text-3"
+          title={
+            snapshot?.source
+              ? `Authoritative source for the merged snapshot. Click "View sources" on the methodology page for the per-field breakdown.`
+              : undefined
+          }
+        >
+          Source: <span className="text-text-2">{sourceDisplay(snapshot?.source)}</span>
+          {" · "}
+          {snapshot?.ts ? formatAge(snapshot.ts) : "no snapshot"}
         </span>
       </header>
 
@@ -92,8 +123,16 @@ function Metric({
 }) {
   return (
     <div className="flex flex-col leading-tight">
-      <dt className="text-[9.5px] uppercase tracking-wider text-text-3">
+      <dt
+        className="text-[9.5px] uppercase tracking-wider text-text-3"
+        title={METRIC_HINT[label]}
+      >
         {label}
+        {METRIC_HINT[label] ? (
+          <span className="ml-1 cursor-help text-text-3/60" aria-hidden>
+            ⓘ
+          </span>
+        ) : null}
       </dt>
       <dd
         className={cn(
