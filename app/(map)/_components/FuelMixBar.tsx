@@ -65,7 +65,7 @@ export function FuelMixBar() {
           />
         ))}
       </div>
-      <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+      <ul className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 text-[11px] sm:grid-cols-2">
         {data.slices.map((s) => (
           <SliceRow key={s.fuel} slice={s} />
         ))}
@@ -85,8 +85,8 @@ function SliceRow({ slice }: { slice: FuelSlice }) {
         className="size-2 shrink-0 rounded-full"
         style={{ backgroundColor: slice.color }}
       />
-      <span className="truncate">{FUEL_LABEL[slice.fuel] ?? slice.fuel}</span>
-      <span className="ml-auto font-mono tabular-nums text-text-3">
+      <span className="min-w-0 truncate">{FUEL_LABEL[slice.fuel] ?? slice.fuel}</span>
+      <span className="ml-auto shrink-0 pl-2 font-mono tabular-nums text-text-3">
         {slice.mw.toLocaleString()} MW · {Math.round(slice.share * 100)}%
       </span>
     </li>

@@ -58,7 +58,12 @@ export function RecentChangesCard() {
   if (dismissed || count === 0) return null;
 
   return (
-    <div className="pointer-events-auto absolute bottom-32 left-4 z-20 w-[min(20rem,calc(100vw-2rem))] sm:bottom-16">
+    // Stacked above the bottom-left MapLegend (which sits at bottom-20 on
+    // mobile / bottom-4 on sm) and clear of the bottom-center LayerPills
+    // toolbar. z-30 to sit above the legend (z-20) but below the layers
+    // drawer (z-50). Expansion grows upward (bottom-anchored) and is
+    // height-capped so it can't push off-screen on short viewports.
+    <div className="pointer-events-auto absolute bottom-28 left-3 z-30 w-[min(18rem,calc(100vw-1.5rem))] sm:bottom-14">
       <AnimatePresence initial={false}>
         {expanded ? (
           <motion.div
@@ -67,7 +72,7 @@ export function RecentChangesCard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.18 }}
-            className="rounded-xl glass-strong overflow-hidden"
+            className="origin-bottom overflow-hidden rounded-xl glass-strong"
           >
             <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
               <div className="flex items-center gap-2 leading-tight">
