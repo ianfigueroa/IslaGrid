@@ -2,202 +2,32 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl, { Map as MlMap } from "maplibre-gl";
-import { Protocol } from "pmtiles";
-import { layers as protomapsLayers, namedFlavor } from "@protomaps/basemaps";
 import { FUEL_COLOR } from "@/lib/fuel-colors";
+import { ensurePmtilesProtocol, styleFor, type Basemap } from "./map-layers/style";
+import {
+  applyLayerVisibility as applyLayerVisibilityShared,
+  type ActiveLayerKey as ActiveLayerKeyShared,
+} from "./map-layers/visibility";
+import {
+  ALERT_COLOR,
+  DEMAND_FILL,
+  REPORT_FILL,
+  RISK_FILL,
+  STATUS_FILL,
+  alertFillFor,
+} from "./map-layers/palette";
 
-// Register the pmtiles:// protocol with MapLibre once per page load. Calling
-// this twice is harmless — addProtocol replaces the previous handler — but
-// guarding keeps the console clean during HMR.
-let _pmtilesRegistered = false;
-function ensurePmtilesProtocol() {
-  if (_pmtilesRegistered) return;
-  // MapLibre v5 types accept the Protocol's tile handler signature directly.
-  maplibregl.addProtocol("pmtiles", new Protocol().tile);
-  _pmtilesRegistered = true;
-}
+// Re-export shared types so existing imports from "./GridMap" keep working.
+export type { Basemap };
 
-// Custom Protomaps flavor: we start from the stock "light"/"dark" flavor and
-// override a small palette so the basemap reads as a civic data layer instead
-// of a generic city map. Warm cream land + muted teal water in light;
-// deep navy land + abyss water in dark. Roads stay quiet so the data on top
-// (risk, outages, plants) dominates the eye.
-// In Protomaps, "background" is the void color that shows everywhere a
-// pmtiles tile hasn't loaded — including the area beyond our tile bbox.
-// Setting it to the ocean color lets the open water above PR's north coast
-// read as ocean instead of an empty white strip. "water" is the explicit
-// inland-water + coastal fill inside the tile coverage; we keep both in
-// sync so the seam is invisible.
-function flavorFor(theme: "light" | "dark") {
-  const base = namedFlavor(theme);
-  if (theme === "dark") {
-    return {
-      ...base,
-      background: "#03101c",
-      earth: "#0a1726",
-      park_a: "#0e2233",
-      park_b: "#0c1c2c",
-      hospital: "#1f1b2e",
-      industrial: "#0d1825",
-      school: "#0e1828",
-      wood_a: "#0d1f2a",
-      wood_b: "#0c1d28",
-      pedestrian: "#0a1626",
-      scrub_a: "#0d1d2a",
-      scrub_b: "#0c1c28",
-      glacier: "#102232",
-      sand: "#1a2236",
-      beach: "#1a2236",
-      farmland: "#0c1a28",
-      water: "#03101c",
-      zoo: "#0d1c28",
-      military: "#0e1828",
-    } as const;
-  }
-  return {
-    ...base,
-    background: "#bcd8eb",
-    earth: "#f7f1e6",
-    park_a: "#dfead0",
-    park_b: "#e6efd9",
-    water: "#bcd8eb",
-    sand: "#f0e6c8",
-    beach: "#f3e8c8",
-    farmland: "#eee6cf",
-  } as const;
-}
+// Fuel palette lives in lib/fuel-colors.ts; other map palettes live in
+// ./map-layers/palette.ts so per-layer loaders can be split into their own
+// modules without cyclically importing GridMap. Imported above.
 
-const PMTILES_URL = "/map/pr.pmtiles";
-
-function protomapsStyle(theme: "light" | "dark"): maplibregl.StyleSpecification {
-  // Generate the layer stack from our flavor + the standard OSM source key
-  // expected by Protomaps' v4 schema ("protomaps").
-  // Protomaps' generated stack already starts with its own background layer,
-  // and flavorFor() above sets that layer's color to ocean blue. So an extra
-  // prepended ocean-background layer would just be hidden underneath.
-  const layers = protomapsLayers("protomaps", flavorFor(theme), {
-    lang: "es",
-  }) as maplibregl.LayerSpecification[];
-  return {
-    version: 8,
-    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-    sources: {
-      protomaps: {
-        type: "vector",
-        url: `pmtiles://${PMTILES_URL}`,
-        attribution:
-          '<a href="https://protomaps.com" target="_blank" rel="noreferrer">Protomaps</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>',
-      },
-    },
-    layers,
-  };
-}
-
-// Esri satellite is a separate (raster) flavor and stays as-is.
-export type Basemap = "light" | "dark" | "satellite";
-
-function satelliteStyle(): maplibregl.StyleSpecification {
-  return {
-    version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        // Esri World Imagery — free for non-commercial use, dense global cover.
-        tiles: [
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        ],
-        tileSize: 256,
-        attribution:
-          'Imagery © <a href="https://www.esri.com" target="_blank" rel="noreferrer">Esri</a>',
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    },
-    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
-    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
-  };
-}
-
-function styleFor(basemap: Basemap): maplibregl.StyleSpecification {
-  if (basemap === "satellite") return satelliteStyle();
-  return protomapsStyle(basemap === "dark" ? "dark" : "light");
-}
-
-// Fuel palette lives in lib/fuel-colors.ts so the map, the fuel-mix bar, and
-// the plant tables can't drift apart. Imported below.
-
-// Per-municipality status fill — kept warm + readable over the Protomaps
-// light flavor. Saturation stays mid so colors register without overpowering
-// the basemap.
-const STATUS_FILL: Record<string, string> = {
-  normal: "#10b981",
-  watch: "#f59e0b",
-  strained: "#fb923c",
-  critical: "#ef4444",
-  stale: "#94a3b8",
-  unknown: "#cbd5e1",
-};
-
-export type ActiveLayerKey =
-  | "municipalities"
-  | "generation"
-  | "infrastructure"
-  | "planned-work"
-  | "outage-risk"
-  | "reports"
-  | "demand"
-  | "outages-live"
-  | "weather-alerts"
-  | "hurricane"
-  | "quakes";
-
-// NWS event types → severity color. Falls back to a neutral amber for unknowns.
-const ALERT_COLOR: Record<string, string> = {
-  "Hurricane Warning":         "#7f1d1d",
-  "Hurricane Watch":           "#b91c1c",
-  "Tropical Storm Warning":    "#dc2626",
-  "Tropical Storm Watch":      "#ea580c",
-  "Flash Flood Warning":       "#dc2626",
-  "Flood Warning":             "#ea580c",
-  "Flood Watch":               "#f59e0b",
-  "High Wind Warning":         "#ea580c",
-  "Wind Advisory":             "#f59e0b",
-  "Heat Advisory":             "#f97316",
-  "Severe Thunderstorm Warning": "#dc2626",
-  "Special Weather Statement": "#facc15",
-};
-
-function alertFillFor(event: string): string {
-  return ALERT_COLOR[event] ?? "#facc15";
-}
-
-// Heuristic risk band → fill color (always warmer than grid status to avoid
-// confusion between "status" and "risk").
-const RISK_FILL: Record<string, string> = {
-  low:      "#65a30d",
-  elevated: "#eab308",
-  high:     "#ea580c",
-  severe:   "#dc2626",
-  unknown:  "#525252",
-};
-
-// Community-report confidence band → fill color. Always warmer than risk so
-// the two layers stay visually distinct when stacked.
-const REPORT_FILL: Record<string, string> = {
-  low:    "#fbbf24",
-  medium: "#f97316",
-  high:   "#dc2626",
-};
-
-// EXPERIMENTAL demand-pressure layer — see lib/demand.ts. Lime → red.
-const DEMAND_FILL: Record<string, string> = {
-  low:      "#a3e635",
-  moderate: "#facc15",
-  elevated: "#f97316",
-  peak:     "#dc2626",
-  unknown:  "#525252",
-};
+// Defined in ./map-layers/visibility.ts so the visibility rules and the type
+// stay in lockstep. Re-exported so existing `import { ActiveLayerKey } from
+// "./GridMap"` call sites continue to compile without churn.
+export type ActiveLayerKey = ActiveLayerKeyShared;
 
 interface Props {
   onSelectMunicipality?: (id: string, name: string) => void;
@@ -406,53 +236,11 @@ export function GridMap({
     outageMarkersRef.current = [];
   }
 
+  // Thin closure over the shared function so existing call sites within
+  // GridMap don't have to thread `activeLayers` through. Activelayers comes
+  // from the component scope and stays in sync via the parent.
   function applyLayerVisibility(map: MlMap) {
-    const showMuni = activeLayers.has("municipalities");
-    const showRisk = activeLayers.has("outage-risk");
-    const showDemand = activeLayers.has("demand");
-    const showPlants = activeLayers.has("generation") || activeLayers.has("infrastructure");
-    const showSubs = activeLayers.has("infrastructure");
-    const showReports = activeLayers.has("reports");
-
-    const setVis = (id: string, visible: boolean) => {
-      if (!map.getLayer(id)) return;
-      map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
-    };
-    // Risk + demand both override municipality status fill; demand only wins
-    // when risk isn't active so the rail order maps to a clear priority.
-    const showStatus = showMuni && !showRisk && !showDemand;
-    setVis("municipalities-fill", showStatus);
-    setVis("municipalities-outline", showMuni || showRisk || showDemand);
-    setVis("municipalities-hover", showMuni || showRisk || showDemand);
-    setVis("municipalities-risk", showRisk);
-    setVis("municipalities-demand", showDemand && !showRisk);
-    setVis("osm-plants", showPlants);
-    setVis("osm-plants-glow", showPlants);
-    setVis("osm-substations", showSubs);
-    setVis("reports-hex-fill", showReports);
-    setVis("reports-hex-stroke", showReports);
-    setVis("hurricane-cone-fill", activeLayers.has("hurricane"));
-    setVis("hurricane-cone-stroke", activeLayers.has("hurricane"));
-    setVis("hurricane-track", activeLayers.has("hurricane"));
-    setVis("alerts-fill", activeLayers.has("weather-alerts"));
-    setVis("alerts-stroke", activeLayers.has("weather-alerts"));
-    setVis("quakes-circle", activeLayers.has("quakes"));
-    // AEE/PREPA feeder outages ride along with the "outages-live" toggle.
-    // The muni-overlay smear (LUMA region totals) also rides this toggle but
-    // its loader decides whether to actually show it (only when AEEPR was
-    // empty); off here just covers the user toggling the pill back off.
-    const showOutages = activeLayers.has("outages-live");
-    setVis("feeders-outage-fill", showOutages);
-    setVis("feeders-outage-stroke", showOutages);
-    setVis("feeders-loadshed-fill", showOutages);
-    setVis("feeders-loadshed-stroke", showOutages);
-    if (!showOutages) {
-      setVis("muni-outage-overlay-fill", false);
-      setVis("muni-outage-overlay-stroke", false);
-    }
-    const showPlanned = activeLayers.has("planned-work");
-    setVis("planned-work-halo", showPlanned);
-    setVis("planned-work-dot", showPlanned);
+    applyLayerVisibilityShared(map, activeLayers);
   }
 
   /**
