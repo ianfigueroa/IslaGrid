@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   CloudRain,
   Factory,
   Flame,
@@ -45,6 +46,9 @@ const MORE: PillDef[] = [
   { key: "planned-work",   label: "Planned work",         Icon: Wrench },
   { key: "quakes",         label: "Earthquakes",          Icon: Waves },
   { key: "reports",        label: "Community reports",    Icon: MessageSquareWarning },
+  // Demand was previously toggleable only by URL param; surfacing it here so
+  // the layer's actual implementation (loadDemandInto / showDemand) gets used.
+  { key: "demand",         label: "Demand by region",     Icon: Activity },
 ];
 
 type PresetKey = "default" | "storm" | "solar" | "reporter";
