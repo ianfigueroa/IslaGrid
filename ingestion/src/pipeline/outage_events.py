@@ -68,13 +68,25 @@ def _detect_kind(text: str) -> str:
 
 
 def _find_municipality(text: str, index: dict[str, str]) -> str | None:
+    """Whole-word match against the slugged muni names.
+
+    Earlier this did a bare substring check (`token in lowered`), which
+    matched "san-juan" inside "san-juanito" and similar overlapping slugs.
+    Switching to regex word-boundary on the dashed slug eliminates that:
+    in the slug 'x-san-juan-y' a dash is a non-word char so `\\bsan-juan\\b`
+    matches between the dashes, but 'san-juanito' has no boundary after
+    'juan' and is rejected. We iterate longest-first so the most specific
+    name wins (e.g. 'san-german' before any shorter overlap).
+    """
     lowered = _slug(text)
-    for token, muni_id in index.items():
-        if len(token) < 3:
-            continue
-        # Token match against the slugged text: cheap O(n*m) for our scale (78 munis).
-        if token in lowered:
-            return muni_id
+    tokens = sorted(
+        (t for t in index if len(t) >= 3),
+        key=len,
+        reverse=True,
+    )
+    for token in tokens:
+        if re.search(rf"\b{re.escape(token)}\b", lowered):
+            return index[token]
     return None
 
 

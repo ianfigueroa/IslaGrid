@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe /api/grid/status
+      - name: Probe /api/grid/status (merged snapshot age)
         env:
           BASE: ${{ secrets.APP_BASE_URL }}
         run: |
@@ -36,3 +36,32 @@ jobs:
             echo "::error::Snapshot is ${age}s old (> 15 min)."
             exit 1
           fi
+
+      - name: Probe /api/grid/ingest-health (per-pipeline)
+        env:
+          BASE: ${{ secrets.APP_BASE_URL }}
+        run: |
+          if [ -z "$BASE" ]; then
+            exit 0
+          fi
+          payload=$(curl -fsSL "$BASE/api/grid/ingest-health" || true)
+          if [ -z "$payload" ]; then
+            echo "::warning::ingest-health endpoint not reachable (likely a fresh deploy)."
+            exit 0
+          fi
+          echo "$payload" | python3 -m json.tool || echo "$payload"
+          # Fail loud if any pipeline is "stale" (older than 2x its cadence).
+          # "lagging" and "missing" only warn — missing is normal for brand-new
+          # tables or pipelines that haven't run yet on a cold environment.
+          echo "$payload" | python3 - <<'PY'
+          import json, sys
+          data = json.loads(sys.stdin.read() or "{}")
+          stale = [p for p in data.get("pipelines", []) if p.get("status") == "stale"]
+          missing = [p for p in data.get("pipelines", []) if p.get("status") == "missing"]
+          for p in missing:
+              print(f"::warning::pipeline '{p['pipeline']}' has no rows yet (table {p['table']})")
+          if stale:
+              names = ", ".join(f"{p['pipeline']} ({p['age_seconds']}s)" for p in stale)
+              print(f"::error::Stale pipelines: {names}")
+              sys.exit(1)
+          PY
