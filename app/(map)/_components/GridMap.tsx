@@ -303,10 +303,25 @@ export function GridMap({
       } catch {
         /* style not ready yet — no-op */
       }
-      addDataLayers(map);
-      applyLayerVisibility(map);
-      if (activeLayersRef.current.has("outages-live")) void loadFeederOutagesInto(map);
-      if (activeLayersRef.current.has("planned-work")) void loadPlannedWorkInto(map);
+      // Await data layers BEFORE applying visibility / loading overlays —
+      // the risk + demand overlays depend on the `municipalities` source
+      // existing. Without the await, on first load they no-op and the user
+      // sees an empty layer until they toggle it off/on.
+      void (async () => {
+        await addDataLayers(map);
+        applyLayerVisibility(map);
+        if (activeLayersRef.current.has("outage-risk")) void loadRiskInto(map);
+        if (activeLayersRef.current.has("reports")) void loadReportsInto(map);
+        if (activeLayersRef.current.has("demand")) void loadDemandInto(map);
+        if (activeLayersRef.current.has("hurricane")) void loadHurricaneInto(map);
+        if (activeLayersRef.current.has("weather-alerts")) void loadAlertsInto(map);
+        if (activeLayersRef.current.has("quakes")) void loadQuakesInto(map);
+        if (activeLayersRef.current.has("outages-live")) {
+          void loadOutageMarkersInto(map);
+          void loadFeederOutagesInto(map);
+        }
+        if (activeLayersRef.current.has("planned-work")) void loadPlannedWorkInto(map);
+      })();
     });
 
     map.on("error", (ev) => {
@@ -358,22 +373,29 @@ export function GridMap({
     // style.load handler does the rest (addDataLayers → applyLayerVisibility).
   }, [effectiveBasemap]);
 
-  // Active-layer changes -> visibility flips + overlay loads
+  // Active-layer changes -> visibility flips + overlay loads.
+  // Awaits addDataLayers when the municipalities source is missing so the
+  // overlay loaders that depend on it don't no-op on the first run.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    applyLayerVisibility(map);
-    if (activeLayers.has("outage-risk")) void loadRiskInto(map);
-    if (activeLayers.has("reports")) void loadReportsInto(map);
-    if (activeLayers.has("demand")) void loadDemandInto(map);
-    if (activeLayers.has("hurricane")) void loadHurricaneInto(map);
-    if (activeLayers.has("weather-alerts")) void loadAlertsInto(map);
-    if (activeLayers.has("quakes")) void loadQuakesInto(map);
-    if (activeLayers.has("outages-live")) {
-      void loadOutageMarkersInto(map);
-      void loadFeederOutagesInto(map);
-    } else clearOutageMarkers();
-    if (activeLayers.has("planned-work")) void loadPlannedWorkInto(map);
+    void (async () => {
+      if (!map.getSource("municipalities")) {
+        await addDataLayers(map);
+      }
+      applyLayerVisibility(map);
+      if (activeLayers.has("outage-risk")) void loadRiskInto(map);
+      if (activeLayers.has("reports")) void loadReportsInto(map);
+      if (activeLayers.has("demand")) void loadDemandInto(map);
+      if (activeLayers.has("hurricane")) void loadHurricaneInto(map);
+      if (activeLayers.has("weather-alerts")) void loadAlertsInto(map);
+      if (activeLayers.has("quakes")) void loadQuakesInto(map);
+      if (activeLayers.has("outages-live")) {
+        void loadOutageMarkersInto(map);
+        void loadFeederOutagesInto(map);
+      } else clearOutageMarkers();
+      if (activeLayers.has("planned-work")) void loadPlannedWorkInto(map);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Array.from(activeLayers).sort().join(",")]);
 
@@ -1308,51 +1330,59 @@ export function GridMap({
     });
   }
 
-  function addDataLayers(map: MlMap) {
-    // Use cached data if available so theme swaps don't re-fetch.
-    if (cacheRef.current.munis) {
-      addMuniLayers(map, cacheRef.current.munis);
-    } else {
-      void fetch("/api/municipalities")
-        .then((r) => {
-          if (!r.ok) throw new Error(`/api/municipalities ${r.status}`);
-          return r.json();
-        })
-        .then((fc: GeoJSON.FeatureCollection) => {
-          if (!fc) return;
-          cacheRef.current.munis = fc;
-          if (!mapRef.current) return;
-          addMuniLayers(mapRef.current, fc);
-          applyLayerVisibility(mapRef.current);
-        })
-        .catch((err) => {
-          // eslint-disable-next-line no-console
-          console.error("[GridMap] municipalities fetch failed", err);
-          onMapErrorRef.current?.("Municipality boundaries failed to load.");
-        });
-    }
+  // Awaitable so the on-mount + theme-swap + active-layers paths can all be
+  // sure the `municipalities` and `plants` sources exist before kicking
+  // overlay loaders (risk, demand, reports, …) that depend on them. Before
+  // this was async, the active-layers effect could fire before the muni
+  // fetch resolved, the `if (!map.getSource("municipalities")) return;`
+  // guards inside the overlay loaders would trip silently, and the layer
+  // wouldn't render until the user toggled it off and back on.
+  async function addDataLayers(map: MlMap): Promise<void> {
+    const loadMunis = async () => {
+      if (cacheRef.current.munis) {
+        addMuniLayers(map, cacheRef.current.munis);
+        return;
+      }
+      try {
+        const r = await fetch("/api/municipalities");
+        if (!r.ok) throw new Error(`/api/municipalities ${r.status}`);
+        const fc = (await r.json()) as GeoJSON.FeatureCollection;
+        if (!fc) return;
+        cacheRef.current.munis = fc;
+        if (!mapRef.current) return;
+        addMuniLayers(mapRef.current, fc);
+        applyLayerVisibility(mapRef.current);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[GridMap] municipalities fetch failed", err);
+        onMapErrorRef.current?.("Municipality boundaries failed to load.");
+      }
+    };
 
-    if (cacheRef.current.plants) {
-      addPlantLayers(map, cacheRef.current.plants);
-    } else {
-      void fetch("/api/plants")
-        .then((r) => {
-          if (!r.ok) throw new Error(`/api/plants ${r.status}`);
-          return r.json();
-        })
-        .then((fc: GeoJSON.FeatureCollection) => {
-          if (!fc || !fc.features) return;
-          cacheRef.current.plants = fc;
-          if (!mapRef.current) return;
-          addPlantLayers(mapRef.current, fc);
-          applyLayerVisibility(mapRef.current);
-        })
-        .catch((err) => {
-          // eslint-disable-next-line no-console
-          console.error("[GridMap] plants fetch failed", err);
-          onMapErrorRef.current?.("Power infrastructure failed to load.");
-        });
-    }
+    const loadPlants = async () => {
+      if (cacheRef.current.plants) {
+        addPlantLayers(map, cacheRef.current.plants);
+        return;
+      }
+      try {
+        const r = await fetch("/api/plants");
+        if (!r.ok) throw new Error(`/api/plants ${r.status}`);
+        const fc = (await r.json()) as GeoJSON.FeatureCollection;
+        if (!fc || !fc.features) return;
+        cacheRef.current.plants = fc;
+        if (!mapRef.current) return;
+        addPlantLayers(mapRef.current, fc);
+        applyLayerVisibility(mapRef.current);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[GridMap] plants fetch failed", err);
+        onMapErrorRef.current?.("Power infrastructure failed to load.");
+      }
+    };
+
+    // Parallel so plants don't wait on the muni request and vice versa;
+    // each handles its own error so the other still resolves.
+    await Promise.all([loadMunis(), loadPlants()]);
   }
 
   return (
