@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { sizeBattery, estimateCost, type ApplianceLoad } from "@/lib/battery";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CHEMISTRIES,
+  chemistryById,
+  estimateCost,
+  sizeBattery,
+  type ApplianceLoad,
+  type BatteryChemistry,
+} from "@/lib/battery";
+import { formatCurrencyCompact, formatWatts } from "@/lib/format";
 
 interface Props {
   appliances: ApplianceLoad[];
-}
-
-function usd(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 
 export function BatterySimulator({ appliances }: Props) {
@@ -17,15 +21,29 @@ export function BatterySimulator({ appliances }: Props) {
   );
   const [targetHours, setTargetHours] = useState(24);
   const [solarKw, setSolarKw] = useState(0);
+  const [chemistryId, setChemistryId] = useState<BatteryChemistry["id"]>("lfp");
 
+  // Allow microgrid hand-off from /solar — `?from=solar&kw=4.5` pre-fills the
+  // solar field so users don't re-enter what they just told the Solar Lens.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const fromKw = Number(params.get("kw") || "");
+    if (params.get("from") === "solar" && Number.isFinite(fromKw) && fromKw > 0) {
+      setSolarKw(fromKw);
+    }
+  }, []);
+
+  const chemistry = chemistryById(chemistryId);
   const result = useMemo(() => {
     const chosen = appliances.filter((a) => selected.has(a.id));
     return sizeBattery({
       selected: chosen,
       targetHours,
       solarKwInstalled: solarKw,
+      chemistry: chemistryId,
     });
-  }, [appliances, selected, targetHours, solarKw]);
+  }, [appliances, selected, targetHours, solarKw, chemistryId]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -110,6 +128,36 @@ export function BatterySimulator({ appliances }: Props) {
             />
           </label>
         </div>
+
+        <div className="mt-5">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-text-3">
+            Battery chemistry
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {CHEMISTRIES.map((c) => {
+              const active = c.id === chemistryId;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setChemistryId(c.id)}
+                  className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                    active
+                      ? "border-brand/60 bg-brand-soft text-text"
+                      : "border-line bg-surface text-text-2 hover:bg-surface-2 hover:text-text"
+                  }`}
+                  title={c.tradeoff}
+                >
+                  <div className="font-medium">{c.label}</div>
+                  <div className="text-[10px] text-text-3">
+                    {Math.round(c.dod * 100)}% DOD · ${c.costPerKwh}/kWh · {c.cycleLife.toLocaleString()} cycles
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[10px] text-text-3">{chemistry.tradeoff}</p>
+        </div>
       </div>
 
       <div className="surface rounded-xl p-5">
@@ -129,11 +177,21 @@ export function BatterySimulator({ appliances }: Props) {
           />
           <Stat
             label="Average draw"
-            value={`${Math.round(result.averageWatts)} W`}
+            value={formatWatts(result.averageWatts)}
+          />
+          <Stat
+            label="Inverter (min)"
+            value={formatWatts(result.recommendedInverterWatts)}
+          />
+          <Stat
+            label="Peak surge"
+            value={formatWatts(result.peakSurgeWatts)}
           />
           <Stat
             label="Estimated cost"
-            value={usd(estimateCost(result.batteryKwhRecommended))}
+            value={formatCurrencyCompact(
+              estimateCost(result.batteryKwhRecommended, chemistryId),
+            )}
           />
           <Stat
             label="Solar recharge"
@@ -157,8 +215,8 @@ export function BatterySimulator({ appliances }: Props) {
           </div>
         ) : null}
         <p className="mt-5 text-[10px] text-text-3">
-          Estimated · 90% usable DOD assumed (typical LFP) · 5.5 sun-hours/day
-          for PR.
+          Estimated · {Math.round(chemistry.dod * 100)}% usable DOD ({chemistry.label}) · 5.5 sun-hours/day for PR ·
+          inverter sized 10% above peak motor surge.
         </p>
       </div>
     </div>
