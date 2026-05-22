@@ -21,7 +21,9 @@ Notable changes per release. The active branch is `main`; we don't tag releases 
 - **Shared helpers**: `lib/format.ts` (currency, kWh, MW, %, hours, years) and `lib/hooks/use-current-rate.ts` (Bill + Solar both used to inline the PREB-rate fetch).
 - **`CLAUDE.md`** and this `CHANGELOG.md`.
 
+### Refactored
+- **GridMap extraction (partial, in-progress)**: pulled the basemap/style construction into `app/(map)/_components/map-layers/style.ts`, the layer visibility rules into `map-layers/visibility.ts`, and the per-layer color palettes into `map-layers/palette.ts`. GridMap.tsx dropped from 1367 → 1185 lines. The remaining loaders (risk/demand/reports, weather, outages, interactions, data fetch) are still inline — see CLAUDE.md "Common tasks" for the planned full split.
+
 ### Notes
 - No Vitest setup yet — pure-function tests for `lib/{bill,solar,battery,format}.ts` are a follow-up.
 - NWS alerts remain island-wide. Per-municipality UGC mapping needs a UGC→muni lookup file; tracked as TODO in `nws_weather.py`.
-- GridMap is still ~1370 lines. The Phase 1b risk-filter fix made `addDataLayers` awaitable in place; the planned full module split is a follow-up tracked in `CLAUDE.md`'s "Common tasks" section.
