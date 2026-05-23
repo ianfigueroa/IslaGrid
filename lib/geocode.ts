@@ -39,8 +39,24 @@ interface NominatimHit {
 }
 
 const NOMINATIM_TIMEOUT_MS = 8000;
+const NOMINATIM_MIN_GAP_MS = 1100; // Nominatim's published policy: <=1 req/s.
+
+// Per-process throttle so repeated cache misses can't burst-call Nominatim.
+// Each instance maintains its own clock — fine because the IP-rate-limit at
+// the route layer (30/h per requester) caps the upper bound anyway. A
+// distributed throttle would need Redis; not worth it for the volume.
+let lastNominatimAt = 0;
+async function respectNominatimRate(): Promise<void> {
+  const now = Date.now();
+  const wait = lastNominatimAt + NOMINATIM_MIN_GAP_MS - now;
+  if (wait > 0) {
+    await new Promise((r) => setTimeout(r, wait));
+  }
+  lastNominatimAt = Date.now();
+}
 
 async function callNominatim(query: string): Promise<Geocoded | null> {
+  await respectNominatimRate();
   const url = new URL(NOMINATIM_URL);
   url.searchParams.set("q", `${query}, Puerto Rico`);
   url.searchParams.set("format", "jsonv2");
@@ -76,19 +92,22 @@ export async function geocode(query: string): Promise<Geocoded | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
 
-  // Cache lookup
+  // Cache lookup. Per the 2026-05 PII migration (0027) we no longer store
+  // the raw `query` or upstream `display_name` — those columns were a
+  // re-identification surface when joined with solar_assessments. On a cache
+  // hit we fall back to the user's input as the display string.
   if (isSupabaseConfigured()) {
     const supa = getServerSupabase();
     const { data } = await supa
       .from("geocode_cache")
-      .select("lat, lon, display_name, source")
+      .select("lat, lon, source")
       .eq("query_hash", hashQuery(trimmed))
       .maybeSingle();
     if (data && typeof data.lat === "number" && typeof data.lon === "number") {
       return {
         lat: data.lat,
         lon: data.lon,
-        displayName: data.display_name ?? trimmed,
+        displayName: trimmed,
         source: "cache",
       };
     }
@@ -104,10 +123,8 @@ export async function geocode(query: string): Promise<Geocoded | null> {
       .upsert(
         {
           query_hash: hashQuery(trimmed),
-          query: trimmed,
           lat: hit.lat,
           lon: hit.lon,
-          display_name: hit.displayName,
           source: hit.source,
         },
         { onConflict: "query_hash" },

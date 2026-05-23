@@ -39,12 +39,15 @@ export const GET = publicHandler(
       .select("h3, type, report_count, latest_ts")
       .limit(20000);
     if (error) {
+      // Don't echo the PostgREST error to clients; it tends to leak schema
+      // details. Log it server-side for debugging.
+      // eslint-disable-next-line no-console
+      console.error("[public community-reports/aggregate] supabase read failed", error);
       return NextResponse.json(
         {
           type: "FeatureCollection",
           features: [],
           reason: "supabase_error",
-          error: error.message,
         },
         { status: 502 },
       );

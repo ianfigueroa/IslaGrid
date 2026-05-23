@@ -38,6 +38,7 @@ from playwright.sync_api import sync_playwright
 from ..pipeline.risk import GridInputs, classify
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
+from ._playwright import BROWSER_ARGS
 
 SOURCE = "genera-pr.com"
 URL = "https://genera-pr.com/data-generacion"
@@ -154,7 +155,7 @@ _GAUGE_READY_JS = """
 def _fetch() -> tuple[str, list[dict[str, Any]]]:
     """Return (raw_html, [{title, value}]) for every plant gauge on the page."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox"])
+        browser = p.chromium.launch(args=BROWSER_ARGS)
         ctx = browser.new_context(
             user_agent=USER_AGENT,
             viewport={"width": 1280, "height": 900},

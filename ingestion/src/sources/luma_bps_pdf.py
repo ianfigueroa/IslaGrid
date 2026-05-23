@@ -19,6 +19,7 @@ import sys
 from datetime import datetime, timezone
 
 from io import BytesIO
+from urllib.parse import urlparse
 
 import httpx
 import pdfplumber
@@ -35,9 +36,20 @@ SOURCE = f"{_HOST}/bps"
 log = logging.getLogger(__name__)
 
 
+# Hosts we're willing to fetch the BPS PDF from. The regex below pins the
+# scheme and one path prefix, but a stray HTML attribute could still slip a
+# different host in front; we re-parse the matched URL and refuse anything
+# not on the expected host.
+_ALLOWED_PDF_HOSTS = {"lumapr.com", "www.lumapr.com"}
+
+
 def _find_latest_pdf(html: str) -> str | None:
     candidates = re.findall(r"https://lumapr\.com/so_document/[^\"' ]+\.pdf", html, re.IGNORECASE)
-    return candidates[0] if candidates else None
+    for url in candidates:
+        parsed = urlparse(url)
+        if parsed.scheme == "https" and parsed.netloc.lower() in _ALLOWED_PDF_HOSTS:
+            return url
+    return None
 
 
 def _already_ingested(filename: str) -> bool:

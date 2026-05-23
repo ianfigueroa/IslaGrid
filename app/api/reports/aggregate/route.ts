@@ -39,11 +39,14 @@ export async function GET() {
     .limit(20000);
 
   if (error) {
+    // Don't echo the PostgREST/Supabase error message to clients — it tends
+    // to include schema details, column names, and the failed query shape.
+    // eslint-disable-next-line no-console
+    console.error("[reports/aggregate] supabase read failed", error);
     return NextResponse.json({
       type: "FeatureCollection",
       features: [],
       reason: "supabase_error",
-      error: error.message,
     });
   }
 

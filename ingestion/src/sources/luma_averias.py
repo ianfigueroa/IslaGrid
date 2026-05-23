@@ -30,6 +30,7 @@ from selectolax.parser import HTMLParser
 
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
+from ._playwright import BROWSER_ARGS
 
 _HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
 URL = f"https://{_HOST}/averias-mas-relevantes/"
@@ -60,7 +61,7 @@ def _safe_href(href: str | None) -> str:
 
 def _fetch() -> str:
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox"])
+        browser = p.chromium.launch(args=BROWSER_ARGS)
         ctx = browser.new_context(
             user_agent="islagrid-ai/0.1 (+contact@islagrid.app)",
             locale="es-PR",

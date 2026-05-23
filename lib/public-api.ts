@@ -89,8 +89,20 @@ export function publicHandler(
     try {
       res = await handler(req, { apiKey });
     } catch (err) {
+      // Log a narrowed error shape rather than the raw object — stack traces
+      // tend to bring along DB connection strings, Supabase URLs, header
+      // values, etc. that aren't useful for debugging and shouldn't land in
+      // production log aggregators. First 3 stack frames are enough to
+      // attribute the crash without surfacing internal paths.
+      const safe = err instanceof Error
+        ? {
+            name: err.name,
+            message: err.message,
+            stack: (err.stack ?? "").split("\n").slice(0, 4).join("\n"),
+          }
+        : { name: "Unknown", message: String(err) };
       // eslint-disable-next-line no-console
-      console.error("[public-api]", meta.route, err);
+      console.error("[public-api]", meta.route, safe);
       res = NextResponse.json({ error: "Internal error." }, { status: 500 });
     }
 
