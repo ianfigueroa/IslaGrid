@@ -1,0 +1,5 @@
+-- Placeholder. This migration timestamp was created on the remote project
+-- via Supabase Studio (or a direct CLI session) before being mirrored back
+-- into the repo. The file exists so `supabase migration list` doesn't show
+-- a divergence and `db push` can proceed. The actual schema change has
+-- already been applied on remote; replaying this empty file is a no-op.
