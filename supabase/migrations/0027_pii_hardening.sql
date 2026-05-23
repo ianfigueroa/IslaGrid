@@ -30,13 +30,16 @@
 -- 1. api_keys.owner_email -> owner_email_hash
 -- =========================================================================
 
-create extension if not exists pgcrypto;
+-- Supabase puts the pgcrypto extension in the `extensions` schema (not
+-- public), so `digest()` must be schema-qualified. Re-running the create
+-- here is a no-op if the extension already lives in `extensions`.
+create extension if not exists pgcrypto with schema extensions;
 
 alter table api_keys add column if not exists owner_email_hash text;
 
 -- Backfill any existing rows (no-op on fresh installs).
 update api_keys
-   set owner_email_hash = encode(digest(lower(owner_email), 'sha256'), 'hex')
+   set owner_email_hash = encode(extensions.digest(lower(owner_email), 'sha256'), 'hex')
  where owner_email is not null
    and owner_email_hash is null;
 
@@ -62,9 +65,18 @@ comment on table geocode_cache is
 -- 3. solar_assessments — TTL + coordinate truncation view
 -- =========================================================================
 
+-- Postgres rejects a generated column that uses `ts + interval` because the
+-- timestamptz `+` operator is STABLE, not IMMUTABLE. A plain column with a
+-- default expression that fires at insert time gives the same semantics for
+-- new rows (the existing `ts` column also defaults to now(), so they stay
+-- aligned). Backfilled rows below get expires_at = ts + 365d directly.
 alter table solar_assessments
   add column if not exists expires_at timestamptz
-    generated always as (ts + interval '365 days') stored;
+    default (now() + interval '365 days');
+
+update solar_assessments
+   set expires_at = ts + interval '365 days'
+ where expires_at is null;
 
 create index if not exists idx_solar_assessments_expires_at
   on solar_assessments (expires_at);

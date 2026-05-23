@@ -1,0 +1,1 @@
+-- Placeholder. See 20260518005520_remote_studio_placeholder.sql.

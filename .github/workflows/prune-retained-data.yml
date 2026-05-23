@@ -1,0 +1,58 @@
+name: prune-retained-data
+
+# Weekly TTL enforcement for tables that carry a privacy retention.
+# Currently:
+#   - solar_assessments (365-day TTL set in migration 0027)
+#   - api_request_log (90-day TTL set in migration 0015)
+#
+# Both prune functions are SECURITY DEFINER and grant-locked to the service
+# role, so this workflow needs the service-role key. Calling via PostgREST's
+# /rpc/<fn> means we don't need a postgres CLI in the runner.
+
+on:
+  schedule:
+    # Sundays at 03:17 UTC — off-peak for most regions, randomized minute so
+    # we don't pile onto other scheduled crons.
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: prune_solar_assessments
+        env:
+          URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing"
+            exit 1
+          fi
+          # PostgREST RPC: POST to /rest/v1/rpc/<function-name>
+          curl -fsS -X POST "$URL/rest/v1/rpc/prune_solar_assessments" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          echo
+
+      - name: prune_api_request_log
+        env:
+          URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::warning::credentials missing, skipping api_request_log prune"
+            exit 0
+          fi
+          curl -fsS -X POST "$URL/rest/v1/rpc/prune_api_request_log" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          echo
