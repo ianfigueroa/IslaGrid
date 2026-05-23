@@ -50,10 +50,11 @@ export async function GET() {
     .limit(60);
 
   if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[updates] supabase read failed", error);
     const body: Payload = {
       items: [],
       reason: "supabase_error",
-      error: error.message,
     };
     return NextResponse.json(body);
   }

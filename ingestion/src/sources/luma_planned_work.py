@@ -20,6 +20,7 @@ from selectolax.parser import HTMLParser
 
 from ..pipeline.snapshot import save_raw
 from ..pipeline.supabase_client import supabase
+from ._playwright import BROWSER_ARGS
 
 # Honor LUMA_OPERATOR_HOST so a successor operator can be swapped in via env.
 _HOST = (os.environ.get("LUMA_OPERATOR_HOST") or "lumapr.com").rstrip("/")
@@ -31,7 +32,7 @@ log = logging.getLogger(__name__)
 
 def _fetch() -> str:
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox"])
+        browser = p.chromium.launch(args=BROWSER_ARGS)
         ctx = browser.new_context(user_agent="islagrid-ai/0.1 (+contact@islagrid.app)")
         page = ctx.new_page()
         page.goto(URL, wait_until="domcontentloaded", timeout=45_000)

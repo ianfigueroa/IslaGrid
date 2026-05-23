@@ -115,8 +115,13 @@ export async function POST(req: Request) {
   });
 
   if (error) {
+    // Generic body to clients; full error logged server-side. The previous
+    // `detail: error.message` echoed PostgREST messages that include schema
+    // and column names.
+    // eslint-disable-next-line no-console
+    console.error("[reports] insert failed", error);
     return NextResponse.json(
-      { error: "Could not save report.", detail: error.message },
+      { error: "Could not save report." },
       { status: 500 },
     );
   }

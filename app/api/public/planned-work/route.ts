@@ -20,8 +20,10 @@ export const GET = publicHandler(
       .order("start_ts", { ascending: true })
       .limit(500);
     if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[public/planned-work] supabase read failed", error);
       return NextResponse.json(
-        { items: [], reason: "supabase_error", error: error.message },
+        { items: [], reason: "supabase_error" },
         { status: 502 },
       );
     }

@@ -75,11 +75,12 @@ export async function GET() {
     .limit(ROW_CAP);
 
   if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[outages/feeders] supabase read failed", error);
     const body: Payload = {
       type: "FeatureCollection",
       features: [],
       reason: "supabase_error",
-      error: error.message,
     };
     return NextResponse.json(body, { status: 500 });
   }

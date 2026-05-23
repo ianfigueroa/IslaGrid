@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -65,8 +66,17 @@ export async function GET(req: NextRequest) {
       { status: 500 },
     );
   }
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  const auth = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  // Length-equalize so timingSafeEqual doesn't throw, then constant-time
+  // compare. A naive `auth !== expected` leaks the prefix one char at a time
+  // — irrelevant for a 32+ char secret in practice but trivial to fix.
+  const provided = Buffer.from(auth);
+  const expectedBuf = Buffer.from(expected);
+  const ok =
+    provided.length === expectedBuf.length &&
+    timingSafeEqual(provided, expectedBuf);
+  if (!ok) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
@@ -94,8 +104,11 @@ export async function GET(req: NextRequest) {
     }
     payload = (await res.json()) as LumaFeedPayload;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "fetch_failed";
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    // Log details server-side; return a generic body so we don't leak
+    // resolved hostnames, certificate strings, or upstream stack traces.
+    // eslint-disable-next-line no-console
+    console.error("[cron luma-outages] upstream fetch failed", err);
+    return NextResponse.json({ ok: false, error: "upstream_unreachable" }, { status: 502 });
   }
 
   const rows = toSnapshotRows(payload);
@@ -106,7 +119,9 @@ export async function GET(req: NextRequest) {
   const supabase = getServiceSupabase();
   const { error } = await supabase.from("luma_outage_snapshots").insert(rows);
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // eslint-disable-next-line no-console
+    console.error("[cron luma-outages] insert failed", error);
+    return NextResponse.json({ ok: false, error: "db_write_failed" }, { status: 500 });
   }
   return NextResponse.json({
     ok: true,

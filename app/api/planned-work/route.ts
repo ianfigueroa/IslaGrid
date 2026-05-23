@@ -31,7 +31,9 @@ export async function GET() {
     .limit(100);
 
   if (error) {
-    return NextResponse.json({ items: [], error: error.message });
+    // eslint-disable-next-line no-console
+    console.error("[planned-work] supabase read failed", error);
+    return NextResponse.json({ items: [], reason: "supabase_error" });
   }
 
   return NextResponse.json({ items: (data ?? []) as PlannedWorkRow[] });

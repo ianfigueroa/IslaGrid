@@ -17,8 +17,10 @@ export const GET = publicHandler(
         "municipality_id, ts, risk_score, band, reasons, feature_freshness_s, source",
       );
     if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[public/outage-risk] supabase read failed", error);
       return NextResponse.json(
-        { items: [], reason: "supabase_error", error: error.message },
+        { items: [], reason: "supabase_error" },
         { status: 502 },
       );
     }

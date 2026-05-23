@@ -20,8 +20,10 @@ export const GET = publicHandler({ route: "/api/public/grid-status" }, async () 
     .maybeSingle<GridSnapshot>();
 
   if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[public/grid-status] supabase read failed", error);
     return NextResponse.json(
-      { snapshot: null, reason: "supabase_error", error: error.message },
+      { snapshot: null, reason: "supabase_error" },
       { status: 502 },
     );
   }

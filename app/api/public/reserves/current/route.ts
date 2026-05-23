@@ -20,8 +20,10 @@ export const GET = publicHandler(
       .limit(1)
       .maybeSingle();
     if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[public/reserves/current] supabase read failed", error);
       return NextResponse.json(
-        { reserves: null, reason: "supabase_error", error: error.message },
+        { reserves: null, reason: "supabase_error" },
         { status: 502 },
       );
     }
