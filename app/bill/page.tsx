@@ -3,7 +3,7 @@ import { BillCalculator } from "./BillCalculator";
 import { seedRate } from "@/lib/rates";
 
 export const metadata: Metadata = {
-  title: "Bill estimator — IslaGrid",
+  title: "Bill estimator - IslaGrid",
   description:
     "Estimate your Puerto Rico electricity bill from kWh usage or a list of appliances. Uses PREB-approved tariff line items.",
 };

@@ -1,7 +1,7 @@
 """
 Ingest generation-by-plant from datos.pr.gov.
 
-This is the *preferred* generation source — structured JSON, 5-minute cadence
+This is the *preferred* generation source - structured JSON, 5-minute cadence
 when up. As of 2026-05-11 the host returns a maintenance redirect; we still
 save the raw response so a future replay finishes the picture.
 """
@@ -120,7 +120,7 @@ def run() -> int:
     raw_key = save_raw(SOURCE, body, ext="json", content_type="application/json")
 
     if _looks_like_maintenance(final_url, body):
-        log.warning("datos.pr.gov in maintenance — raw saved at %s, no rows written", raw_key)
+        log.warning("datos.pr.gov in maintenance - raw saved at %s, no rows written", raw_key)
         return 0
 
     rows = _parse(body)

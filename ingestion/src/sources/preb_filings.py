@@ -14,10 +14,10 @@ archive raw bytes to R2, and parse the headline metrics + event list with
 pdfplumber. Parser confidence is encoded in `parser_version` so we can
 re-process old PDFs after improving the parser.
 
-Honest caveats:
+Caveats:
   * PDFs are unstructured. When the parser can't find a SAIDI/SAIFI cell,
     we write the row with NULL metrics and a populated `pdf_key` so we can
-    revisit later. We never fabricate a value.
+    revisit later.
   * PREB's "Tema 10 / Tarifas" filings are out of scope here (see preb_rates.py).
 """
 

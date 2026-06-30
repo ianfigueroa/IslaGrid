@@ -5,8 +5,8 @@ import { DocsLayout } from "../(docs)/_components/DocsLayout";
 import { readDoc } from "@/lib/docs";
 
 export const metadata: Metadata = {
-  title: "Privacy · IslaGrid AI",
-  description: "Privacy policy for IslaGrid AI.",
+  title: "Privacy · IslaGrid",
+  description: "Privacy policy for IslaGrid.",
 };
 
 export default async function PrivacyPage() {

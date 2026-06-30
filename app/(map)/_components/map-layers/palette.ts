@@ -6,11 +6,11 @@
  * "unknown" entry without a switch statement.
  *
  * Color philosophy: status fills stay cool/neutral, risk shifts warm, and
- * reports shift even warmer — stacking the layers gives a visual hierarchy
+ * reports shift even warmer - stacking the layers gives a visual hierarchy
  * (status base, risk overlay, then community-source overlay on top).
  */
 
-// Per-municipality status fill — kept warm + readable over the Protomaps
+// Per-municipality status fill - kept warm + readable over the Protomaps
 // light flavor. Saturation stays mid so colors register without overpowering
 // the basemap.
 export const STATUS_FILL: Record<string, string> = {
@@ -60,7 +60,7 @@ export const REPORT_FILL: Record<string, string> = {
   high:   "#dc2626",
 };
 
-// EXPERIMENTAL demand-pressure layer — see lib/demand.ts. Lime → red.
+// EXPERIMENTAL demand-pressure layer - see lib/demand.ts. Lime → red.
 export const DEMAND_FILL: Record<string, string> = {
   low:      "#a3e635",
   moderate: "#facc15",

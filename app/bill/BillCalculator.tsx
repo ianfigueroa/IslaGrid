@@ -78,7 +78,7 @@ export function BillCalculator({ initialRate }: Props) {
     <div className="min-h-dvh bg-bg text-text">
       <SubPageHeader
         title="Bill estimator"
-        hint="Informational — not for operational decisions"
+        hint="Informational - not for operational decisions"
       />
 
       <main className="mx-auto max-w-5xl px-5 py-10 md:py-14">
@@ -298,7 +298,7 @@ export function BillCalculator({ initialRate }: Props) {
             energia.pr.gov · current rate
           </a>{" "}
           · Rate components refreshed when PREB issues a new quarterly order.
-          This page never shows a final invoice — it shows what the PREB
+          This page never shows a final invoice - it shows what the PREB
           line-items produce for your inputs.
         </div>
       </main>

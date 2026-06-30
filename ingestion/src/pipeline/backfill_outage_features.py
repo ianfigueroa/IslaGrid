@@ -3,7 +3,7 @@ Backfill `outage_features` rows for historical labels so the LightGBM
 trainer can actually use them.
 
 Why this exists:
-  - `outage_labels` now has ~1,100 Eagle-i events from 2023–2025.
+  - `outage_labels` now has ~1,100 Eagle-i events from 2023-2025.
   - The trainer joins labels × features by (municipality_id, ts ±6h).
   - But `outage_features` only contains rows from the live `predict-outage`
     cron (~last 3 weeks). Every historical label has no matching feature
@@ -11,11 +11,11 @@ Why this exists:
   - Result: trainer falls back to heuristic because <50 positive train pairs.
 
 What we generate per historical label:
-  - Temporal features (hour_of_day, day_of_week, month)  — trivial
+  - Temporal features (hour_of_day, day_of_week, month)  - trivial
   - Static features per muni (distance_to_nearest_plant_km, elevation_m)
   - grid_stress proxied from the closest LUMA archive snapshot in the
     same operating region within ±48h of the label
-  - recent_outages_7d  — count of other labels for this muni in past 7d
+  - recent_outages_7d  - count of other labels for this muni in past 7d
   - Weather fields stay NULL (LightGBM/fillna handle missing). Adding
     weather requires Open-Meteo's archive API; that's a follow-up.
 
@@ -126,7 +126,7 @@ def _load_muni_centroids() -> dict[str, tuple[float, float]]:
 
 def _load_plants_coords() -> list[tuple[float, float]]:
     """Read the curated plant list from the TS file by importing the runtime
-    JSON we ship alongside it. Falls back to a small hardcoded list — better
+    JSON we ship alongside it. Falls back to a small hardcoded list - better
     than no distance feature."""
     # Hard-code the 7 largest plant coords (Genera fleet + IPPs). Smaller
     # peakers shift the nearest-plant distance trivially; not worth the
@@ -154,7 +154,7 @@ def _muni_nearest_plant_km(
 
 
 def _load_labels(window_start: datetime) -> list[dict[str, Any]]:
-    """Page through outage_labels — PostgREST caps at 1000 rows/request."""
+    """Page through outage_labels - PostgREST caps at 1000 rows/request."""
     sb = supabase()
     page = 1000
     offset = 0
@@ -181,7 +181,7 @@ def _load_labels(window_start: datetime) -> list[dict[str, Any]]:
 
 def _load_daily_weather() -> dict[tuple[str, str], dict[str, float | None]]:
     """All cached weather rows, keyed by (muni, YYYY-MM-DD). Empty dict when
-    daily_weather_by_muni is empty — script keeps running with NULL weather."""
+    daily_weather_by_muni is empty - script keeps running with NULL weather."""
     sb = supabase()
     page = 1000
     offset = 0
@@ -216,7 +216,7 @@ def _load_daily_weather() -> dict[tuple[str, str], dict[str, float | None]]:
 
 
 def _load_luma_archive() -> list[dict[str, Any]]:
-    """All LUMA region snapshots — both archive + live feeds."""
+    """All LUMA region snapshots - both archive + live feeds."""
     sb = supabase()
     page = 1000
     offset = 0
@@ -246,7 +246,7 @@ def _index_luma_by_region(
     """Build {region_id: sorted [(ts, stress), ...]} for closest-time lookup.
 
     grid_stress = customers_affected / max(customers_served, 1), clipped 0..1.
-    Mapping is intentionally coarse — the absolute number doesn't matter,
+    Mapping is intentionally coarse - the absolute number doesn't matter,
     only the relative spike pattern."""
     by_region: dict[str, list[tuple[datetime, float]]] = defaultdict(list)
     for r in rows:
@@ -278,7 +278,7 @@ def _grid_stress_at(
     series = indexed.get(_region_to_archive_id(region))
     if not series:
         return None
-    # Linear scan back from the closest ts — series is small enough (≤ a few
+    # Linear scan back from the closest ts - series is small enough (≤ a few
     # thousand) per region that bisecting isn't worth the complexity.
     cutoff = timedelta(hours=GRID_STRESS_WINDOW_HOURS)
     closest: tuple[datetime, float] | None = None
@@ -437,7 +437,7 @@ def _recent_counts(labels: list[dict[str, Any]]) -> dict[tuple[str, str], int]:
     out: dict[tuple[str, str], int] = {}
     seven = timedelta(days=7)
     for muni, times in by_muni.items():
-        # Two pointers — for each date in the window, count labels in the
+        # Two pointers - for each date in the window, count labels in the
         # preceding 7 days.
         # Use date keys from each label's date.
         for ts in times:
@@ -481,7 +481,7 @@ def _insert(rows: list[dict[str, Any]], batch_size: int = 500) -> int:
 
 
 def run() -> int:
-    sb = supabase()  # noqa: F841 — fail-fast on missing env
+    sb = supabase()  # noqa: F841 - fail-fast on missing env
     cutoff = datetime.now(UTC) - timedelta(days=BACKFILL_HORIZON_DAYS)
 
     log.info("Loading centroids + plants + LUMA archive + weather + labels…")
@@ -499,7 +499,7 @@ def run() -> int:
         len(labels),
     )
 
-    # Only use labels that fall inside the backfill window — anything newer
+    # Only use labels that fall inside the backfill window - anything newer
     # the live cron will eventually cover and we don't want to clobber it.
     backfill_labels = [
         l

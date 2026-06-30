@@ -2,9 +2,9 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 @theme {
-  /* IslaGrid palette — Windy-inspired civic-tech. Light by default; dark opt-in. */
+  /* IslaGrid palette - Windy-inspired civic-tech. Light by default; dark opt-in. */
 
-  /* ---------- LIGHT (default) — clean sky tones ---------- */
+  /* ---------- LIGHT (default) - clean sky tones ---------- */
   --color-bg: #f3f6fa;
   --color-surface: #ffffff;
   --color-surface-2: #f8fafc;
@@ -16,12 +16,12 @@
   --color-text-2: #475569;
   --color-text-3: #94a3b8;
 
-  /* Brand — confident sky blue (Windy-style). Used on active state, links, focus. */
+  /* Brand - confident sky blue (Windy-style). Used on active state, links, focus. */
   --color-brand: #0284c7;
   --color-brand-strong: #0369a1;
   --color-brand-soft: rgba(2, 132, 199, 0.12);
 
-  /* Semantic — clear, friendly, not Bloomberg */
+  /* Semantic - clear, friendly, not Bloomberg */
   --color-ok: #059669;
   --color-ok-soft: rgba(5, 150, 105, 0.12);
   --color-warn: #d97706;
@@ -37,7 +37,7 @@
   --color-risk-high: #f97316;
   --color-risk-critical: #dc2626;
 
-  /* Fuel — friendly map markers */
+  /* Fuel - friendly map markers */
   --color-fuel-oil: #b45309;
   --color-fuel-gas: #d97706;
   --color-fuel-coal: #475569;
@@ -60,7 +60,7 @@
   --font-mono: var(--font-fira-code), ui-monospace, "Cascadia Mono", monospace;
 }
 
-/* ---------- DARK theme — navy ocean, not mortuary ---------- */
+/* ---------- DARK theme - navy ocean, not mortuary ---------- */
 :root[data-theme="dark"] {
   --color-bg: #07101f;
   --color-surface: #0f1c33;
@@ -181,7 +181,7 @@
 }
 
 @layer components {
-  /* Card — clean, soft shadow, no mono terminal feel */
+  /* Card - clean, soft shadow, no mono terminal feel */
   .card {
     background: var(--color-surface);
     border: 1px solid var(--color-line);
@@ -189,7 +189,7 @@
     box-shadow: var(--shadow-card);
   }
 
-  /* Surface — solid panel for non-overlay UI (settings rows, info sections).
+  /* Surface - solid panel for non-overlay UI (settings rows, info sections).
      Many components reference className="surface" expecting this. Without it
      the element renders transparent over the map. */
   .surface {
@@ -199,7 +199,7 @@
     box-shadow: var(--shadow-card);
   }
 
-  /* Glass — for chrome overlaid on the map */
+  /* Glass - for chrome overlaid on the map */
   .glass {
     background: color-mix(in oklch, var(--color-surface) 94%, transparent);
     border: 1px solid var(--color-line);
@@ -304,7 +304,7 @@
   .cone-breath { animation: islagrid-cone-breath 4s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .cone-breath { animation: none; opacity: 0.3; } }
 
-  /* Plant glow — soft radial halo behind power plant markers */
+  /* Plant glow - soft radial halo behind power plant markers */
   @keyframes islagrid-glow { 0%,100% { opacity: 0.55; } 50% { opacity: 0.85; } }
   .plant-glow { animation: islagrid-glow 3.6s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .plant-glow { animation: none; opacity: 0.7; } }

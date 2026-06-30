@@ -2,7 +2,7 @@
   "name": "islagrid",
   "version": "0.1.0",
   "private": true,
-  "description": "Puerto Rico grid intelligence — public, source-labeled, map-first.",
+  "description": "Puerto Rico grid intelligence - public, source-labeled, map-first.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

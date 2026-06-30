@@ -1,5 +1,5 @@
 """
-Phase 10 — heuristic cause classifier for open outage events.
+Heuristic cause classifier for open outage events.
 
 Buckets a row into one of eight causes from a mix of:
   - regex over the source snippet + related official_updates
@@ -168,7 +168,7 @@ def classify(event: dict[str, Any]) -> Prediction | None:
             outage_event_id=str(eid),
             cause="unknown",
             confidence="low",
-            reasons=["No usable signals — falling back to unknown"],
+            reasons=["No usable signals - falling back to unknown"],
         )
 
     # Pick the highest-scoring cause; if tie between distinct causes, downgrade
@@ -193,7 +193,7 @@ def classify(event: dict[str, Any]) -> Prediction | None:
             outage_event_id=str(eid),
             cause="unknown",
             confidence="low",
-            reasons=reasons + ["Multiple causes tied — refusing to guess"],
+            reasons=reasons + ["Multiple causes tied - refusing to guess"],
         )
 
     return Prediction(

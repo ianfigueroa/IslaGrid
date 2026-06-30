@@ -41,7 +41,7 @@ function usd(n: number): string {
 }
 
 function years(n: number | null): string {
-  if (n == null) return "—";
+  if (n == null) return "-";
   return `${n.toFixed(1)} yr`;
 }
 

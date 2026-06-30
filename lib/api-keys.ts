@@ -4,7 +4,7 @@
  * Keys look like `ig_<prefix>_<secret>`. `<prefix>` is 8 chars in plaintext
  * for display only; `<secret>` is the random body. We hash the full key with
  * HMAC-SHA-256 using a server-side pepper (`API_KEY_PEPPER`). Rotating the
- * pepper invalidates every key — that is the intended escape hatch.
+ * pepper invalidates every key - that is the intended escape hatch.
  *
  * In dev or when the pepper is unset we fall back to plain SHA-256 so local
  * setups don't require the env var; prod operators should always set the
@@ -89,6 +89,6 @@ export async function recordUsage(
       }),
     ]);
   } catch {
-    /* logging is best-effort — never block a response */
+    /* logging is best-effort - never block a response */
   }
 }

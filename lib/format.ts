@@ -2,12 +2,12 @@
  * Display formatters used across Bill / Solar / Battery / Grid dashboards.
  *
  * One source of truth so currency, energy, and power numbers render
- * consistently — a $1,200.34 bill, a 1,088 MW plant, a 5.5 kWh battery.
- * All helpers tolerate null/undefined gracefully and return "—" so the UI
+ * consistently - a $1,200.34 bill, a 1,088 MW plant, a 5.5 kWh battery.
+ * All helpers tolerate null/undefined gracefully and return "-" so the UI
  * doesn't need to guard each call site.
  */
 
-const DASH = "—";
+const DASH = "-";
 
 export function formatCurrency(
   value: number | null | undefined,

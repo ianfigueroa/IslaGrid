@@ -1,10 +1,10 @@
 """
 Extract structured outage events from official_updates rows.
 
-Regex-only — no LLM. The trick is the 78-municipality whitelist: we
+Regex-only - no LLM. The trick is the 78-municipality whitelist: we
 recognize a municipality name when it appears in text, then classify the
 event kind from a small set of verbs/nouns. Output rows seed
-`outage_events`, which is the primary label source for the Phase 9 ML
+`outage_events`, which is the primary label source for the ML
 model. Confidence is encoded by `kind` (`unplanned` > `planned` > `unknown`).
 """
 
@@ -114,11 +114,11 @@ def run(window_days: int = 14) -> int:
         muni = _find_municipality(text, index)
         started = row.get("ts") or cutoff
         snippet = text[:280]
-        # Hash on stable fields only — `source` + `id` (from official_updates,
+        # Hash on stable fields only - `source` + `id` (from official_updates,
         # which itself is a stable hash of the raw notice). DO NOT include
         # `started_at` here: official_updates.ts gets overwritten with the
         # latest scrape time on every upsert, so hashing it produced a new
-        # event row per scrape and stacked 6–11 duplicates on the scorecard.
+        # event row per scrape and stacked 6-11 duplicates on the scorecard.
         # `text` stays in the hash because two distinct notices that happen to
         # share an id (shouldn't, but defensive) still get different events.
         event_id = "ev:" + hashlib.sha1(
@@ -141,7 +141,7 @@ def run(window_days: int = 14) -> int:
     if events:
         # Surface upsert failures with context. supabase-py raises APIError on
         # HTTP non-2xx already, but the bare stack trace doesn't tell us how
-        # many events were in-flight — wrap so a future failure is debuggable.
+        # many events were in-flight - wrap so a future failure is debuggable.
         try:
             sb.table("outage_events").upsert(events, on_conflict="id").execute()
         except Exception as e:

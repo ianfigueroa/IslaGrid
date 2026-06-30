@@ -69,7 +69,7 @@ export function OutagesPanel({ open, onClose }: Props) {
               <div className="px-5 py-8 text-[13px] text-text-3">{error}</div>
             ) : !data ? (
               <div className="px-5 py-8 text-[13px] text-text-3">
-                {loading ? "Loading active outages…" : "—"}
+                {loading ? "Loading active outages…" : "-"}
               </div>
             ) : data.groups.length === 0 ? (
               <div className="px-5 py-8 text-center text-[13px] text-text-3">

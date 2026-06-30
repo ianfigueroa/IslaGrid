@@ -1,9 +1,7 @@
 name: backfill-outage-history
 
-# Manual-only one-shot. Pulls historical outage data from DOE Eagle-i and the
-# Wayback Machine to seed ML labels + the reliability calendar. Heavy job —
-# Eagle-i's PR slice is hundreds of thousands of rows, Wayback fetches
-# captures one at a time. Expect 10–30 min per run depending on inputs.
+# Manual one-shot: pull historical outages from DOE Eagle-i and the Wayback
+# Machine for ML labels + the reliability calendar. Takes 10-30 min.
 on:
   workflow_dispatch:
     inputs:
@@ -65,16 +63,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EAGLE_I_URLS: ${{ inputs.eagle_i_url }}
-        # Accept multiple URLs separated by whitespace, commas, or newlines so
-        # the operator can paste all of figshare's per-year CSV links in one
-        # run instead of triggering the workflow once per year.
+        # accepts several figshare CSV links (space, comma or newline separated)
         run: |
           python - <<'PY'
           import os, re, subprocess, sys
           raw = os.environ.get("EAGLE_I_URLS", "")
           tokens = [u for u in re.split(r"[\s,]+", raw.strip()) if u]
-          # Only keep real http(s) URLs so a stray word, prompt text, or
-          # log-line paste can't get fed to httpx and crash the step.
+          # keep only http(s) URLs
           urls = [u for u in tokens if u.startswith(("http://", "https://"))]
           dropped = [t for t in tokens if t not in urls]
           if dropped:
@@ -93,9 +88,7 @@ jobs:
           PY
 
       - name: Wayback outage map backfill
-        # Wayback's CDX API is flaky — let a failure here NOT mark the whole
-        # job red, since Eagle-i is the bigger value-add and we want the
-        # rollup step downstream to still run.
+        # Wayback's CDX API is flaky; don't let it block the rollup below
         continue-on-error: true
         if: success() || failure()
         working-directory: ingestion
@@ -112,10 +105,7 @@ jobs:
             ${{ inputs.wayback_until && format('--until "{0}"', inputs.wayback_until) || '' }} \
             --limit ${{ inputs.wayback_limit }}
 
-      # Convert eagle_i 15-min spikes into discrete outage_labels rows. This is
-      # the ML-relevant step — outage_labels is what the trainer joins against
-      # outage_features. Without this, eagle_i data only flows into the
-      # reliability calendar, not the model.
+      # turn eagle_i 15-min spikes into outage_labels rows for the trainer
       - name: Synthesize eagle_i labels
         if: success() || failure()
         working-directory: ingestion
@@ -124,7 +114,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.eagle_i_to_labels --window-days ${{ inputs.rollup_days }}
 
-      # Pick up any outage_events synthesized from wayback or other paths.
       - name: Backfill labels from outage_events
         if: success() || failure()
         working-directory: ingestion
@@ -133,7 +122,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.backfill_outage_labels
 
-      # Rebuild the reliability calendar / monthly chart over the full window.
       - name: Aggregate municipality daily rollup
         if: success() || failure()
         working-directory: ingestion

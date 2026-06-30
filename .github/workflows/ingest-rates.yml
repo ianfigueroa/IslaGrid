@@ -2,7 +2,7 @@ name: ingest-rates
 
 on:
   schedule:
-    # Sundays 04:00 UTC — PREB rate orders are at most quarterly, so weekly
+    # Sundays 04:00 UTC - PREB rate orders are at most quarterly, so weekly
     # cadence catches new orders within 7 days.
     - cron: "0 4 * * 0"
   workflow_dispatch:

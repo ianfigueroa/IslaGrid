@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import type { LayerKey } from "./LayerRail";
 
-// Primary pills — the ones visible by default at the bottom. Ordered by
+// Primary pills - the ones visible by default at the bottom. Ordered by
 // "what does a worried user want to see first during a storm?".
 interface PillDef {
   key: LayerKey;
@@ -37,7 +37,7 @@ const PRIMARY: PillDef[] = [
 ];
 
 // Everything else lives in the More drawer (legend below). The old
-// "Grid status fill" pill was removed — its key (`grid-now`) was declared
+// "Grid status fill" pill was removed - its key (`grid-now`) was declared
 // in the layer union but never wired to a real map source, so toggling it
 // did nothing. The risk-band layer covers the same intent.
 const MORE: PillDef[] = [
@@ -66,7 +66,7 @@ interface Props {
 }
 
 /**
- * Floating bottom toolbar — the Windy-style chrome surface. Tap a pill to
+ * Floating bottom toolbar - the Windy-style chrome surface. Tap a pill to
  * toggle a primary layer; tap "More" to slide up the full layer drawer for
  * the less-used filters and presets.
  */
@@ -103,7 +103,7 @@ export function LayerPills({ active, onSetActive }: Props) {
                 onClick={() => toggle(key)}
                 aria-pressed={isActive}
                 aria-label={`${label} layer${isActive ? " (active)" : ""}`}
-                // Pop on click — scale up briefly then return. No sliding ring
+                // Pop on click - scale up briefly then return. No sliding ring
                 // between pills (the layoutId variant was confusing).
                 whileTap={{ scale: 0.9 }}
                 animate={isActive ? { scale: [1, 1.08, 1] } : { scale: 1 }}

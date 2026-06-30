@@ -52,7 +52,7 @@ export function applianceCost(
 }
 
 /**
- * Build the line-itemized bill. We do NOT add taxes — PREB tariffs are
+ * Build the line-itemized bill. We do NOT add taxes - PREB tariffs are
  * itemized pre-tax in the published books, and the disclaimer on the page
  * makes clear we're showing a rate-driven estimate, not a final invoice.
  */
@@ -125,7 +125,7 @@ export function solarOffsetSavings(
   };
 }
 
-/** Common PR home/office appliances — defaults for the calculator UI. */
+/** Common PR home/office appliances - defaults for the calculator UI. */
 export const APPLIANCE_PRESETS: Omit<Appliance, "id">[] = [
   { name: "Mini-split A/C (1 ton)",  watts: 1200, hoursPerDay: 8 },
   { name: "Refrigerator",            watts: 150,  hoursPerDay: 12 },

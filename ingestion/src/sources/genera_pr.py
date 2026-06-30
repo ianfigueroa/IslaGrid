@@ -48,7 +48,7 @@ USER_AGENT = (
     "islagrid-ai/0.1 (+contact@islagrid.app)"
 )
 
-# Multiple Spanish/English label variants — Genera has changed labels twice
+# Multiple Spanish/English label variants - Genera has changed labels twice
 # in the public record, so a permissive match list saves us a deploy.
 LABELS = {
     "total_generation": [
@@ -123,7 +123,7 @@ log = logging.getLogger(__name__)
 # Each plant gauge is an <svg> with several <text> nodes ([value, "MW", min,
 # max]); the value node populates LATE (after a gauge animation), so a leading
 # empty/decorative <text> is common. We collect every <text>, pick the first
-# numeric one, and pair it with the nearest ancestor's <h3> title — robust
+# numeric one, and pair it with the nearest ancestor's <h3> title - robust
 # against Genera reordering cards or interleaving section headers.
 _GAUGE_PAIR_JS = """
 els => els.map(svg => {
@@ -136,7 +136,7 @@ els => els.map(svg => {
 }).filter(x => x.title && x.value !== null)
 """
 
-# Wait until the gauges have actually drawn their numbers — at least 6 svgs
+# Wait until the gauges have actually drawn their numbers - at least 6 svgs
 # with a numeric <text>. Genera animates these in well after networkidle.
 _GAUGE_READY_JS = """
 () => {
@@ -236,12 +236,12 @@ def _to_float(raw: str | None) -> float | None:
 
 
 def _norm(s: str) -> str:
-    """Lowercase, strip accents + spaces — for fuzzy plant-name matching."""
+    """Lowercase, strip accents + spaces - for fuzzy plant-name matching."""
     nfkd = unicodedata.normalize("NFKD", s.lower())
     return "".join(c for c in nfkd if not unicodedata.combining(c)).replace(" ", "")
 
 
-# Gauges that are NOT plants — Genera renders these alongside the plant cards
+# Gauges that are NOT plants - Genera renders these alongside the plant cards
 # (the two demand gauges, plus the fuel-mix chart's "Porcientos" header).
 _NON_PLANT_TITLES = {
     _norm(t)
@@ -258,7 +258,7 @@ def _parse_plants(gauges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Pair each gauge {title, value} with a category. Genera lists some plants
     twice (e.g. Palo Seco appears under base AND backup) so we consume an
-    ordered expected list — the Nth "Palo Seco" gauge in page order maps to
+    ordered expected list - the Nth "Palo Seco" gauge in page order maps to
     the Nth "Palo Seco" entry across the category lists.
     """
     expected = [
@@ -279,7 +279,7 @@ def _parse_plants(gauges: list[dict[str, Any]]) -> list[dict[str, Any]]:
         category = "unknown"
         # Two passes so a loose substring never wins over a real name. Pass 1:
         # exact normalized match ("sanjuan" == "sanjuan"). Pass 2: substring,
-        # only if nothing matched exactly — this catches "Ciclo Combinado
+        # only if nothing matched exactly - this catches "Ciclo Combinado
         # Aguirre" → "aguirre" without letting "aguirre" hijack it in pass 1.
         idx = next(
             (i for i, (name, _c) in enumerate(expected) if not used[i] and name == nt),
@@ -321,7 +321,7 @@ def _parse_fuel_mix(html: str) -> list[dict[str, Any]]:
         for label in labels:
             pct = _grab_value_after(html, label, "%")
             if pct is None:
-                # The chart often renders the number with no % sign — take the
+                # The chart often renders the number with no % sign - take the
                 # bare integer immediately after the label instead.
                 m = re.search(
                     rf"{re.escape(label)}[\s\S]{{0,120}}?<[^>]*>\s*(\d{{1,3}})\s*<",
@@ -356,7 +356,7 @@ def run() -> int:
 
     # We're stale only when every gauge is blank. Genera doesn't currently
     # have a maintenance banner so checking just the numeric envelope is
-    # enough — if they add one later, mirror the luma_system_overview pattern.
+    # enough - if they add one later, mirror the luma_system_overview pattern.
     is_stale = all(v is None for v in parsed.values())
 
     verdict = classify(
@@ -410,7 +410,7 @@ def run() -> int:
             log.info("genera_pr: inserted %d plant rows", len(plants))
         except Exception as exc:
             log.warning(
-                "genera_pr: plant_snapshots insert failed (%s) — migration 0023 applied?",
+                "genera_pr: plant_snapshots insert failed (%s) - migration 0023 applied?",
                 exc,
             )
 
@@ -454,7 +454,7 @@ def run() -> int:
             log.info("genera_pr: inserted %d fuel-mix rows", len(fuel_mix))
         except Exception as exc:
             log.warning(
-                "genera_pr: fuel_mix_snapshots insert failed (%s) — migration 0023 applied?",
+                "genera_pr: fuel_mix_snapshots insert failed (%s) - migration 0023 applied?",
                 exc,
             )
 

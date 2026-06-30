@@ -22,7 +22,7 @@ interface Row {
  * map's old wind/rain overlays were removed; this endpoint stayed because the
  * per-muni risk inputs still need it.)
  *
- * Honest failure: if Supabase isn't configured or the query errors, we return
+ * If Supabase isn't configured or the query errors, we return
  * `{items: [], reason: "..."}` instead of fabricating values.
  */
 export async function GET() {

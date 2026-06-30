@@ -9,10 +9,10 @@ export const revalidate = 30;
  * the operator dashboard. For each ingest pipeline we look at the timestamp
  * of its newest row in its primary output table and compare against an
  * expected cadence. Status:
- *   - "ok"     — newest row is younger than expected_cadence_minutes
- *   - "lagging" — between 1× and 2× expected (workflow may be running slow)
- *   - "stale"   — older than 2× expected (workflow probably failed)
- *   - "missing" — no rows at all (pipeline never ran or table missing)
+ *   - "ok"     - newest row is younger than expected_cadence_minutes
+ *   - "lagging" - between 1× and 2× expected (workflow may be running slow)
+ *   - "stale"   - older than 2× expected (workflow probably failed)
+ *   - "missing" - no rows at all (pipeline never ran or table missing)
  *
  * Rationale: the existing freshness-check workflow only looks at
  * `/api/grid/status.snapshot.ts`, so a Genera-only outage hides behind a

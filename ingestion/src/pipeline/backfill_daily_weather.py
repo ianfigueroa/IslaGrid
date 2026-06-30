@@ -15,7 +15,7 @@ Why this exists:
 Cadence: run once; re-run only to extend the date range or refresh recent
 days. Idempotent (upsert on PK).
 
-API: Open-Meteo archive — free for non-commercial use, no auth, generous
+API: Open-Meteo archive - free for non-commercial use, no auth, generous
 quota. One call per muni covers the entire date range.
 """
 
@@ -134,11 +134,11 @@ def run(start: str = DEFAULT_START, end: str | None = None) -> int:
     total = 0
     for i, (muni, lon, lat) in enumerate(munis, 1):
         # Skip the per-muni call entirely if cached range already covers it
-        # — Open-Meteo doesn't change for past dates, no point re-fetching.
+        # - Open-Meteo doesn't change for past dates, no point re-fetching.
         cached_min, cached_max = _existing_dates_for(muni)
         if cached_min and cached_max and cached_min <= start and cached_max >= end:
             log.info(
-                "[%d/%d] %s — cached (%s → %s), skipping",
+                "[%d/%d] %s - cached (%s → %s), skipping",
                 i,
                 len(munis),
                 muni,
@@ -180,7 +180,7 @@ def run(start: str = DEFAULT_START, end: str | None = None) -> int:
                 }
             )
         try:
-            # One upsert per muni — 1 HTTP call for ~1100 daily rows.
+            # One upsert per muni - 1 HTTP call for ~1100 daily rows.
             _upsert_chunk(chunk)
         except Exception as e:
             log.error("upsert failed for %s: %s", muni, e)

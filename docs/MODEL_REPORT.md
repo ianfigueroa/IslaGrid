@@ -1,4 +1,4 @@
-# Outage-risk model — accuracy + honesty report
+# Outage-risk model report
 
 _Last updated: 2026-05-15_
 
@@ -22,23 +22,23 @@ Notable findings from the audit:
   `miluma.lumapr.com/outages` because the page is JavaScript-rendered.
   Adjacent URLs are also thin (`averias-mas-relevantes`: 25 captures,
   `resumen-del-sistema`: 31). Even with custom parsers across all variants,
-  the upper bound is ~50 historical labels — not enough.
+  the upper bound is ~50 historical labels - not enough.
 - Outage history span is **3 days** (2026-05-12 → 2026-05-15). The project
   just started ingesting in production.
 - The runtime continues to serve the rule-based `heuristic-v2-20260512`
-  model honestly. No miscalibrated ML is being deployed.
+  model. No miscalibrated ML is being deployed.
 
 Expected timeline to a trainable dataset: at the current observed rate of
 ~30 events/day from the live `outage_events` scraper, the gate clears in
-roughly **4–5 days** of continuous ingest. The auto-train workflow at
-`.github/workflows/train-outage-risk.yml` runs weekly and will pick it up.
+roughly **4-5 days** of continuous ingest. The auto-train workflow at
+`.github/workflows/predict-outage.yml` tries to train weekly and will pick it up.
 
 ---
 
 
 ## What's deployed today
 
-The risk numbers you see at `/api/risk/municipalities` come from a **rule-based heuristic**, model version `heuristic-v2-20260512`. There is no trained ML model in production yet. Returning a "model probability" without a model behind it would be dishonest, so we don't.
+The risk numbers you see at `/api/risk/municipalities` come from a **rule-based heuristic**, model version `heuristic-v2-20260512`. There is no trained ML model in production yet. The API does not return a "model probability" until a model exists.
 
 ## Inputs to the current heuristic
 
@@ -59,7 +59,7 @@ Until a real model ships, the `ci_low` / `ci_high` returned by the API are a **h
 - How stale the weather feature is (+5 if > 1h, +10 more if > 6h)
 - A base width of 8 points around the score
 
-The UI must label these as "uncertainty band" — never "95% confidence interval", because they aren't.
+The UI must label these as "uncertainty band" - never "95% confidence interval", because they aren't.
 
 ## When we'll ship a real model
 
@@ -88,7 +88,7 @@ Three of these (EAGLE-I, PREB, Wayback) were added in Block 6 specifically becau
 ## Planned model architecture
 
 - **Boosters** (we benchmark both): **LightGBM** primary + **CatBoost** challenger on the same temporal split; whichever wins on the validation fold gets shipped. LightGBM is the standard in current power-outage prediction papers; CatBoost often edges it on tabular data with many categorical features (muni id, alert level, fuel type). XGBoost is fine but slightly behind both on this class of problem.
-- **Time split**: 60% train / 20% calibrate / 20% test, strictly temporal — random splits leak the future into training.
+- **Time split**: 60% train / 20% calibrate / 20% test, strictly temporal - random splits leak the future into training.
 - **Calibration**: Isotonic regression fit on the calibrate fold's predicted probabilities vs actual labels.
 - **Output**: a single `.joblib` bundle: `{booster: "lightgbm"|"catboost", model, calibrator, feature_schema, training_window, auc_test, ece_test}`. Uploaded to R2 under `models/outage_risk/<version>.joblib`.
 - **Explainability**: SHAP values; top-3 features per prediction surfaced as `top_reasons`.
@@ -101,7 +101,7 @@ We considered (and rejected for now):
 - **TabPFN** (foundation model for small tabular data): useful while data is small, but it caps at ~10k rows and needs a GPU at inference. The EAGLE-I backfill alone is millions of rows, so we're not in TabPFN's sweet spot.
 - **Spatiotemporal GNN**: would beat boosters by ~5-8% AUC if we had feeder-level grid topology, but that data is non-public.
 
-## Honest accuracy expectations (once trained)
+## Expected accuracy (once trained)
 
 | Horizon | AUC range | Display label |
 |---|---|---|
@@ -109,7 +109,7 @@ We considered (and rejected for now):
 | 6-24h | 0.65-0.72 | "trend, not prediction" |
 | > 24h | (not modeled) | "storm prior + forecast" only |
 
-If after retraining we cannot beat the heuristic, we keep using the heuristic. Shipping a worse model with a fancier name is the kind of thing the no-synthetic-data rule was designed to prevent.
+If after retraining we cannot beat the heuristic, we keep using the heuristic.
 
 ## How to verify the current heuristic
 
@@ -123,7 +123,7 @@ select municipality_id, ts, risk_score, ci_low, ci_high, reasons, model_version
 -- risk_score should be at least 35; reasons[] mentions the storm_id
 ```
 
-## Anti-features (what we will NOT do)
+## What the model will not do
 
 - Mock historical outage data to "train" the model
 - Use random splits instead of temporal splits

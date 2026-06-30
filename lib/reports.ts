@@ -2,7 +2,7 @@
  * Community report type catalog + confidence bands.
  *
  * The DB stores `type` as a checked enum (see migration 0001 + 0008). Keep
- * this list in sync — every value here must exist in the SQL CHECK
+ * this list in sync - every value here must exist in the SQL CHECK
  * constraint or the insert will fail.
  */
 
@@ -43,7 +43,7 @@ export const REPORT_TYPES: ReportTypeMeta[] = [
 
 /**
  * Confidence band from raw count of recent reports near a cell.
- * Thresholds from the plan: 1–2 low, 3–10 medium, 10+ high.
+ * Thresholds from the plan: 1-2 low, 3-10 medium, 10+ high.
  */
 export function confidenceBand(count: number): "low" | "medium" | "high" {
   if (count >= 10) return "high";

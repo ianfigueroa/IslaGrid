@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "All municipalities — IslaGrid",
+  title: "All municipalities - IslaGrid",
   description:
     "Reliability scorecard for every Puerto Rico municipality. Search, sort, and jump straight to a neighborhood detail page.",
 };
@@ -48,7 +48,7 @@ async function loadDirectoryData() {
   const since30dIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   // Aggregate-history runs hourly. When it's catching up (or has just been
   // wiped after a dedup pass), the rollup table is sparse. Fall back to
-  // live event durations so the directory doesn't render a sea of "—".
+  // live event durations so the directory doesn't render a sea of "-".
   const [riskRes, dailyRes, eventRes, predRes] = await Promise.all([
     supa
       .from("municipality_risk_latest")
@@ -62,7 +62,7 @@ async function loadDirectoryData() {
       .select("municipality_id, started_at, ended_at")
       .gte("started_at", since30dIso)
       .limit(5000),
-    // 6h outage probability per muni — when the LightGBM gate fails, this
+    // 6h outage probability per muni - when the LightGBM gate fails, this
     // table is filled by the heuristic fallback so it's never empty in
     // production. Surface it on the directory so users see a forecast next
     // to the risk band.
@@ -83,7 +83,7 @@ async function loadDirectoryData() {
     );
   }
   // Live fallback: only fill munis the rollup didn't cover. Hours per event
-  // mirror lib/reliability.ts eventHours() — open-ended events are capped at
+  // mirror lib/reliability.ts eventHours() - open-ended events are capped at
   // MAX_OPEN_EVENT_HOURS so an unended announcement from 5 days ago doesn't
   // claim 120h of outage time (which is how Lares was hitting 1,185h).
   const nowMs = Date.now();

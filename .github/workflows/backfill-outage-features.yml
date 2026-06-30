@@ -1,12 +1,8 @@
 name: backfill-outage-features
 
-# One-shot: synthesize outage_features rows at every historical label's
-# timestamp + a 5x population of negatives. This unblocks the LightGBM
-# trainer, which previously couldn't see the 1,100+ Eagle-i labels
-# because there were no features at those timestamps to join against.
-#
-# Idempotent — wipes its own backfill window (older than 14 days) and
-# re-inserts. Live `predict-outage` cron continues writing newer rows.
+# One-shot: build outage_features rows at every historical label's timestamp
+# plus 5x negatives, so the trainer has features to join the Eagle-i labels
+# against. Idempotent: wipes its own window (older than 14 days) and re-inserts.
 on:
   workflow_dispatch:
 
@@ -20,10 +16,7 @@ permissions:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    # 60 min — the first run hits Open-Meteo 78 times and an occasional
-    # 60s response stretched a sub-5-min step into >30. Subsequent runs
-    # skip-if-cached and finish in 4-5 min, so this is only headroom for
-    # the cold path.
+    # first run hits Open-Meteo 78 times and can be slow; cached runs take ~5 min
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -37,10 +30,7 @@ jobs:
         working-directory: ingestion
         run: pip install -e .[ml]
 
-      # The Eagle-i raw ticks already cover 2023-2025, but `eagle_i_to_labels`
-      # ran with the default 365-day window the last time it fired, so labels
-      # only span 2025-05 → 2025-12. Re-synthesize across the full archive
-      # so the features backfill below sees the 3-year label history.
+      # default window is 365 days; rebuild labels over the full 2023-2025 archive
       - name: Re-synthesize eagle_i labels (full 3y window)
         working-directory: ingestion
         env:
@@ -48,19 +38,14 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.eagle_i_to_labels --window-days 1200
 
-      # Cache daily weather per muni in its own table. One Open-Meteo call
-      # per muni (~78 total) covers the 3y backfill window. Idempotent +
-      # skip-if-cached so subsequent runs are nearly instant. Runs BEFORE
-      # backfill_outage_features so features can join weather inline at
-      # synthesis time — avoids the old per-row PATCH that blew the
-      # 30-min job timeout.
+      # one Open-Meteo call per muni, cached. Runs before the features
+      # backfill so it can join weather inline instead of patching per row.
       - name: Cache daily weather (Open-Meteo)
         working-directory: ingestion
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # Open-Meteo outage shouldn't kill the workflow — trainer can run
-        # on grid_stress + temporal features alone.
+        # trainer can still run on grid + time features without weather
         continue-on-error: true
         run: python -m src.pipeline.backfill_daily_weather
 
@@ -71,10 +56,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m src.pipeline.backfill_outage_features
 
-      # Now that features cover historical labels, try training. The
-      # trainer's own gate (val Brier ≥ 5% better than heuristic) decides
-      # whether to publish the model — running it here is a no-op if the
-      # gate fails, but if it passes we get a real model immediately.
       - name: Train (only publishes if it beats the heuristic)
         working-directory: ingestion
         env:
@@ -84,14 +65,10 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        # Trainer exits non-zero when the gate fails (not enough labels or
-        # Brier didn't improve enough). We let that not fail the workflow
-        # so the feature backfill itself is still counted as a success.
+        # exits non-zero when the readiness/Brier gate fails; don't fail the backfill
         continue-on-error: true
         run: python -m ml.train
 
-      # Even if train didn't publish a new model, refreshing predictions
-      # so the dashboard sees the latest feature pass.
       - name: Predict
         working-directory: ingestion
         env:

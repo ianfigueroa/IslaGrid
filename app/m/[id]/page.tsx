@@ -16,12 +16,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const data = await loadScorecard(id);
   if (!data) {
-    return { title: "Municipality not found — IslaGrid" };
+    return { title: "Municipality not found - IslaGrid" };
   }
   const name = data.basics.name;
   return {
-    title: `${name} grid scorecard — IslaGrid`,
-    description: `Live grid status, outage risk, planned work, and recent outage events for ${name}, Puerto Rico. Source-labeled, never fabricated.`,
+    title: `${name} grid scorecard - IslaGrid`,
+    description: `Live grid status, outage risk, planned work, and recent outage events for ${name}, Puerto Rico. Every number is source-labeled.`,
     openGraph: {
       title: `${name} grid scorecard`,
       description: `Live grid intelligence for ${name}, Puerto Rico.`,

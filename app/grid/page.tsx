@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Grid dashboard — IslaGrid",
+  title: "Grid dashboard - IslaGrid",
   description:
     "Live generation per plant, island demand, and the next-6h outage forecast for every Puerto Rico municipality.",
 };
@@ -51,7 +51,7 @@ async function loadDashboard(): Promise<{
   const muniById = new Map(munis.map((m) => [m.id, m] as const));
 
   // 6h snapshot window is enough to drive the "freshness" pill and the
-  // "running now" output column. We don't need 24h of detail here — the
+  // "running now" output column. We don't need 24h of detail here - the
   // map popup already shows per-plant sparklines.
   const since6h = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
@@ -104,13 +104,13 @@ async function loadDashboard(): Promise<{
   }
 
   // Genera publishes renewable output as a SYSTEM-WIDE total per fuel
-  // (Solar 118 MW, Viento 98 MW, Hidro 14 MW, Gas de Vertedero 1 MW) —
+  // (Solar 118 MW, Viento 98 MW, Hidro 14 MW, Gas de Vertedero 1 MW) -
   // it doesn't break out per-plant. The scraper stores these under
   // plant_name='Solar' / 'Viento' / 'Hidro' / 'Gas de Vertedero'. To
   // give each curated renewable plant a number on the dashboard we
   // distribute the category total across plants of that fuel weighted
   // by nameplate capacity. Marked as `inferred` so the UI can show
-  // "est." next to the number — these aren't measured per-plant.
+  // "est." next to the number - these aren't measured per-plant.
   const RENEWABLE_KEYS: Record<string, string[]> = {
     solar: ["solar"],
     wind: ["viento", "wind"],
@@ -151,7 +151,7 @@ async function loadDashboard(): Promise<{
         if (!k) continue;
         // Guard: the renewable category buckets (solar/viento/hidro/...) are
         // 4-7 char generic words that would prefix-match plant names like
-        // "ilumina solar" (contains "solar"). Skip them here — they're
+        // "ilumina solar" (contains "solar"). Skip them here - they're
         // distributed below as inferred renewables.
         if (RENEWABLE_KEYS[p.fuel]?.includes(k)) continue;
         if (target.startsWith(k) || k.startsWith(target)) {
@@ -238,7 +238,7 @@ async function loadDashboard(): Promise<{
 
   // The forecast table tells the user whether the ML model is real yet. As
   // soon as we have any prediction sourced from LightGBM (vs the heuristic
-  // fallback), we flip the badge — for now infer from non-null probability
+  // fallback), we flip the badge - for now infer from non-null probability
   // count, since outage_predictions_latest is the join target either way.
   const trained = forecast.filter((f) => f.probability_6h != null).length > 0;
 
@@ -293,7 +293,7 @@ export default async function GridDashboardPage() {
                 title={
                   trained
                     ? "Predictions sourced from the latest model run."
-                    : "No predictions yet — the ML model is still gated until enough labels accumulate."
+                    : "No predictions yet - the ML model is still gated until enough labels accumulate."
                 }
               >
                 {trained ? "Live model" : "Heuristic fallback"}

@@ -12,7 +12,7 @@ of affected customers per region but isn't a discrete event stream.
 This pipeline walks each region's snapshot timeline and detects "outage
 episodes": continuous spans where `customers_affected` stays above a
 threshold. Each episode becomes one row in `outage_events` with
-`kind='unplanned'`. Episodes are tagged at the REGION level — we set
+`kind='unplanned'`. Episodes are tagged at the REGION level - we set
 `municipality_id` to NULL because LUMA's region totals don't tell us
 which specific muni was affected; the per-muni allocation already lives
 in `aggregate_luma_regions_to_munis.py`.
@@ -27,13 +27,13 @@ Design choices
   are dropped to avoid attributing noise as outages.
 - **Gap handling.** If two consecutive snapshots are more than
   `MAX_GAP_HOURS` (1.5h) apart, we treat the gap as missing data and
-  close any open episode — same convention as the region-split pipeline.
+  close any open episode - same convention as the region-split pipeline.
 - **Idempotent.** Event IDs are hashed from (region, started_at) so
   re-running the same window upserts in place. Open episodes (still
   active right now) re-upsert each run with the freshest `ended_at`
   estimate.
 
-The output rows feed any consumer that wants "real outage events" —
+The output rows feed any consumer that wants "real outage events" -
 the cause classifier, map sonar-pings, and any future per-event ETA model.
 """
 
@@ -126,7 +126,7 @@ def _detect_episodes(snaps: list[dict[str, Any]], region_id: str, region_name: s
         if last_ts is not None:
             gap_h = (ts - last_ts).total_seconds() / 3600.0
             if gap_h > MAX_GAP_HOURS and current is not None:
-                # Long poll gap — treat current episode as having closed at the
+                # Long poll gap - treat current episode as having closed at the
                 # last known sample to avoid attributing the gap as outage.
                 current.ended_at = last_ts
                 episodes.append(current)
@@ -192,7 +192,7 @@ def run(backfill_days: int = 365) -> int:
     )
     grouped = _fetch_snapshots(since)
     if not grouped:
-        log.info("no snapshots in window — nothing to do")
+        log.info("no snapshots in window - nothing to do")
         return 0
 
     rows: list[dict[str, Any]] = []

@@ -18,7 +18,7 @@ const BAND_TONE: Record<string, string> = {
 };
 
 function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -76,7 +76,7 @@ export function MunicipalityScorecard({ data }: Props) {
             </ul>
           ) : null}
           <p className="mt-3 text-[10px] text-text-3">
-            Sources: {data.vulnerability.sources.join(", ") || "—"}
+            Sources: {data.vulnerability.sources.join(", ") || "-"}
           </p>
         </section>
       ) : null}

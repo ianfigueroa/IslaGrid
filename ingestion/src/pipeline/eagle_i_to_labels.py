@@ -3,21 +3,21 @@ Convert Eagle-i 15-minute customer-out counts into discrete `outage_labels`.
 
 The ML trainer needs supervised labels of the form
 ``(municipality_id, started_at, ended_at, severity)``. Eagle-i publishes a
-raw time series — customers_out per county per 15 min — that has the right
+raw time series - customers_out per county per 15 min - that has the right
 *signal* but the wrong *shape*. This module bridges the two.
 
 Algorithm (per municipality):
 
   1. Walk the 15-min ticks chronologically.
   2. An "event" opens when ``customers_out >= START_THRESHOLD`` (default 100
-     households — captures street-scale interruptions while filtering out
+     households - captures street-scale interruptions while filtering out
      stray meter blips).
   3. An event stays open as long as ``customers_out >= END_THRESHOLD``. It
      closes after ``END_GAP_TICKS`` consecutive ticks below that, so a brief
      dip in the middle doesn't shatter one outage into many.
   4. Severity is graded by the peak customers_out during the event.
 
-Confidence is 0.75 — Eagle-i is federal/aggregated; trusted more than
+Confidence is 0.75 - Eagle-i is federal/aggregated; trusted more than
 community reports but less than first-party LUMA/AEEPR rows.
 
 Idempotent: relies on the partial unique index on
@@ -128,7 +128,7 @@ def _detect_events(
             )
             open_event = None
     if open_event is not None:
-        # Series ended mid-outage — close it at the last above-threshold tick.
+        # Series ended mid-outage - close it at the last above-threshold tick.
         events.append(
             (open_event.started_at, open_event.last_above, open_event.peak)
         )

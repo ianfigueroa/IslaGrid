@@ -68,7 +68,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
   const [snapshot, setSnapshot] = useState<GridSnapshot | null>(initialSnapshot);
   const [updates] = useState<UpdateItem[]>(initialUpdates);
-  // Basemap and UI theme are coupled by default — picking a dark basemap
+  // Basemap and UI theme are coupled by default - picking a dark basemap
   // from the drawer also flips the chrome to dark so the floating pills
   // don't look out of place. Satellite leaves the UI theme untouched (the
   // user explicitly picked imagery; their theme choice still stands).
@@ -81,7 +81,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
       setBasemap(next);
       if (next === "dark" && theme !== "dark") setTheme("dark");
       else if (next === "light" && theme !== "light") setTheme("light");
-      // "satellite" is theme-agnostic — leave UI theme alone.
+      // "satellite" is theme-agnostic - leave UI theme alone.
     },
     [theme, setTheme],
   );
@@ -113,7 +113,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
   // Refresh the snapshot every 30s so the status pill stays current. The
   // upstream ingest tops out at ~5 min, so polling faster doesn't buy
-  // freshness — 30s just shortens the worst-case stale window the user sees.
+  // freshness - 30s just shortens the worst-case stale window the user sees.
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -134,7 +134,7 @@ export function ControlRoom({ initialSnapshot, initialUpdates }: Props) {
 
   // Probe layers that often render empty (no active storm in the Atlantic
   // basin, no recent quakes) so the user knows the toggle worked. We only
-  // probe each layer once per session — if the user toggles off + on we don't
+  // probe each layer once per session - if the user toggles off + on we don't
   // nag them again.
   useEffect(() => {
     const probeLayer = async (probe: LayerProbe) => {

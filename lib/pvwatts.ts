@@ -32,7 +32,7 @@ export interface PvwattsResult {
   acAnnualKwh: number;
   acMonthlyKwh: number[]; // 12 entries, Jan..Dec
   solradAnnual: number;
-  /** Per the PVWatts response — kWh/kW/year specific yield. */
+  /** Per the PVWatts response - kWh/kW/year specific yield. */
   capacityFactor: number;
   apiHost: string;
 }
@@ -42,8 +42,8 @@ export async function pvwatts(
 ): Promise<PvwattsResult | null> {
   const apiKey = process.env.NREL_API_KEY;
   if (!apiKey) {
-    // Honest mode: don't fabricate output. The caller renders an "assessment
-    // pending — NREL_API_KEY not configured" state.
+    // No key, no output. The caller renders an "assessment
+    // pending - NREL_API_KEY not configured" state.
     return null;
   }
   const url = new URL(`https://${HOST}/api/pvwatts/v8.json`);

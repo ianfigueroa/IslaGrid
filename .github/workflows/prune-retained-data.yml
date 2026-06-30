@@ -11,7 +11,7 @@ name: prune-retained-data
 
 on:
   schedule:
-    # Sundays at 03:17 UTC — off-peak for most regions, randomized minute so
+    # Sundays at 03:17 UTC - off-peak for most regions, randomized minute so
     # we don't pile onto other scheduled crons.
     - cron: "17 3 * * 0"
   workflow_dispatch:

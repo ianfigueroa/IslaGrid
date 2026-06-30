@@ -9,7 +9,7 @@ const BAND_LABEL: Record<string, string> = {
   elevated: "Elevated",
   high: "High",
   severe: "Severe",
-  unknown: "—",
+  unknown: "-",
 };
 
 const BAND_TONE: Record<string, string> = {
@@ -155,7 +155,7 @@ export function ForecastTable({ rows }: Props) {
                 {r.top_reason ? (
                   <span className="line-clamp-1">{r.top_reason}</span>
                 ) : (
-                  <span className="text-text-3">—</span>
+                  <span className="text-text-3">-</span>
                 )}
               </td>
             </tr>
@@ -223,7 +223,7 @@ function ProbBar({
   if (pct == null) {
     return (
       <div className="flex items-center justify-end">
-        <span className="text-[11px] text-text-3">—</span>
+        <span className="text-[11px] text-text-3">-</span>
       </div>
     );
   }

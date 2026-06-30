@@ -3,7 +3,7 @@ import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 // 30s cache: the upstream ingest is on a 5-min cron, and the floating "Last
-// hour" card on the map polls at this same cadence — pretty much pointless
+// hour" card on the map polls at this same cadence - pretty much pointless
 // to go tighter unless we move ingest off GitHub Actions.
 export const revalidate = 30;
 

@@ -1,5 +1,5 @@
 """
-Phase 24 — per-municipality daily outage rollup.
+Per-municipality daily outage rollup.
 
 Reads from three upstream sources and produces one row per (municipality, day)
 in `municipality_outage_daily`:
@@ -10,7 +10,7 @@ in `municipality_outage_daily`:
 
 The rollup powers the /m/[id] reliability page (calendar, monthly chart, cause
 breakdown). Without it the page would have to join three tables on every
-request — fine for one user, painful at scale.
+request - fine for one user, painful at scale.
 
 Design notes
 ------------
@@ -110,7 +110,7 @@ def _kind_to_bucket(
 def _fetch_events(window_start: datetime) -> list[dict[str, Any]]:
     """Pull outage_events with their cause prediction, joined in app code
     because PostgREST doesn't do the JOIN we want without a view."""
-    # PostgREST caps responses at 1000 rows by default — paginate so multi-year
+    # PostgREST caps responses at 1000 rows by default - paginate so multi-year
     # backfills don't silently truncate.
     page_size = 1000
     offset = 0
@@ -136,7 +136,7 @@ def _fetch_events(window_start: datetime) -> list[dict[str, Any]]:
     if not events:
         return []
     ids = [e["id"] for e in events]
-    # PostgREST `in_` cap is generous (~1000) — chunk to be safe.
+    # PostgREST `in_` cap is generous (~1000) - chunk to be safe.
     causes: dict[str, str] = {}
     for chunk_start in range(0, len(ids), 500):
         chunk_ids = ids[chunk_start : chunk_start + 500]
@@ -162,7 +162,7 @@ def _fetch_eagle_i(window_start: datetime) -> list[dict[str, Any]]:
     convert these into outage_hours (would double-count with outage_events),
     only into customer_minutes."""
     # 3 years × 6 munis × 96 ticks/day ≈ 630k rows. PostgREST's default 1000-
-    # row cap silently truncates this — paginate so the rollup sees every tick.
+    # row cap silently truncates this - paginate so the rollup sees every tick.
     page_size = 1000
     offset = 0
     rows: list[dict[str, Any]] = []
@@ -211,7 +211,7 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
             continue
         # Planned-work announcements describe FUTURE scheduled work, not
         # customer outages that already happened. Counting them inflated the
-        # daily rollup with thousands of phantom outage-hours per muni —
+        # daily rollup with thousands of phantom outage-hours per muni -
         # they belong in the planned-work map layer, not reliability history.
         kind = event.get("kind")
         if kind == "planned":
@@ -222,7 +222,7 @@ def aggregate(window_days: int) -> dict[tuple[str, date], DailyAgg]:
             continue
         raw_ended = _parse_ts(event.get("ended_at"))
         if raw_ended is None:
-            # ended_at missing — most scrapers don't set it. Cap so a stale
+            # ended_at missing - most scrapers don't set it. Cap so a stale
             # announcement doesn't claim days of "outage time".
             cap = started + timedelta(hours=MAX_OPEN_EVENT_HOURS)
             ended = min(datetime.now(UTC), cap)
@@ -345,7 +345,7 @@ def main() -> int:
         help="How many days back to aggregate. Default 30; max 5000 (≈13y) for full Eagle-i archive backfills.",
     )
     args = parser.parse_args()
-    # 5000d ≈ 13y — covers the Eagle-i archive (2014→present) with headroom and
+    # 5000d ≈ 13y - covers the Eagle-i archive (2014→present) with headroom and
     # still rejects obvious unit-mistakes like passing seconds instead of days.
     if args.backfill_days < 1 or args.backfill_days > 5000:
         parser.error("--backfill-days must be between 1 and 5000")

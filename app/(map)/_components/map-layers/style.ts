@@ -15,7 +15,7 @@ import { layers as protomapsLayers, namedFlavor } from "@protomaps/basemaps";
 export type Basemap = "light" | "dark" | "satellite";
 
 // Register the pmtiles:// protocol with MapLibre once per page load. Calling
-// this twice is harmless — addProtocol replaces the previous handler — but
+// this twice is harmless - addProtocol replaces the previous handler - but
 // guarding keeps the console clean during HMR.
 let _pmtilesRegistered = false;
 export function ensurePmtilesProtocol(): void {
@@ -31,7 +31,7 @@ export function ensurePmtilesProtocol(): void {
 // deep navy land + abyss water in dark. Roads stay quiet so the data on top
 // (risk, outages, plants) dominates the eye.
 // In Protomaps, "background" is the void color that shows everywhere a
-// pmtiles tile hasn't loaded — including the area beyond our tile bbox.
+// pmtiles tile hasn't loaded - including the area beyond our tile bbox.
 // Setting it to the ocean color lets the open water above PR's north coast
 // read as ocean instead of an empty white strip. "water" is the explicit
 // inland-water + coastal fill inside the tile coverage; we keep both in
@@ -108,7 +108,7 @@ function satelliteStyle(): maplibregl.StyleSpecification {
     sources: {
       basemap: {
         type: "raster",
-        // Esri World Imagery — free for non-commercial use, dense global cover.
+        // Esri World Imagery - free for non-commercial use, dense global cover.
         tiles: [
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         ],

@@ -2,7 +2,7 @@
 
 *Last updated: 2026-05-11*
 
-IslaGrid AI is a public, informational dashboard about Puerto Rico's electric grid. This page explains what we collect, what we do not collect, and how to remove your data.
+IslaGrid is a public, informational dashboard about Puerto Rico's electric grid. This page explains what we collect, what we do not collect, and how to remove your data.
 
 ## What we collect
 
@@ -25,7 +25,7 @@ IslaGrid AI is a public, informational dashboard about Puerto Rico's electric gr
 
 ## What we never publish
 
-- Your user ID, email, or IP — hashed or otherwise.
+- Your user ID, email, or IP - hashed or otherwise.
 - Your exact location.
 - Pole-, transformer-, or feeder-level infrastructure information, even if it becomes available to us.
 
@@ -37,7 +37,7 @@ IslaGrid AI is a public, informational dashboard about Puerto Rico's electric gr
 
 ## How to delete your data
 
-Email **contact@islagrid.app** with the subject `IslaGrid AI: delete my account`. We will delete your account, all community reports tied to it, and any hashed IPs we can correlate, within 30 days. You will receive a confirmation when this is done.
+Email **contact@islagrid.app** with the subject `IslaGrid: delete my account`. We will delete your account, all community reports tied to it, and any hashed IPs we can correlate, within 30 days. You will receive a confirmation when this is done.
 
 ## Cookies
 

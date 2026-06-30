@@ -47,7 +47,7 @@ def load_bundle() -> ModelBundle | None:
 
     Returns None when no usable bundle is available; the caller falls back
     to the heuristic. We treat ``calibration_warning=True`` bundles as "do
-    not use" because deploying a miscalibrated model is worse than honest
+    not use" because a miscalibrated model is worse than the plain
     rule output.
     """
     global _CACHED

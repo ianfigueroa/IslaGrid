@@ -1,7 +1,7 @@
 /**
  * Pure functions for the battery backup simulator.
  *
- * The library is short on purpose — sizing a residential backup battery is
+ * The library is short on purpose - sizing a residential backup battery is
  * primarily a load-vs-runtime calculation. We round the outputs aggressively
  * because input precision (duty cycle, ambient temperature, surge headroom)
  * doesn't justify decimal-place precision in the answer.
@@ -16,13 +16,13 @@ export interface ApplianceLoad {
   dutyCycle: number;
   /**
    * Peak-to-continuous wattage ratio at startup. Motors (fridges, pumps,
-   * compressors, mini-splits) commonly draw 2–5× their nameplate for a
+   * compressors, mini-splits) commonly draw 2-5× their nameplate for a
    * fraction of a second at startup; the inverter needs to handle that
    * surge or it'll trip and shut down the critical loads. Defaults to 1.5
    * for unknown loads so the inverter has *some* headroom.
    */
   surgeMultiplier?: number;
-  /** True for medical / safety loads — these get sized with extra headroom. */
+  /** True for medical / safety loads - these get sized with extra headroom. */
   critical?: boolean;
 }
 
@@ -43,7 +43,7 @@ export const APPLIANCE_LOADS: ApplianceLoad[] = [
 
 /**
  * Three battery chemistries the residential PR market actually carries. The
- * numbers are deliberately conservative — installed cost reflects the median
+ * numbers are deliberately conservative - installed cost reflects the median
  * PR quote (battery + inverter + balance-of-system + labor), not the cell
  * cost on its own. DOD is the manufacturer-rated usable depth of discharge.
  */
@@ -83,7 +83,7 @@ export const CHEMISTRIES: BatteryChemistry[] = [
     dod: 0.95,
     costPerKwh: 1600,
     cycleLife: 15000,
-    tradeoff: "Premium. Fastest charge, longest life, deep DOD — overkill unless you're cycling daily.",
+    tradeoff: "Premium. Fastest charge, longest life, deep DOD - overkill unless you're cycling daily.",
   },
 ];
 
@@ -94,7 +94,7 @@ export function chemistryById(id: BatteryChemistry["id"]): BatteryChemistry {
 export interface SizingInputs {
   selected: ApplianceLoad[];
   targetHours: number;
-  /** Usable depth of discharge — overrides chemistry default if set. */
+  /** Usable depth of discharge - overrides chemistry default if set. */
   dod?: number;
   /** Battery chemistry. Defaults to LFP. */
   chemistry?: BatteryChemistry["id"];
@@ -107,7 +107,7 @@ export interface SizingInputs {
 export interface SizingResult {
   averageWatts: number;
   /**
-   * Peak watts the inverter needs to handle without tripping — sum of each
+   * Peak watts the inverter needs to handle without tripping - sum of each
    * load's `watts × surgeMultiplier`. Not all loads surge at the same
    * instant in practice, but inverter spec sheets are rated to a single
    * worst-case so we don't divide by load count.
@@ -145,7 +145,7 @@ export function sizeBattery(inputs: SizingInputs): SizingResult {
   const averageWatts = energyWhPerHour;
 
   // Peak surge: each load contributes watts × its surgeMultiplier (default
-  // 1.5). Sum across all loads — pessimistic but matches how inverters are
+  // 1.5). Sum across all loads - pessimistic but matches how inverters are
   // spec'd (single worst-case rating, not load-coincidence-adjusted).
   const peakSurgeWatts = inputs.selected.reduce(
     (sum, a) => sum + a.watts * (a.surgeMultiplier ?? 1.5),
@@ -180,12 +180,12 @@ export function sizeBattery(inputs: SizingInputs): SizingResult {
   const notes: string[] = [];
   if (inputs.selected.some((a) => a.critical)) {
     notes.push(
-      "Critical loads selected — wire to a dedicated critical-load panel so the inverter only powers these during outages.",
+      "Critical loads selected - wire to a dedicated critical-load panel so the inverter only powers these during outages.",
     );
   }
   if (peakSurgeWatts > 0 && peakSurgeWatts > energyWhPerHour * 2.5) {
     notes.push(
-      `Heavy startup surge (${Math.round(peakSurgeWatts).toLocaleString()} W peak vs ${Math.round(energyWhPerHour).toLocaleString()} W continuous) — make sure the inverter is rated for the peak, not just the continuous draw.`,
+      `Heavy startup surge (${Math.round(peakSurgeWatts).toLocaleString()} W peak vs ${Math.round(energyWhPerHour).toLocaleString()} W continuous) - make sure the inverter is rated for the peak, not just the continuous draw.`,
     );
   }
   const cloudyDayWarning =
@@ -198,7 +198,7 @@ export function sizeBattery(inputs: SizingInputs): SizingResult {
   }
   if (energyWhPerHour > 5000) {
     notes.push(
-      "Heavy continuous load (>5 kW) — a single inverter may not be enough. Talk to an installer about parallel inverters.",
+      "Heavy continuous load (>5 kW) - a single inverter may not be enough. Talk to an installer about parallel inverters.",
     );
   }
 

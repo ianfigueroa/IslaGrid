@@ -1,5 +1,5 @@
 /**
- * Hand-curated PREB tariff snapshot — bill calculator is deferred to Phase 6+.
+ * Hand-curated PREB tariff snapshot.
  * This file exists so the data path is defined and the migration's `preb_rates`
  * table has at least one seed row.
  *
@@ -22,7 +22,7 @@ export const PREB_RATES: PrebRate[] = [
     perKwh: 0.27,
     notes:
       "Effective $/kWh estimate including fuel + purchased-power adjustments. " +
-      "Hand-entered for MVP; verify against PREB tariff book before quoting.",
+      "Hand-entered; verify against PREB tariff book before quoting.",
   },
 ];
 

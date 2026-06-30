@@ -3,7 +3,7 @@ Backfill LUMA region snapshots from the public SuperSonicHub1 archive.
 
 LUMA does not publish a historical outage dataset. Our own 5-min poller has
 only been running a few weeks. To close the gap, we lean on a community
-archive — github.com/SuperSonicHub1/luma-energy-outages — which has been
+archive - github.com/SuperSonicHub1/luma-energy-outages - which has been
 committing the ``regionsWithoutService`` JSON to git since Sept 2023.
 
 The archive has ~33k commits touching ``service_statistics.json`` (they
@@ -15,7 +15,7 @@ the same end-state.
 Performance:
   - Full clone (not blob:none). The repo is ~970MB but a full clone runs
     in ~60s on GH Actions, and `git show` becomes a local op afterward.
-    `--filter=blob:none` was 60x slower in practice — every `git show`
+    `--filter=blob:none` was 60x slower in practice - every `git show`
     spawned a network fetch.
   - `git cat-file --batch` streams blob contents in one subprocess, so we
     don't pay fork+exec overhead per snapshot.

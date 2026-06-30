@@ -6,7 +6,7 @@ The ML trainer (ingestion/ml/train.py) joins `outage_features` rows against
 Until now nothing wrote to outage_labels, so the trainer never had supervision
 even though we have 200+ outage_events on file.
 
-This script is idempotent — the unique (muni, started_at, source) index in
+This script is idempotent - the unique (muni, started_at, source) index in
 0006_outage_ml.sql dedupes re-runs. Safe to invoke as part of the predict-
 outage workflow before training so any new events get labelled first.
 """
@@ -99,7 +99,7 @@ def run(limit: int | None = None) -> int:
             )
         if payload:
             # The unique index on (municipality_id, started_at, source) handles
-            # dedupe via on_conflict — re-runs are no-ops.
+            # dedupe via on_conflict - re-runs are no-ops.
             sb.table("outage_labels").upsert(
                 payload,
                 on_conflict="municipality_id,started_at,source",

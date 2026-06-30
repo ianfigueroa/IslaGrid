@@ -23,7 +23,7 @@ export function BatterySimulator({ appliances }: Props) {
   const [solarKw, setSolarKw] = useState(0);
   const [chemistryId, setChemistryId] = useState<BatteryChemistry["id"]>("lfp");
 
-  // Allow microgrid hand-off from /solar — `?from=solar&kw=4.5` pre-fills the
+  // Allow microgrid hand-off from /solar - `?from=solar&kw=4.5` pre-fills the
   // solar field so users don't re-enter what they just told the Solar Lens.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -198,7 +198,7 @@ export function BatterySimulator({ appliances }: Props) {
             value={
               result.solarRechargeKwhPerDay > 0
                 ? `${result.solarRechargeKwhPerDay.toFixed(1)} kWh/day`
-                : "—"
+                : "-"
             }
           />
         </div>

@@ -85,7 +85,7 @@ def _heuristic_fallback(features: list[dict[str, Any]]) -> list[float]:
 
 
 # Page size for scanning outage_features. PR has 78 munis, so 5000 rows is
-# typically ~64 latest rows per muni — plenty to find one fresh row each.
+# typically ~64 latest rows per muni - plenty to find one fresh row each.
 # If the table ever grows so dense that 5000 doesn't cover one row per muni
 # we log a warning and page again rather than silently skipping munis.
 _FEATURES_PAGE_SIZE = 5000
@@ -123,7 +123,7 @@ def _latest_features() -> list[dict[str, Any]]:
             break
         offset += _FEATURES_PAGE_SIZE
         # Soft cap so a runaway table can't OOM the runner. 50k rows ≈ ~640
-        # newest entries per muni — more than enough for "latest per muni."
+        # newest entries per muni - more than enough for "latest per muni."
         if offset >= 50_000:
             log.warning(
                 "_latest_features: scanned %d rows without exhausting; %d munis covered",
@@ -185,14 +185,14 @@ def run() -> int:
     for row, prob in zip(rows, probs):
         # Tolerate mixed-microsecond ISO timestamps (live cron writes
         # `...:00+00:00`, backfill writes `...:00.057693+00:00`). A bad row
-        # shouldn't kill the whole run — log and skip.
+        # shouldn't kill the whole run - log and skip.
         try:
             feature_ts = datetime.fromisoformat(str(row["ts"]).replace("Z", "+00:00"))
         except ValueError:
             skipped_parse += 1
             continue
         freshness_s = int((now - feature_ts).total_seconds())
-        # Honesty rail: stale features get no published prediction.
+        # stale features get no published prediction
         if freshness_s > 2 * HORIZON_SECONDS:
             continue
         payload.append(
@@ -212,7 +212,7 @@ def run() -> int:
         log.warning("outage_predictions: skipped %d rows with unparseable ts", skipped_parse)
 
     if payload:
-        # Upsert failures must surface — silently swallowing them publishes
+        # Upsert failures must surface - silently swallowing them publishes
         # nothing while logging a confident success line, hiding real outages
         # from the dashboard.
         try:

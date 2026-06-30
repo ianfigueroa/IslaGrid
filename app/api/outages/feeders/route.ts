@@ -46,7 +46,7 @@ interface Payload {
   features: FeederFeature[];
   reason?: "supabase_unconfigured" | "supabase_error";
   error?: string;
-  /** True when the result hit the row cap — the map is showing a subset. */
+  /** True when the result hit the row cap - the map is showing a subset. */
   truncated?: boolean;
 }
 

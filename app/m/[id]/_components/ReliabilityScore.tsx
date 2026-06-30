@@ -7,7 +7,7 @@ interface Props {
   percentile: number;
   /** Total outage hours for this muni in the selected window. */
   totalHours: number;
-  /** Island-wide median outage hours in the same window — anchor for "are
+  /** Island-wide median outage hours in the same window - anchor for "are
    *  we normal?". */
   islandMedianHours: number;
 }

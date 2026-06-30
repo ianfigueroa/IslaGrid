@@ -25,7 +25,7 @@ jobs:
           echo "$payload"
           ts=$(echo "$payload" | python3 -c "import json,sys; d=json.load(sys.stdin); s=d.get('snapshot') or {}; print(s.get('ts') or '')")
           if [ -z "$ts" ]; then
-            echo "::warning::No snapshot yet — pipeline may be cold-starting or upstream in maintenance."
+            echo "::warning::No snapshot yet - pipeline may be cold-starting or upstream in maintenance."
             exit 0
           fi
           now=$(date -u +%s)
@@ -51,7 +51,7 @@ jobs:
           fi
           echo "$payload" | python3 -m json.tool || echo "$payload"
           # Fail loud if any pipeline is "stale" (older than 2x its cadence).
-          # "lagging" and "missing" only warn — missing is normal for brand-new
+          # "lagging" and "missing" only warn - missing is normal for brand-new
           # tables or pipelines that haven't run yet on a cold environment.
           echo "$payload" | python3 - <<'PY'
           import json, sys

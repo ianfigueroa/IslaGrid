@@ -137,7 +137,7 @@ echo
 echo "Wrote $LOCAL_ENV (mode 600)"
 echo "Wrote $INGEST_ENV (mode 600)"
 echo
-echo "Done. Both files are gitignored — they will not be committed."
+echo "Done. Both files are gitignored - they will not be committed."
 echo
 echo "Quick verification:"
 ls -la "$LOCAL_ENV" "$INGEST_ENV" 2>&1 | head -3

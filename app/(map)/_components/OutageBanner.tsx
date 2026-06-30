@@ -7,12 +7,12 @@ import { useOutagesSummary } from "./OutagesPanel";
 /**
  * Slim banner pinned to the top of the map view ("X customers without power
  * right now"). Styled by severity tier so the eye can register the state at
- * a glance without reading the number — gray <500, amber <10k, red ≥10k.
+ * a glance without reading the number - gray <500, amber <10k, red ≥10k.
  *
  * The trend chip on the right compares to a snapshot from ~1h ago so users
  * can see whether the situation is getting better or worse without having to
  * remember what the number was last time they looked. We only render the
- * chip when the absolute delta is ≥10 customers and ≥1% of current — small
+ * chip when the absolute delta is ≥10 customers and ≥1% of current - small
  * jitter from ingest noise shouldn't ping the eye.
  *
  * Shares a fetch with OutagesPanel via useOutagesSummary so we don't double-
@@ -20,7 +20,7 @@ import { useOutagesSummary } from "./OutagesPanel";
  */
 export function OutageBanner() {
   const { data } = useOutagesSummary();
-  // Don't flash placeholder text on first load — render nothing until the
+  // Don't flash placeholder text on first load - render nothing until the
   // first response arrives. The status pill below carries the load.
   if (!data) return null;
   const total = data.total_customers;

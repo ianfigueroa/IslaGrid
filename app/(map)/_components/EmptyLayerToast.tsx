@@ -15,7 +15,7 @@ interface Props {
 /**
  * Floating pill above the LayerPills toolbar. Used to surface
  * "you toggled this layer on but there's nothing to show right now" so the
- * user can tell the layer is working but quiet — important for Hurricane and
+ * user can tell the layer is working but quiet - important for Hurricane and
  * other rare layers where empty looks identical to broken.
  */
 export function EmptyLayerToast({ message, durationMs = 3500, onDismiss }: Props) {

@@ -11,7 +11,7 @@ release we trust is 24237376 ("Historical Electric Power Outage Data for
 the United States 2014-2023"). We expose the URL via env so a future
 re-release can be ingested without a code change.
 
-This is a heavy job — the full archive is multi-GB. We stream the CSVs,
+This is a heavy job - the full archive is multi-GB. We stream the CSVs,
 filter to FIPS state = 72 (Puerto Rico) before parsing, and upsert in
 batches of 5k. Idempotent: re-running tops up only the rows that don't
 already exist.
@@ -118,7 +118,7 @@ def _muni_id(fips_state: str, fips_county: str) -> str | None:
         return None
     if not fips_county.isdigit() or len(fips_county) != 3:
         return None
-    # Returning None for unmapped codes is fine — the row still lands in
+    # Returning None for unmapped codes is fine - the row still lands in
     # eagle_i_outages with municipality_id NULL, and downstream label
     # synthesis just skips it. The FK only applies when a value is present.
     return FIPS_TO_SLUG.get(fips_county)
@@ -229,7 +229,7 @@ def run(url: str | None = None, batch_size: int = 5000) -> int:
     log.info("eagle_i: done; scanned %d rows, kept %d PR rows", seen, total)
     if seen > 0 and total == 0:
         log.error(
-            "eagle_i: scanned %d rows but kept 0 — the source columns may have "
+            "eagle_i: scanned %d rows but kept 0 - the source columns may have "
             "changed. Expected one of fips_code/county_fips/fips_state. "
             "First-row header keys: %s",
             seen,

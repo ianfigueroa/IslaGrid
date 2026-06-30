@@ -16,7 +16,7 @@ interface MuniProps {
 }
 
 /**
- * EXPERIMENTAL — see lib/demand.ts header. Returns a per-municipality
+ * EXPERIMENTAL - see lib/demand.ts header. Returns a per-municipality
  * "pressure" indicator, NOT megawatts. The UI must label this clearly.
  *
  * We approximate population density by dividing population by a hardcoded
@@ -107,7 +107,7 @@ export async function GET() {
       local_hour: localHour,
       island_stress: islandStress,
       notice:
-        "EXPERIMENTAL — relative demand pressure proxy, not megawatts. " +
+        "EXPERIMENTAL - relative demand pressure proxy, not megawatts. " +
         "See lib/demand.ts for methodology.",
       source: "islagrid-heuristic",
     },

@@ -3,7 +3,7 @@
  * matching public/geo/pr-municipalities.geojson).
  *
  * Used by /api/outages/muni-overlay to color whole munis when feeder-level
- * outage data is empty — most of the time AEEPR's per-feeder feed sits empty
+ * outage data is empty - most of the time AEEPR's per-feeder feed sits empty
  * between pushes but LUMA still reports region-level customer counts, so we
  * smear the region count across its munis as a coarse fallback.
  *

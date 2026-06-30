@@ -30,8 +30,8 @@ const STR = {
   batteryAdvice: { en: "Battery advice", es: "Guía de baterías" },
   shelters: { en: "Refuges nearby", es: "Refugios cercanos" },
   footer: {
-    en: "Disaster mode caches this page so it loads with no signal. Numbers may be stale — refresh when you get connectivity.",
-    es: "Este modo guarda la página para que cargue sin señal. Los datos pueden estar atrasados — actualiza cuando tengas conexión.",
+    en: "Disaster mode caches this page so it loads with no signal. Numbers may be stale - refresh when you get connectivity.",
+    es: "Este modo guarda la página para que cargue sin señal. Los datos pueden estar atrasados - actualiza cuando tengas conexión.",
   },
   numbersUnavailable: {
     en: "Numbers temporarily unavailable.",
@@ -87,7 +87,7 @@ interface SnapshotPayload {
 }
 
 function fmtTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",

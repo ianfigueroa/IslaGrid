@@ -37,7 +37,7 @@ def _try_import_tropycal() -> Any | None:
 
         return realtime
     except Exception as exc:  # noqa: BLE001
-        log.warning("tropycal not available (%s) — hurricane ingest skipped", exc)
+        log.warning("tropycal not available (%s) - hurricane ingest skipped", exc)
         return None
 
 
@@ -106,7 +106,7 @@ def run() -> int:
     try:
         rt = realtime.Realtime()
     except Exception as exc:  # noqa: BLE001
-        log.warning("tropycal.Realtime() failed (%s) — skipping", exc)
+        log.warning("tropycal.Realtime() failed (%s) - skipping", exc)
         return 0
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -150,7 +150,7 @@ def run() -> int:
 
     if not rows:
         log.info("nhc_hurdat: no active Atlantic storms")
-        # Mark any previously-active storms as inactive — the absence of a row
+        # Mark any previously-active storms as inactive - the absence of a row
         # in list_active_storms() is the canonical "storm dissipated" signal.
         try:
             supabase().table("hurricane_forecasts").update({"active": False}).neq(

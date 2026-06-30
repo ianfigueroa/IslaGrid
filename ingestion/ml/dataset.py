@@ -1,7 +1,7 @@
 """
 Build the (features, label) training dataset from Supabase.
 
-Honest design:
+Design:
   - Time-based split. We NEVER random-shuffle outage data.
   - Negatives are sampled from (municipality, hour) tuples with no label
     within ±2 h, weighted to roughly balance the class distribution.
@@ -127,7 +127,7 @@ def time_split(df: pd.DataFrame,
     val = df[(df["ts"] >= val_start) & (df["ts"] < test_start)].copy()
     test = df[df["ts"] >= test_start].copy()
     log.info(
-        "Split sizes — train: %d (pos %d), val: %d (pos %d), test: %d (pos %d)",
+        "Split sizes - train: %d (pos %d), val: %d (pos %d), test: %d (pos %d)",
         len(train), int(train["y"].sum()) if "y" in train else 0,
         len(val),   int(val["y"].sum())   if "y" in val   else 0,
         len(test),  int(test["y"].sum())  if "y" in test  else 0,
@@ -136,7 +136,7 @@ def time_split(df: pd.DataFrame,
 
 
 def to_xy(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    # Don't fillna(0) — LightGBM handles NaN natively by learning a
+    # Don't fillna(0) - LightGBM handles NaN natively by learning a
     # missing-value branch per split. Converting null → 0 hides that
     # signal and lets the heuristic (which also treats null as 0)
     # match the model on every weather-missing row. With NaNs preserved

@@ -4,7 +4,7 @@ import { APPLIANCE_LOADS } from "@/lib/battery";
 import { SubPageHeader } from "@/app/_components/SubPageHeader";
 
 export const metadata: Metadata = {
-  title: "Battery backup simulator — IslaGrid",
+  title: "Battery backup simulator - IslaGrid",
   description:
     "Pick what you'd keep running during a Puerto Rico outage and see the battery size, backup duration, and cost it would take.",
 };
@@ -35,12 +35,12 @@ export default function BatteryPage() {
 
         <section className="surface mt-10 rounded-xl p-5 text-sm text-text-2">
           <h2 className="text-base font-semibold text-text">
-            Assumptions &amp; honesty notes
+            Assumptions &amp; caveats
           </h2>
           <ul className="mt-3 space-y-2">
             <li>
               Appliance wattages and duty cycles are <span className="text-text">typical residential averages</span>{" "}
-              — your specific model can vary 20%+. Treat the result as an
+              - your specific model can vary 20%+. Treat the result as an
               estimate and use a Kill-A-Watt meter for the loads that dominate.
             </li>
             <li>
@@ -49,12 +49,12 @@ export default function BatteryPage() {
               by ±$300/kWh. Get installer quotes for real numbers.
             </li>
             <li>
-              We assume 5.5 sun-hours/day — PR&rsquo;s annual average from the
+              We assume 5.5 sun-hours/day - PR&rsquo;s annual average from the
               NREL PSM3 dataset. Wet-season weeks get materially less.
             </li>
             <li>
               This sizer does <span className="text-text">not</span> account for surge currents on motor starts
-              (compressors, well pumps). For real installs you want 2–3×
+              (compressors, well pumps). For real installs you want 2-3×
               continuous wattage headroom on the inverter.
             </li>
           </ul>

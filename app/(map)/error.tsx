@@ -33,8 +33,8 @@ export default function MapError({ error, reset }: Props) {
         <h1 className="mt-2 text-xl font-semibold">The grid map crashed.</h1>
         <p className="mt-3 text-sm text-text-2">
           {IS_DEV
-            ? "MapLibre or one of the data fetches threw an error during render. You can try reloading the map — the rest of the site (bill estimator, attribution, etc.) is unaffected."
-            : "The map didn't render. You can try reloading it — the rest of the site keeps working."}
+            ? "MapLibre or one of the data fetches threw an error during render. You can try reloading the map - the rest of the site (bill estimator, attribution, etc.) is unaffected."
+            : "The map didn't render. You can try reloading it - the rest of the site keeps working."}
         </p>
         {error?.digest ? (
           <p className="mt-3 font-mono text-[10px] text-text-3">

@@ -2,13 +2,13 @@
 Backfill of LUMA's outage map using Internet Archive's Wayback Machine.
 
 LUMA does not publish a historical outage dataset. Wayback periodically
-captures `miluma.lumapr.com/outages` though — its CDX API exposes every
+captures `miluma.lumapr.com/outages` though - its CDX API exposes every
 capture. We discover captures, fetch each one, and re-use the same
 ArcGIS-or-HTML parser that powers our live ingest.
 
 This is a one-shot job; once we have the backfill loaded we only re-run
 when Wayback adds new captures. Run with --since 2022-01-01 to walk a
-window. The script is idempotent — duplicate (wayback_capture_ts,
+window. The script is idempotent - duplicate (wayback_capture_ts,
 wayback_url) rows are upserted, not duplicated.
 
 License: Wayback content remains owned by the original site; IA's terms
@@ -37,7 +37,7 @@ CDX = "https://web.archive.org/cdx/search/cdx"
 log = logging.getLogger(__name__)
 
 
-# CDX has been flaky in 2025 — frequent 5xx and slow responses. Long timeout
+# CDX has been flaky in 2025 - frequent 5xx and slow responses. Long timeout
 # + more retries with longer backoff so a transient outage doesn't kill the
 # whole backfill job.
 @retry(wait=wait_exponential(min=5, max=60), stop=stop_after_attempt(6), reraise=True)
@@ -177,7 +177,7 @@ def run(since: str = "2022-01-01", until: str | None = None, limit: int = 500) -
             continue
         regions = _parse_capture(body)
         if not regions:
-            # Even with no parsed rows we record that we tried — prevents
+            # Even with no parsed rows we record that we tried - prevents
             # us from re-fetching the same dead snapshot.
             regions_payload: object = []
         else:

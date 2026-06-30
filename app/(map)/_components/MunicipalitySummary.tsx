@@ -60,7 +60,7 @@ interface Summary {
 }
 
 function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   return d.toLocaleString("en-US", {
     weekday: "short", hour: "numeric", minute: "2-digit", hour12: true,
@@ -298,7 +298,7 @@ export function MunicipalitySummary({ municipalityId }: Props) {
         </a>
         <p className="mt-2 text-[10px] text-text-3">
           Data joined from LUMA Planned Work, OpenStreetMap administrative boundaries, and the
-          grid status heuristic. Informational — not for operational decisions.
+          grid status heuristic. Informational - not for operational decisions.
         </p>
       </div>
     </div>

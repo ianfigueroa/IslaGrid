@@ -4,7 +4,7 @@ import { SOLAR_ASSUMPTIONS } from "@/lib/solar";
 import { SubPageHeader } from "@/app/_components/SubPageHeader";
 
 export const metadata: Metadata = {
-  title: "Solar Lens — IslaGrid",
+  title: "Solar Lens - IslaGrid",
   description:
     "Is solar worth it at your address in Puerto Rico? Source-labeled estimate from NREL PVWatts v8 + PREB-approved electricity rates.",
 };
@@ -35,7 +35,7 @@ export default function SolarPage() {
 
         <section className="surface mt-10 rounded-xl p-5 text-sm text-text-2">
           <h2 className="text-base font-semibold text-text">
-            Sources &amp; honesty notes
+            Sources &amp; caveats
           </h2>
           <ul className="mt-3 space-y-2">
             <li>

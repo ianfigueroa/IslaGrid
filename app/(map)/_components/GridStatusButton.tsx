@@ -15,7 +15,7 @@ const STATUS_LABEL: Record<string, { label: string; tone: string; dot: string }>
 };
 
 function fmt(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "-";
   return Math.round(n).toLocaleString();
 }
 
@@ -26,7 +26,7 @@ interface Props {
 }
 
 /**
- * Tiny floating pill — top-left, below the brand chip. Always visible,
+ * Tiny floating pill - top-left, below the brand chip. Always visible,
  * never dominant. Click → opens the StatusPanel from the right side.
  */
 export function GridStatusButton({ snapshot, onClick, active }: Props) {

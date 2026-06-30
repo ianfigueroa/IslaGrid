@@ -1,5 +1,5 @@
 /**
- * Source labels — every public number must carry one.
+ * Source labels - every public number must carry one.
  * See docs/DATA_SOURCES.md for the master list.
  */
 
@@ -73,13 +73,13 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     label: "official",
     display: "LUMA Notable Outages",
     url: "https://lumapr.com/averias-mas-relevantes/",
-    freshnessSlo: 7200, // 2h — LUMA updates the >500-customer list a few times a day
+    freshnessSlo: 7200, // 2h - LUMA updates the >500-customer list a few times a day
   },
   "luma-outage-map": {
     label: "official",
     display: "LUMA Outage Map",
     url: "https://miluma.lumapr.com/outages",
-    freshnessSlo: 1800, // 30 min — MiLUMA's region API refreshes ~every 10-15m
+    freshnessSlo: 1800, // 30 min - MiLUMA's region API refreshes ~every 10-15m
   },
   "genera-pr.com": {
     label: "official",
@@ -103,19 +103,19 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     label: "official",
     display: "NHC (HURDAT2 + advisories)",
     url: "https://www.nhc.noaa.gov/data/",
-    freshnessSlo: 21600, // 6h — NHC advisory cadence
+    freshnessSlo: 21600, // 6h - NHC advisory cadence
   },
   "eagle-i": {
     label: "official",
     display: "DOE EAGLE-I (ORNL)",
     url: "https://figshare.com/articles/dataset/24237376",
-    // Historical archive; SLO is "static reference" — there's no expectation
+    // Historical archive; SLO is "static reference" - there's no expectation
     // of freshness, so 10 years.
     freshnessSlo: 31536000 * 10,
   },
   "wayback:miluma.lumapr.com/outages": {
     label: "official",
-    display: "Internet Archive — LUMA outage map history",
+    display: "Internet Archive - LUMA outage map history",
     url: "https://web.archive.org/web/*/miluma.lumapr.com/outages",
     // Backfill source; SLO is again "static reference."
     freshnessSlo: 31536000 * 5,
@@ -133,7 +133,7 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
   },
   "nrel-pvrdb": {
     label: "official",
-    display: "NREL PVRDB (LiDAR 2015–2017)",
+    display: "NREL PVRDB (LiDAR 2015-2017)",
     url: "https://data.openei.org/submissions/2862",
     freshnessSlo: 31536000 * 10,
   },
@@ -175,12 +175,12 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     freshnessSlo: 1800, // 30 min
   },
   "islagrid-merged": {
-    // The merged grid snapshot is itself "official" — every field traces to
+    // The merged grid snapshot is itself "official" - every field traces to
     // an official upstream (LUMA Resumen or Genera PR); the merge only picks
     // the best-available value per field, it never invents one.
     label: "official",
     display: "LUMA + Genera PR (merged)",
-    freshnessSlo: 1800, // 30 min — matches the fastest component cadence
+    freshnessSlo: 1800, // 30 min - matches the fastest component cadence
   },
 };
 

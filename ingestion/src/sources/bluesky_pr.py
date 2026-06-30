@@ -1,7 +1,7 @@
 """
 Bluesky public-firehose ingest, filtered to PR grid keywords.
 
-Uses the public app.bsky.feed.searchPosts endpoint — no auth required for
+Uses the public app.bsky.feed.searchPosts endpoint - no auth required for
 read access. Filters in Spanish + English on outage-related terms. Every
 matching post lands in ``official_updates`` with ``source = 'social.bluesky'``
 and category ``social`` so the UI clearly flags it as unverified.

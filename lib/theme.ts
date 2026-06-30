@@ -16,7 +16,7 @@ function readTheme(): Theme {
 
 /**
  * Decide an automatic theme from local time + active hurricane signal.
- * - Night hours (22:00–06:00 PR-local): dark
+ * - Night hours (22:00-06:00 PR-local): dark
  * - Active hurricane advisory ANY time of day: dark (reduces glare during
  *   long-watch sessions; matches the "crisis dashboard" UX literature).
  * - Otherwise: respect the system's prefers-color-scheme.
@@ -25,7 +25,7 @@ export function suggestAutoTheme(opts: { hurricaneActive: boolean }): Theme {
   if (opts.hurricaneActive) return "dark";
   if (typeof window === "undefined") return "light";
   // Puerto Rico is UTC-4 year-round (no DST). The user's clock may not be
-  // in PR — we use their local time as a reasonable proxy since the goal is
+  // in PR - we use their local time as a reasonable proxy since the goal is
   // "is it dark wherever they are reading this".
   const hour = new Date().getHours();
   if (hour >= 22 || hour < 6) return "dark";

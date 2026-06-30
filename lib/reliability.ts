@@ -1,21 +1,21 @@
 /**
- * Per-municipality outage history aggregates — powers the /m/[id] reliability
+ * Per-municipality outage history aggregates - powers the /m/[id] reliability
  * page (score, calendar, monthly chart, cause breakdown).
  *
  * Two data paths:
  *
- *  1. PREFERRED: `municipality_outage_daily` — pre-aggregated daily rollup
+ *  1. PREFERRED: `municipality_outage_daily` - pre-aggregated daily rollup
  *     written by ingestion/src/pipeline/aggregate_municipality_daily.py.
  *     Cheap to query, supports the full 12-month window.
  *
  *  2. FALLBACK: live aggregation from `outage_events` + `cause_predictions`.
  *     Used when the daily table is empty (first deploy, catch-up window) so
- *     the page renders something honest instead of empty zeros.
+ *     the page renders real numbers instead of empty zeros.
  *
  * "Reliability score" is the percentile rank of a muni's outage hours vs the
  * other 77 municipios in the same window. Higher = worse, to match
  * Lumatrack's convention ("less reliable than X% of Puerto Rico"). The
- * formula intentionally has no magic constants — the only knob is which
+ * formula intentionally has no magic constants - the only knob is which
  * window the user picked.
  */
 
@@ -68,14 +68,14 @@ export interface MunicipalityHistory {
   /** Mean outage hours across all munis with data in this window. Gives the
    *  user a reference point for whether their number is normal. */
   island_avg_hours: number;
-  /** Median outage hours — more robust to outliers than the mean for the
+  /** Median outage hours - more robust to outliers than the mean for the
    *  typical-household framing. */
   island_median_hours: number;
   /** Estimated annual household cost in USD. */
   annual_cost_usd: number;
   /** When the rollup table was last updated for this muni. null if served live. */
   daily_table_freshness_ts: string | null;
-  /** "daily_rollup" | "live_aggregate" — UI can show a small subtle note when live. */
+  /** "daily_rollup" | "live_aggregate" - UI can show a small subtle note when live. */
   source_path: "daily_rollup" | "live_aggregate" | "empty";
 }
 
@@ -164,7 +164,7 @@ export interface IslandStats {
   percentile: number;
   /** Mean outage hours across munis with data. */
   avg_hours: number;
-  /** Median outage hours — more useful than mean when a few munis dominate. */
+  /** Median outage hours - more useful than mean when a few munis dominate. */
   median_hours: number;
 }
 
@@ -448,7 +448,7 @@ function dominantCause(b: CauseBreakdown): CauseKey {
 }
 
 // Hard cap for events with `ended_at = NULL`. Most scrapers don't set the
-// end time — they upsert one row per announcement and call it done — so
+// end time - they upsert one row per announcement and call it done - so
 // without a cap, an open event from 90 days ago would claim 2,160 hours of
 // "outage time" and inflate every rollup. 8h is a reasonable upper bound
 // for the typical PR planned-work / aviso window; anything longer would

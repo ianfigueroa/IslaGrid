@@ -5,13 +5,13 @@ Why this exists
 ---------------
 `municipality_outage_daily` is populated by two narrow sources today:
 
-  * `outage_events`  — LUMA's published *incidents* (28/78 munis got an
+  * `outage_events`  - LUMA's published *incidents* (28/78 munis got an
     incident post in the last 30 days; small/rural munis basically never
     appear)
-  * `eagle_i`        — federal feed, 6 metros only
+  * `eagle_i`        - federal feed, 6 metros only
 
-That leaves 50 munis with `—` on the scorecard, even though we DO have
-data covering them — just at LUMA's 7-region granularity in
+That leaves 50 munis with `-` on the scorecard, even though we DO have
+data covering them - just at LUMA's 7-region granularity in
 `luma_outage_snapshots`.
 
 This pipeline:
@@ -220,7 +220,7 @@ def _per_day_avg_customer_hours(
     """Return {day: (customer_hours_out, customer_base_estimate)} for one region.
 
     customer_hours_out:   integral of `customers_affected` over the day
-    customer_base_estimate: max(customers_served) seen during the day —
+    customer_base_estimate: max(customers_served) seen during the day -
                             the closest thing to a "region size" we have.
     """
     by_day: dict[date, dict[str, float]] = defaultdict(lambda: {"hrs": 0.0, "base": 0.0})

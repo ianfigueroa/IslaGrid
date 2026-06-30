@@ -3,7 +3,7 @@
  * enforces per-key or per-IP rate limits, and tags responses with rate
  * headers so clients can self-throttle.
  *
- * Anonymous tier: 60 req/min and 1000 req/day per IP. Tight on purpose —
+ * Anonymous tier: 60 req/min and 1000 req/day per IP. Tight on purpose -
  * researchers should mint a free key.
  *
  * Keyed tier: per-key limits from the api_keys table.
@@ -49,7 +49,7 @@ export function publicHandler(
       checkRate(`${principalId}:d`, perDayLimit, 86400),
     ]);
 
-    // Fail-closed in prod when Upstash is missing — public API must not run
+    // Fail-closed in prod when Upstash is missing - public API must not run
     // without a binding limit. Dev still passes through (unbounded:true).
     if (perMin.disabled || perDay.disabled) {
       return NextResponse.json(
@@ -89,7 +89,7 @@ export function publicHandler(
     try {
       res = await handler(req, { apiKey });
     } catch (err) {
-      // Log a narrowed error shape rather than the raw object — stack traces
+      // Log a narrowed error shape rather than the raw object - stack traces
       // tend to bring along DB connection strings, Supabase URLs, header
       // values, etc. that aren't useful for debugging and shouldn't land in
       // production log aggregators. First 3 stack frames are enough to

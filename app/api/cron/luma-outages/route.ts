@@ -6,12 +6,12 @@ import { getServiceSupabase, isSupabaseConfigured } from "@/lib/supabase";
  * 1-minute Vercel cron that pulls the LUMA region-level outage feed and
  * upserts a fresh `luma_outage_snapshots` row per region. This is the data
  * the customers-without-power banner reads. We're allowed to poll fast
- * because miluma.lumapr.com's endpoint is a static JSON file behind a CDN —
+ * because miluma.lumapr.com's endpoint is a static JSON file behind a CDN -
  * no headless browser, no auth, sub-200ms response.
  *
  * The GitHub Actions `ingest-luma` workflow still runs every 5 min and is the
  * authoritative path for raw-payload archival to R2 (forensics + replay).
- * This cron is purely a freshness booster for the live banner — if it fails,
+ * This cron is purely a freshness booster for the live banner - if it fails,
  * the 5-min path still keeps things accurate.
  *
  * Auth: Vercel scheduled crons attach `Authorization: Bearer <CRON_SECRET>`
@@ -57,7 +57,7 @@ interface SnapshotRow {
 }
 
 export async function GET(req: NextRequest) {
-  // Vercel cron sends `Authorization: Bearer <CRON_SECRET>` — reject anything
+  // Vercel cron sends `Authorization: Bearer <CRON_SECRET>` - reject anything
   // else so this endpoint isn't an open door to LUMA's API + our DB.
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
   const expected = `Bearer ${secret}`;
   // Length-equalize so timingSafeEqual doesn't throw, then constant-time
   // compare. A naive `auth !== expected` leaks the prefix one char at a time
-  // — irrelevant for a 32+ char secret in practice but trivial to fix.
+  // - irrelevant for a 32+ char secret in practice but trivial to fix.
   const provided = Buffer.from(auth);
   const expectedBuf = Buffer.from(expected);
   const ok =
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
         Origin: "https://miluma.lumapr.com",
         Referer: "https://miluma.lumapr.com/",
       },
-      // No revalidate — every minute we want a fresh hit.
+      // No revalidate - every minute we want a fresh hit.
       cache: "no-store",
     });
     if (!res.ok) {

@@ -100,7 +100,7 @@ function pointInRing([x, y], ring) {
   return inside;
 }
 
-// Ramer–Douglas–Peucker for ring simplification.
+// Ramer-Douglas-Peucker for ring simplification.
 function rdp(points, tolerance) {
   if (points.length < 3) return points;
   let maxDist = 0, idx = 0;

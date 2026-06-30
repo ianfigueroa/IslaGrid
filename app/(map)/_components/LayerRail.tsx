@@ -1,9 +1,7 @@
 "use client";
 
-// LayerRail.tsx now only exports types + the URL sync hook. The old
-// left-side rail UI was replaced by LayerPills (bottom toolbar) + a
-// More-drawer in the new chrome design. We keep this file so existing
-// imports of `LayerKey` and `useLayerUrlState` keep working.
+// Layer types + the hook that syncs active layers to the URL. The layer
+// toggles themselves are in LayerPills.
 
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

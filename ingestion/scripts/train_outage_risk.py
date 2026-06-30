@@ -14,7 +14,7 @@ End-to-end pipeline:
   8. Persist a .joblib bundle holding booster + calibrator + metadata.
   9. Optionally upload to R2 under models/outage_risk/<version>.joblib.
 
-Honest constraints:
+Constraints:
   * We REFUSE to train if the readiness manifest fails. Half-trained models
     produce false confidence.
   * Temporal split only. Random splits leak the future into training and
@@ -196,7 +196,7 @@ def assemble_dataset(start: str, end: str):
         pos_set.add((r["municipality_id"], _hour_floor(r["ts"]).isoformat()))
     # Wayback: rows are JSONB with region names, no muni id. We accept the
     # imprecision and tag the WHOLE island as positive for that hour. This
-    # over-labels neighboring munis during major events — call it a "training
+    # over-labels neighboring munis during major events - call it a "training
     # signal", and the model can still learn to differentiate via features.
     pos_wayback = (
         sb.table("wayback_outage_history")
@@ -373,7 +373,7 @@ def assemble_dataset(start: str, end: str):
                 sub.set_index("ts")["customers_out"]
                 .resample("h").sum()
                 .fillna(0.0)
-                .shift(1)               # strictly prior — no current-hour leak
+                .shift(1)               # strictly prior - no current-hour leak
                 .rolling("30D").sum()
                 .fillna(0.0)
                 .rename("density")
@@ -400,7 +400,7 @@ def assemble_dataset(start: str, end: str):
         wx.set_index(["municipality_id", "ts"]) if not wx.empty else None
     )
     grid_idx = grid.set_index("ts") if not grid.empty else None
-    # Density lookup — values are the rolling 30d sum strictly prior to ts.
+    # Density lookup - values are the rolling 30d sum strictly prior to ts.
     hist_lookup: dict[tuple[str, pd.Timestamp], float] = {}
     if not hist_df.empty:
         for _, r in hist_df.iterrows():
@@ -706,7 +706,7 @@ def main() -> int:
 
     log.info("Manifest: %s", manifest)
     if not manifest.ready:
-        log.warning("Not ready — refusing to train:\n  - %s", "\n  - ".join(manifest.reasons))
+        log.warning("Not ready - refusing to train:\n  - %s", "\n  - ".join(manifest.reasons))
         return 1
     if not args.i_have_enough_data:
         log.info("Manifest looks ready. Pass --i-have-enough-data to actually train.")
@@ -718,7 +718,7 @@ def main() -> int:
     log.info("Assembling dataset…")
     df = assemble_dataset(args.start, args.end)
     if len(df) == 0:
-        log.error("Empty dataset — feature joins produced no rows.")
+        log.error("Empty dataset - feature joins produced no rows.")
         return 3
     result = train(manifest, df, args.start, args.end, args.output, upload_r2=args.upload_r2)
     log.info("Training complete: %s", asdict(result))

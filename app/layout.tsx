@@ -17,13 +17,13 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "IslaGrid — Puerto Rico",
+  title: "IslaGrid - Puerto Rico",
   description:
-    "Live view of Puerto Rico's electric grid. Demand, reserves, generation, planned work, community reports — every number traced to its source.",
+    "Live view of Puerto Rico's electric grid. Demand, reserves, generation, planned work, community reports - every number traced to its source.",
   applicationName: "IslaGrid",
   authors: [{ name: "IslaGrid" }],
   openGraph: {
-    title: "IslaGrid — Puerto Rico",
+    title: "IslaGrid - Puerto Rico",
     description: "Live view of Puerto Rico's electric grid.",
     type: "website",
     locale: "en_US",
@@ -37,13 +37,13 @@ export const viewport: Viewport = {
   colorScheme: "dark light",
 };
 
-// Bootstrap theme before paint — defaults to light (the Windy-style civic
+// Bootstrap theme before paint - defaults to light (the Windy-style civic
 // feel). Users can pin dark via the toggle; their pin overrides the auto.
 const THEME_BOOTSTRAP = `(function(){
   try {
     // Light is the default civic look; only switch to dark if the user has
     // explicitly pinned dark via the toggle. (prefers-color-scheme is NOT
-    // consulted on first paint — the map is the focus and looks better light.)
+    // consulted on first paint - the map is the focus and looks better light.)
     var stored = localStorage.getItem('islagrid-theme');
     var theme = stored === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);

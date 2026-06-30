@@ -33,7 +33,7 @@ export interface RateDecision {
   allowed: boolean;
   remaining: number;
   resetSeconds: number;
-  /** True when Upstash isn't configured — caller may want to log. */
+  /** True when Upstash isn't configured - caller may want to log. */
   unbounded?: boolean;
   /** True when running in prod without Upstash; callers should fail-closed. */
   disabled?: boolean;

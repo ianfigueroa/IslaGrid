@@ -39,7 +39,7 @@ export function useCurrentRate(category: RateCategory): UseCurrentRateResult {
           setIsSeed(false);
         }
       } catch {
-        // Keep the seed — `isSeed` stays true so the caller can label it.
+        // Keep the seed - `isSeed` stays true so the caller can label it.
       } finally {
         if (!cancelled) setIsLoading(false);
       }

@@ -51,7 +51,7 @@ const REGION_ORDER = [
 function normalizeRegion(raw: string | null): string {
   const canonical = normalizeRegionName(raw);
   if (canonical) return canonical;
-  // Non-canonical region name — keep the cleaned label so it still appears
+  // Non-canonical region name - keep the cleaned label so it still appears
   // as its own "Other"-ish bucket instead of getting silently dropped.
   const cleaned = (raw ?? "").replace(/^T&D\s+/i, "").trim();
   return cleaned || "Other";
@@ -64,13 +64,13 @@ export async function GET() {
   }
   try {
     const supabase = getServerSupabase();
-    // LUMA's regions feed is the authoritative customer-count source — it
+    // LUMA's regions feed is the authoritative customer-count source - it
     // matches miluma.lumapr.com/outages/status exactly. AEEPR feeder rows are
     // the per-municipality breakdown when present, but their `status='SI'`
     // filter goes empty between feeder pushes; we used to read only AEEPR and
     // the banner would lie about "0 customers" while LUMA showed thousands.
     // For the trend chip on the banner we also pull the snapshot closest to
-    // 1h ago. Window is 50–70 min so a slightly late ingest still picks
+    // 1h ago. Window is 50-70 min so a slightly late ingest still picks
     // something up.
     const oneHourAgoStart = new Date(Date.now() - 70 * 60 * 1000).toISOString();
     const oneHourAgoEnd = new Date(Date.now() - 50 * 60 * 1000).toISOString();

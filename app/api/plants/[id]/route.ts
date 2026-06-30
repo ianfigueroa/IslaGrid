@@ -72,7 +72,7 @@ export async function GET(
 
   try {
     const supabase = getServerSupabase();
-    // Pull 24h worth of plant_snapshots — Genera scrapes every ~5 min so 24h
+    // Pull 24h worth of plant_snapshots - Genera scrapes every ~5 min so 24h
     // is ~288 ticks per plant, well under the 5k row limit even when 25
     // plants are stored together.
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -86,7 +86,7 @@ export async function GET(
 
     const target = normName(displayName);
     const rows = (data ?? []) as SnapshotRow[];
-    // Prefer exact normalized match — prefix-only matching is a fallback so
+    // Prefer exact normalized match - prefix-only matching is a fallback so
     // we don't accidentally fuse two distinct plants whose names happen to
     // share a leading token (e.g. "Aguirre" + "Aguirre Solar").
     let matching = rows.filter(

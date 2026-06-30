@@ -1,8 +1,8 @@
 /**
- * EXPERIMENTAL — demand pressure heatmap, v0.
+ * EXPERIMENTAL - demand pressure heatmap, v0.
  *
  * This is a coarse PROXY built from public data we already have on hand. We
- * do NOT have feeder-level demand for Puerto Rico — LUMA's BPS Daily Report
+ * do NOT have feeder-level demand for Puerto Rico - LUMA's BPS Daily Report
  * publishes only island-wide totals. This module therefore estimates a
  * relative "pressure" per municipality (0..100) from inputs that are
  * directionally correlated with cooling-load demand:
@@ -91,7 +91,7 @@ export function demandPressure(inputs: DemandInputs): DemandResult {
 
   const reasons: string[] = [];
   if (popNorm > 0.6) reasons.push("Densely populated area");
-  if (tempNorm > 0.5) reasons.push("Hot — AC load expected");
+  if (tempNorm > 0.5) reasons.push("Hot - AC load expected");
   if (todNorm > 0.7)
     reasons.push(
       inputs.localHour >= 18

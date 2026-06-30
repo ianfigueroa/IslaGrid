@@ -7,7 +7,7 @@ import type { GridSnapshot, GridStatus } from "@/lib/supabase";
  * not actual demand (it only publishes forecasts). lumapr.com publishes
  * demand + reserves but not full generation. Previously the API route picked
  * the freshest row from `source='islagrid-merged'` (a cron job that fuses
- * the two), then fell back to the freshest row from any source — which
+ * the two), then fell back to the freshest row from any source - which
  * meant a raw genera-pr.com row could win the fallback and serve a snapshot
  * with `current_demand_mw = null`, looking broken in the UI.
  *
@@ -120,7 +120,7 @@ export function fuseGridSnapshots(rows: SourceRows): FusionResult {
     ]),
   );
 
-  // Freshness — pick the freshest ts of inputs we actually used.
+  // Freshness - pick the freshest ts of inputs we actually used.
   const candidates = [genera, luma, merged].filter(
     (r): r is GridSnapshot => Boolean(r?.ts),
   );

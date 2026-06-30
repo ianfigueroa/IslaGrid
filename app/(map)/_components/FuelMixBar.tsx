@@ -7,11 +7,11 @@ import { FUEL_LABEL } from "@/lib/fuel-colors";
 /**
  * Horizontal stacked bar showing the live fuel mix that's making the
  * island's MW right now. Slots into StatusPanel under the Demand / Gen /
- * Reserve telemetry, so users can see *what's running* — not just how much.
+ * Reserve telemetry, so users can see *what's running* - not just how much.
  *
  * Source-of-truth is /api/grid/fuel-mix, which sums plant_snapshots over
  * the freshest 30-min window. We don't fall back to a forecast or curated
- * shares — if no plant has reported in 30 min, the bar just hides.
+ * shares - if no plant has reported in 30 min, the bar just hides.
  */
 export function FuelMixBar() {
   const [data, setData] = useState<FuelMixPayload | null>(null);

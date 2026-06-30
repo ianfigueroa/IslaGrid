@@ -4,7 +4,7 @@ Pull LUMA BPS Monitoring daily availability PDFs.
 Workflow:
   1. List the BPS page and find the newest .pdf link.
   2. Skip if we've already ingested that filename.
-  3. Download and parse — store availability/reserves/generation summary as an
+  3. Download and parse - store availability/reserves/generation summary as an
      `official_updates` row, and the raw PDF in R2.
 
 This source is daily and informational; it doesn't drive `grid_snapshots`.
@@ -68,7 +68,7 @@ def _summarize(pdf_bytes: bytes) -> str:
     with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
         pages = [p.extract_text() or "" for p in pdf.pages[:2]]
     text = "\n".join(pages)
-    # Keep it terse — the timeline can show 600 chars max.
+    # Keep it terse - the timeline can show 600 chars max.
     snippet = re.sub(r"\s+", " ", text).strip()
     return snippet[:600] + ("…" if len(snippet) > 600 else "")
 
@@ -91,7 +91,7 @@ def run() -> int:
 
     try:
         summary = _summarize(pdf.content)
-    except Exception as e:  # pdfplumber is finicky — never let it crash the pipeline
+    except Exception as e:  # pdfplumber is finicky - never let it crash the pipeline
         log.warning("Could not summarize BPS PDF: %s", e)
         summary = f"BPS daily report posted: {filename}"
 

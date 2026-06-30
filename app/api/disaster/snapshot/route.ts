@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 /**
- * Single endpoint feeding /disaster — bundled to minimize requests during
+ * Single endpoint feeding /disaster - bundled to minimize requests during
  * limited connectivity. Returns the bare minimum: grid status, last 48h
  * outage events, current planned work, last 10 official updates. Everything
  * else is computed client-side from this payload.

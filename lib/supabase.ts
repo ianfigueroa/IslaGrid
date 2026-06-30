@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * True when the env points at a real Supabase project. False when the URL is
- * missing or contains the literal "placeholder" — used by API routes to short
- * circuit with an honest "supabase_unconfigured" reason instead of a stack
+ * missing or contains the literal "placeholder" - used by API routes to short
+ * circuit with a "supabase_unconfigured" reason instead of a stack
  * trace.
  */
 export function isSupabaseConfigured(): boolean {
@@ -14,7 +14,7 @@ export function isSupabaseConfigured(): boolean {
   return true;
 }
 
-/** Browser client — uses the public anon key, respects RLS. */
+/** Browser client - uses the public anon key, respects RLS. */
 export function getBrowserSupabase() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,7 +37,7 @@ export function getServerSupabase() {
 }
 
 /**
- * Service-role client — server-only, bypasses RLS. Use ONLY in ingestion or
+ * Service-role client - server-only, bypasses RLS. Use ONLY in ingestion or
  * trusted server jobs. Never expose to the browser.
  */
 export function getServiceSupabase() {

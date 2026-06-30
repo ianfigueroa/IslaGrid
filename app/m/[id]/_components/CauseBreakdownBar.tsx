@@ -51,7 +51,7 @@ export function CauseBreakdownBar({ causeHours }: Props) {
             <div
               key={k}
               style={{ width: `${pct}%`, backgroundColor: CAUSE_META[k].color }}
-              title={`${CAUSE_META[k].label} — ${v.toFixed(1)}h (${pct.toFixed(0)}%)`}
+              title={`${CAUSE_META[k].label} - ${v.toFixed(1)}h (${pct.toFixed(0)}%)`}
             />
           );
         })}

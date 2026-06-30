@@ -25,7 +25,7 @@ export function normalizeIp(raw: string): string {
 /**
  * Trust X-Forwarded-For only when explicitly opted in via TRUST_PROXY=true
  * (Vercel + Cloudflare set this for us). Without it, any client can spoof
- * their IP by setting the header — never trust it by default.
+ * their IP by setting the header - never trust it by default.
  */
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 

@@ -6,7 +6,7 @@ Workflow:
   2. Skip PDFs we've already ingested (deduped by URL → R2 key).
   3. Archive the raw PDF to R2 first (so reparses are always possible).
   4. Try to parse the four core line items per category. If we find fewer than
-     all four for either residential or commercial, we DO NOT insert — the seed
+     all four for either residential or commercial, we DO NOT insert - the seed
      stays in place. Better to under-update than guess a wrong cent.
   5. On confident parse, upsert one row per (effective_date, rate_category)
      into `preb_rates`, tagging `source_doc_url` and `source_pdf_key`.
@@ -68,7 +68,7 @@ class ParsedRate:
 
 
 def _list_pdfs(html: str) -> list[str]:
-    # Permissive — energia.pr.gov serves PDFs from /wp-content/uploads/...
+    # Permissive - energia.pr.gov serves PDFs from /wp-content/uploads/...
     matches = re.findall(
         r"https://energia\.pr\.gov/wp-content/uploads/[^\"'<> ]+\.pdf",
         html,
@@ -118,7 +118,7 @@ def _find_number(
 ) -> float | None:
     """
     Look for a numeric value within a 240-char window after any of `needles`.
-    `kind` is "per_kwh" or "fixed" and drives the sanity bounds — a parser
+    `kind` is "per_kwh" or "fixed" and drives the sanity bounds - a parser
     hit outside the expected range returns None so we skip the insert.
     """
     lowered = text.lower()
@@ -137,7 +137,7 @@ def _find_number(
             continue
         if value < bounds[0] or value > bounds[1]:
             log.warning(
-                "preb_rates: %s value %s outside expected range %s..%s — skipping",
+                "preb_rates: %s value %s outside expected range %s..%s - skipping",
                 needle,
                 value,
                 bounds[0],
@@ -219,7 +219,7 @@ def parse_pdf(pdf_bytes: bytes) -> list[ParsedRate]:
             components[key] = value
         if not ok:
             log.warning(
-                "preb_rates: confidence too low for %s — skipping insert", category
+                "preb_rates: confidence too low for %s - skipping insert", category
             )
             continue
         parsed.append(

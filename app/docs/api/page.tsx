@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Public API — IslaGrid",
+  title: "Public API - IslaGrid",
   description:
     "Free, read-only, source-labeled API for Puerto Rico grid intelligence. Researcher keys, rate limits, and OpenAPI spec.",
 };
@@ -72,7 +72,7 @@ export default function ApiDocsPage() {
         <div id="swagger-ui" />
       </section>
 
-      {/* Swagger UI loaded from CDN to avoid an npm dep — the spec is local. */}
+      {/* Swagger UI loaded from CDN to avoid an npm dep - the spec is local. */}
       <link
         rel="stylesheet"
         href={`https://cdn.jsdelivr.net/npm/swagger-ui-dist@${SWAGGER_VERSION}/swagger-ui.css`}

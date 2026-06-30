@@ -1,7 +1,7 @@
 """
-Phase 10 — heuristic restoration-ETA predictor.
+Heuristic restoration-ETA predictor.
 
-The goal is an honest *range*, not a point estimate. Inputs:
+The output is a *range*, not a point estimate. Inputs:
   - age of the outage event (longer = wider tail)
   - severity proxy from latest weather snapshot in the municipality
   - count of planned-work items in the muni window (high planned-work density
@@ -147,7 +147,7 @@ def _classify(
     if historical_median is not None:
         reasons.append(f"Local median historic restoration ~{historical_median:.0f}h")
     else:
-        reasons.append("No local history — using island default of ~3h")
+        reasons.append("No local history - using island default of ~3h")
 
     # Weather widens the upper bound.
     weather_bump = weather_severity * 6.0
@@ -165,7 +165,7 @@ def _classify(
     age_bump = max(0.0, age_hours - center) * 0.5
     if age_hours > center * 1.5:
         reasons.append(
-            f"Already open {age_hours:.0f}h — restoration likely longer than typical"
+            f"Already open {age_hours:.0f}h - restoration likely longer than typical"
         )
 
     low = max(0.5, center - planned_adj)

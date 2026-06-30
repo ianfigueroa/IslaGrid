@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
 // Plain-language definitions surfaced as `title` tooltips on the metric
 // labels. LUMA and Genera each use these terms slightly differently and the
 // dashboard has historically been silent about which definition it's
-// publishing — these match the merge-grid priority order (LUMA wins for
+// publishing - these match the merge-grid priority order (LUMA wins for
 // demand/reserve; Genera wins for generation/capacity).
 const METRIC_HINT: Record<string, string> = {
   Demand: "Current system load (MW). Source: LUMA Resumen del Sistema.",
@@ -35,12 +35,12 @@ const METRIC_HINT: Record<string, string> = {
 };
 
 function fmt(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "-";
   return Math.round(n).toLocaleString();
 }
 
 function sourceDisplay(source: string | null | undefined): string {
-  if (!source) return "—";
+  if (!source) return "-";
   // Sources table covers official IDs; fall back to the raw string for
   // anything new that hasn't been registered yet.
   const meta = SOURCES[source as SourceId];

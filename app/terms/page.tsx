@@ -5,8 +5,8 @@ import { DocsLayout } from "../(docs)/_components/DocsLayout";
 import { readDoc } from "@/lib/docs";
 
 export const metadata: Metadata = {
-  title: "Terms · IslaGrid AI",
-  description: "Terms of service for IslaGrid AI.",
+  title: "Terms · IslaGrid",
+  description: "Terms of service for IslaGrid.",
 };
 
 export default async function TermsPage() {

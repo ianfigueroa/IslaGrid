@@ -29,7 +29,7 @@ export const GET = publicHandler(
       );
     }
 
-    // Dedupe per plant — keep newest only.
+    // Dedupe per plant - keep newest only.
     const seen = new Map<string, (typeof data)[number]>();
     for (const row of data ?? []) {
       const id = row.plant_id as string;

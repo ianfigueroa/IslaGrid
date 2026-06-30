@@ -34,7 +34,7 @@ export async function GET() {
     const file = path.join(process.cwd(), "public", "geo", "osm-power-pr.geojson");
     collection = JSON.parse(await fs.readFile(file, "utf-8"));
   } catch {
-    // file not committed yet — return an empty collection rather than 500.
+    // file not committed yet - return an empty collection rather than 500.
   }
 
   // Splice in the curated plant list. OSM only carries scattered generator
@@ -53,7 +53,7 @@ export async function GET() {
 
   // Enrich plants with the latest reading from plant_snapshots (Genera PR's
   // per-station MW feed). generation_snapshots used to be the join target but
-  // that table is now empty — plant_snapshots is the live source.
+  // that table is now empty - plant_snapshots is the live source.
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && collection.features.length) {
     const supabase = getServerSupabase();
     const { data } = await supabase
@@ -62,7 +62,7 @@ export async function GET() {
       .order("ts", { ascending: false })
       .limit(500);
 
-    // plant_snapshots is "one row per category per plant per scrape" — sum
+    // plant_snapshots is "one row per category per plant per scrape" - sum
     // categories so a multi-unit plant (e.g. San Juan base + peak) reports
     // its combined output. Keep the newest ts as the freshness anchor.
     const latest = new Map<

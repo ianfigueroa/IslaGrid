@@ -5,8 +5,8 @@ import { DocsLayout } from "../(docs)/_components/DocsLayout";
 import { readDoc } from "@/lib/docs";
 
 export const metadata: Metadata = {
-  title: "Attribution · IslaGrid AI",
-  description: "Public data sources behind IslaGrid AI.",
+  title: "Attribution · IslaGrid",
+  description: "Public data sources behind IslaGrid.",
 };
 
 export default async function AttributionPage() {

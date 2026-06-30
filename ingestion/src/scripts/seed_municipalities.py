@@ -88,7 +88,7 @@ def run() -> int:
         sb.rpc("upsert_municipality", row).execute()
     log.info("Upserted %d municipalities", len(payload))
 
-    # Recompute centroids — upsert_municipality only writes name + geom.
+    # Recompute centroids - upsert_municipality only writes name + geom.
     # This SQL is the same one in migration 0017; safe to run again.
     sb.rpc(
         "exec_sql",

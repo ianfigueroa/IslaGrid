@@ -16,8 +16,8 @@ const STATUS_TONE: Record<string, string> = {
 
 const NO_DATA_LABEL: Record<string, { headline: string; sub: string }> = {
   idle:    { headline: "Idle",    sub: "not running" },
-  no_feed: { headline: "—",       sub: "no public feed" },
-  unknown: { headline: "—",       sub: "no data" },
+  no_feed: { headline: "-",       sub: "no public feed" },
+  unknown: { headline: "-",       sub: "no data" },
 };
 
 export interface PlantRow {
@@ -33,7 +33,7 @@ export interface PlantRow {
   /**
    * True when current_mw was derived from Genera's system-wide category
    * total split across plants by capacity rather than measured directly.
-   * Solar/wind/hydro/landfill plants are always inferred — Genera doesn't
+   * Solar/wind/hydro/landfill plants are always inferred - Genera doesn't
    * publish per-plant renewable MW.
    */
   inferred?: boolean;
@@ -147,14 +147,14 @@ export function PlantsTable({ plants }: Props) {
               <td className="px-3 py-2.5 text-right tabular-nums">
                 {p.current_mw == null ? (
                   <span className={cn("text-text-3", STATUS_TONE[p.status])}>
-                    {NO_DATA_LABEL[p.status]?.headline ?? "—"}
+                    {NO_DATA_LABEL[p.status]?.headline ?? "-"}
                   </span>
                 ) : (
                   <span
                     className={cn("font-semibold", STATUS_TONE[p.status])}
                     title={
                       p.inferred
-                        ? "Estimated — Genera publishes only a system-wide total for this fuel; we distribute it across plants by capacity."
+                        ? "Estimated - Genera publishes only a system-wide total for this fuel; we distribute it across plants by capacity."
                         : undefined
                     }
                   >
@@ -247,12 +247,12 @@ function UtilBar({
   capacityMw: number;
 }) {
   if (pct == null) {
-    return <span className="text-[11px] text-text-3">—</span>;
+    return <span className="text-[11px] text-text-3">-</span>;
   }
   const color = fuelColor(fuel);
   const clamped = Math.max(0, Math.min(100, pct));
-  // Tooltip surfaces the exact numbers the bar represents — Genera's gauge
-  // value, nameplate capacity, and the percentage utilization — so hovering
+  // Tooltip surfaces the exact numbers the bar represents - Genera's gauge
+  // value, nameplate capacity, and the percentage utilization - so hovering
   // is enough to read the row without expanding anything.
   const tooltip = `${Math.round(currentMw ?? 0).toLocaleString()} MW of ${capacityMw.toLocaleString()} MW nameplate (${Math.round(pct)}%)`;
   return (

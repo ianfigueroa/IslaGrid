@@ -81,7 +81,7 @@ def _known_muni_ids() -> set[str]:
 def _muni_id(name: str | None) -> str | None:
     """Slug `name` and only return it if it matches a seeded municipality.
 
-    Previous version accepted any 3–40 char slug, which let date strings like
+    Previous version accepted any 3-40 char slug, which let date strings like
     `2026-05-12` through and broke the FK constraint on planned_work.
     """
     if not name:

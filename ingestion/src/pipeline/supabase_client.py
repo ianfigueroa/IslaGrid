@@ -1,4 +1,4 @@
-"""Server-role Supabase client. Service key bypasses RLS — server use only."""
+"""Server-role Supabase client. Service key bypasses RLS - server use only."""
 
 from __future__ import annotations
 

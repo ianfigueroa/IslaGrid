@@ -42,7 +42,7 @@ export async function GET(
 
   try {
     const supabase = getServerSupabase();
-    // Run history + island stats in parallel — the island scan is the slower
+    // Run history + island stats in parallel - the island scan is the slower
     // of the two; running them concurrently shaves ~150ms off the warm query.
     const [history, island] = await Promise.all([
       computeMunicipalityHistory(supabase, id, windowKey),

@@ -5,7 +5,7 @@ Output: a single GeoJSON FeatureCollection per object class (plants, lines,
 substations). Stored in R2 as the source-of-truth, and published as a static
 asset under `public/geo/osm-power-pr.geojson` for the map to fetch.
 
-Runs weekly. The OSM data is community-mapped, NOT utility-grade — UI must
+Runs weekly. The OSM data is community-mapped, NOT utility-grade - UI must
 label it as such.
 """
 

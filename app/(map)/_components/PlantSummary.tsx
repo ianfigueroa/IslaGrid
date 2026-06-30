@@ -61,7 +61,7 @@ const STATUS_TONE: Record<PlantDetail["status"], { label: string; cls: string; I
 };
 
 function fmtMw(mw: number | null | undefined): string {
-  if (mw == null || !Number.isFinite(mw)) return "—";
+  if (mw == null || !Number.isFinite(mw)) return "-";
   return `${Math.round(mw).toLocaleString("en-US")} MW`;
 }
 
@@ -104,7 +104,7 @@ export function PlantSummary({
       }
     };
     void load();
-    // Refresh on the same cadence as the grid status pill — plant_snapshots
+    // Refresh on the same cadence as the grid status pill - plant_snapshots
     // upserts together with the genera-pr.com scrape every ~5 min.
     const t = window.setInterval(load, 30_000);
     return () => {
@@ -144,7 +144,7 @@ export function PlantSummary({
       : effectiveCapacityMw && effectiveCapacityMw > 0 && detail.current_mw != null
         ? (detail.current_mw / effectiveCapacityMw) * 100
         : null;
-  // Clamp display to 100% — when a plant temporarily exceeds nameplate we
+  // Clamp display to 100% - when a plant temporarily exceeds nameplate we
   // shouldn't render "112%" like the bar is overflowing. Surface the raw
   // figure as a tooltip-friendly fact next to the bar.
   const utilization =
@@ -207,11 +207,11 @@ export function PlantSummary({
               className="font-mono tabular-nums text-text-2"
               title={
                 utilizationExceedsNameplate
-                  ? "Current output exceeds the stated nameplate — likely co-located peakers or under-reported capacity."
+                  ? "Current output exceeds the stated nameplate - likely co-located peakers or under-reported capacity."
                   : undefined
               }
             >
-              {utilization != null ? `${utilization.toFixed(0)}%` : "—"}
+              {utilization != null ? `${utilization.toFixed(0)}%` : "-"}
               {utilizationExceedsNameplate ? "+" : ""}
             </span>
           </div>
@@ -293,7 +293,7 @@ interface SparklineProps {
 
 /**
  * 24h output sparkline for the selected plant. SVG only, no chart lib. The
- * faint horizontal line is the curated nameplate when known — gives users a
+ * faint horizontal line is the curated nameplate when known - gives users a
  * visual reference for how hard the plant is running relative to design.
  */
 function PlantSparkline({ points, capacityMw }: SparklineProps) {

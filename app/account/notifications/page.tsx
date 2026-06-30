@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NotificationsClient } from "./NotificationsClient";
 
 export const metadata: Metadata = {
-  title: "Notification preferences — IslaGrid",
+  title: "Notification preferences - IslaGrid",
   description:
     "Opt in to grid-event digests via SMS or email. Strict frequency caps to avoid alert fatigue.",
 };

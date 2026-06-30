@@ -1,5 +1,5 @@
 """
-Train the Phase 9 outage classifier.
+Train the outage classifier.
 
 Pipeline:
   1. Build the labeled dataset (see dataset.py).
@@ -13,7 +13,7 @@ Pipeline:
   7. Optionally mirror artifacts to R2.
 
 We do NOT publish the model artifact if val Brier doesn't beat the
-heuristic by ≥ 5% — instead we write the run report and exit non-zero
+heuristic by ≥ 5% - instead we write the run report and exit non-zero
 so the inference workflow keeps using the heuristic.
 """
 
@@ -44,14 +44,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[2] / "ml-runs"
 # Publish if the model is *at least as good* as the heuristic. Was 5% then
 # 1%; neither cleared. With weather now backfilled but the heuristic being
 # a hard floor (literally a hand-tuned function over the same inputs),
-# "match or beat" is the right bar for an early model — keeps us honest
-# (worse-than-heuristic models stay out) without demanding margins that
+# "match or beat" is the right bar for an early model: it keeps
+# worse-than-heuristic models out without demanding margins that
 # require a feature set we haven't built yet.
 BRIER_IMPROVEMENT_GATE = 0.0
 
 
 def heuristic_probs(df) -> np.ndarray:
-    """Probabilities the Phase 7 heuristic would emit, normalized to [0, 1]."""
+    """Probabilities the rule-based heuristic would emit, normalized to [0, 1]."""
     if df.empty:
         return np.array([], dtype=float)
     weather = np.clip(
@@ -71,7 +71,7 @@ def heuristic_probs(df) -> np.ndarray:
 def main() -> int:
     df = build_dataset()
     if df.empty:
-        log.warning("No features available — skipping training.")
+        log.warning("No features available - skipping training.")
         return 0
 
     val_start, test_start = default_split_dates()
@@ -122,7 +122,7 @@ def main() -> int:
 
     improvement = (heur_brier - model_brier) / max(heur_brier, 1e-9)
     log.info(
-        "Brier — model: %.4f, heuristic: %.4f (improvement: %.2f%%)",
+        "Brier - model: %.4f, heuristic: %.4f (improvement: %.2f%%)",
         model_brier,
         heur_brier,
         improvement * 100,
@@ -164,7 +164,7 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             log.warning("R2 mirror failed: %s", exc)
 
-    return 0 if metrics["passed_gate"] else 0  # non-fatal — predict.py reads latest.json
+    return 0 if metrics["passed_gate"] else 0  # non-fatal - predict.py reads latest.json
 
 
 if __name__ == "__main__":

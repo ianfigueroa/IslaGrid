@@ -1,1 +1,1 @@
-"""IslaGrid AI — Phase 9 ML scaffolding (training, calibration, inference)."""
+"""Outage-risk model: training, calibration, inference."""

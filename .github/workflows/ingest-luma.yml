@@ -1,9 +1,7 @@
 name: ingest-luma
 
 on:
-  # Every 5 minutes so the grid status pill and outage banner reflect the
-  # genuine state on miluma.lumapr.com and genera-pr.com within a few minutes
-  # — 15-min cadence made the UI feel "behind" against the source sites.
+  # every 5 min; 15 min made the UI lag behind the source sites
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -18,10 +16,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    # 15 min budget. A fresh Playwright install eats 90s and four scrapers
-    # eat ~60s each; 10 min was cutting it close and one hung page killed
-    # the merge step at the end. The cache below usually brings runtime
-    # under 5 min, so this is headroom not a free-pass.
+    # cold Playwright install + four scrapers can pass 10 min; cached runs are ~5
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -35,10 +30,6 @@ jobs:
         id: pw-cache
         uses: actions/cache@v4
         with:
-          # Pin the cache key to the chromium version installed by our
-          # Playwright pin; without that the cache is brittle to upstream
-          # browser bumps. We re-resolve the version via the package
-          # metadata so we don't have to hand-edit two files.
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-v1
 
@@ -46,13 +37,8 @@ jobs:
         working-directory: ingestion
         run: |
           pip install -e .
-          # Always ensure the browser binary is present. `playwright install`
-          # is idempotent: it skips the download when the pinned chromium build
-          # is already cached, so a cache hit stays fast. But it self-heals a
-          # stale cache (e.g. after a Playwright bump changes the chromium build
-          # number) instead of leaving a missing executable, which is what the
-          # old cache-hit-only guard did. install-deps is the apt step, already
-          # cached on the runner, so it stays near-instant.
+          # always run install: it's a no-op on a cache hit and repairs a stale
+          # cache after a Playwright bump changes the chromium build
           python -m playwright install-deps chromium
           python -m playwright install chromium
 
@@ -121,11 +107,8 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: python -m src.sources.luma_bps_pdf
 
-      # Must run LAST — merges the freshest LUMA + Genera rows into one
-      # authoritative grid_snapshots row that /api/grid/status serves.
-      # `if: always()` so a single hung upstream page (which is the common
-      # failure mode) never blocks us from publishing a merged row from
-      # whichever sources DID succeed.
+      # runs last and always, so one hung scraper doesn't block the merged
+      # grid_snapshots row from the sources that did succeed
       - name: Merge grid snapshot
         timeout-minutes: 2
         if: always()

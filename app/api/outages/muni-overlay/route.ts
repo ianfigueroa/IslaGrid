@@ -30,7 +30,7 @@ interface MuniFeature {
     name: string;
     region: LumaRegion;
     region_customers_out: number;
-    /** Per-muni share = region total ÷ # of munis in region. Honest coarse split. */
+    /** Per-muni share = region total ÷ # of munis in region. A coarse split. */
     muni_customers_out_estimate: number;
   };
 }

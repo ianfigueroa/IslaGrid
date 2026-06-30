@@ -5,7 +5,7 @@ Pulls the latest weather, grid, and planned-work rows and emits one feature
 dict per municipality, then runs the heuristic classifier in `risk.py` to
 score each one. Output rows land in `municipality_risk_snapshots`.
 
-This is the Phase 7 deliverable and also the staging ground for Phase 9 ML
+These rows are also the staging ground for ML
 training: every column produced here is a candidate model feature.
 """
 
@@ -33,7 +33,7 @@ class MunicipalityFeatures:
     weather_risk: float = 0.0          # 0..1
     grid_stress: float = 0.0           # 0..1, derived from island-wide grid snapshot
     planned_work_active: bool = False
-    historical_outage_density: float = 0.0  # 0..1; placeholder until Phase 9
+    historical_outage_density: float = 0.0  # 0..1; placeholder until the model trains
     feature_freshness_s: int = 0
     reasons: list[str] = field(default_factory=list)
     # Hurricane features (None when no active storm).
@@ -72,7 +72,7 @@ def _hurricane_features(
 
     cone_coverage_pct is a coarse 0/1 indicator (100 if inside any cone, else
     0). Higher-resolution coverage requires polygon intersection which we'll
-    add when we have geopandas at runtime — for now binary containment is
+    add when we have geopandas at runtime - for now binary containment is
     enough to drive the heuristic.
     """
     if centroid_lon is None or centroid_lat is None or not cones:
@@ -197,10 +197,10 @@ def build_for(municipality_id: str, weather: dict[str, Any] | None,
 
 
 def _heuristic_ci(score: float, freshness_s: int, weather_present: bool) -> tuple[float, float]:
-    """Honest CI for the rule-based score.
+    """Rough CI for the rule-based score.
 
     Width grows with feature staleness and shrinks when we have weather data.
-    No statistical guarantee — this is "the rule can be wrong by about this
+    No statistical guarantee - this is "the rule can be wrong by about this
     much" telegraphed to users. Replace with quantile CIs once XGBoost ships.
     """
     base_width = 8.0  # +/- on a 0..100 scale
@@ -264,7 +264,7 @@ def run() -> int:
             .data
         ) or []
     except Exception as exc:  # noqa: BLE001
-        log.warning("hurricane_active_latest unavailable (%s) — skipping cone features", exc)
+        log.warning("hurricane_active_latest unavailable (%s) - skipping cone features", exc)
         cones = []
 
     # Municipality centroids for cone containment.
@@ -318,7 +318,7 @@ def run() -> int:
         sb.table("municipality_risk_snapshots").upsert(
             rows, on_conflict="ts,municipality_id"
         ).execute()
-    # Also emit one classic island-wide row to keep the existing /api/grid/status pipeline honest.
+    # Also emit one island-wide row for the existing /api/grid/status pipeline.
     if grid is not None:
         island = classify(GridInputs(source_stale=bool(grid.get("source_stale"))))
         log.info(
@@ -329,7 +329,7 @@ def run() -> int:
 
     # Persist the same per-muni features in the ML-shape `outage_features`
     # table so the LightGBM trainer/predictor has something to consume. We're
-    # writing the heuristic's input vector — the model only becomes live once
+    # writing the heuristic's input vector - the model only becomes live once
     # enough rows accumulate AND the trainer passes its Brier gate.
     _persist_ml_features(
         sb=sb,
@@ -352,7 +352,7 @@ def _haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 2 * 6371.0 * asin(sqrt(h))
 
 
-# Genera PR's major generating stations (subset of lib/plants.ts — kept here so
+# Genera PR's major generating stations (subset of lib/plants.ts - kept here so
 # the ingestion pipeline doesn't depend on the Next.js app's source tree).
 _GENERATING_STATIONS: list[tuple[float, float]] = [
     (-66.108, 18.452),  # San Juan
@@ -424,7 +424,7 @@ def _persist_ml_features(
                 "planned_work_within_24h": muni_id in planned_active,
                 "recent_outages_7d": recent_counts.get(muni_id, 0),
                 "distance_to_nearest_plant_km": dist_km,
-                "elevation_m": None,  # DEM lookup deferred — model handles NULLs as 0.
+                "elevation_m": None,  # DEM lookup deferred - model handles NULLs as 0.
                 "hour_of_day": now.hour,
                 "day_of_week": now.weekday(),
                 "month": now.month,

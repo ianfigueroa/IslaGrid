@@ -1,5 +1,5 @@
 """
-Heuristic grid status — visible, auditable. No ML.
+Heuristic grid status - visible, auditable. No ML.
 
 Inputs come from `grid_snapshots` and `generation_snapshots`. Output is a
 status enum plus a list of human-readable reasons.

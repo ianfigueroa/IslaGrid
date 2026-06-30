@@ -1,14 +1,13 @@
 name: aggregate-history
 
 on:
-  # Hourly so the /m/[id] reliability page picks up new outage events without
-  # waiting for a daily batch. The job is idempotent so re-runs are safe.
+  # hourly; idempotent
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       backfill_days:
-        description: "How many days back to aggregate (1–400)"
+        description: "How many days back to aggregate (1-400)"
         required: false
         default: "365"
 
@@ -35,9 +34,7 @@ jobs:
         working-directory: ingestion
         run: pip install -e .
 
-      # Convert LUMA's region-level customer-affected snapshots into discrete
-      # unplanned outage events so `outage_events` reflects real customer
-      # outages (it used to contain only planned-work announcements).
+      # region-level customer counts -> unplanned outage events
       - name: Detect unplanned outage episodes from LUMA snapshots
         working-directory: ingestion
         env:
@@ -52,18 +49,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # 365d default keeps the rolling year populated — the 31–365d window
-        # used to silently drop to 0 hours because the hourly run only
-        # touched the last 30 days.
+        # 365d so the rolling year stays filled, not just the last 30 days
         run: |
           python -m src.pipeline.aggregate_municipality_daily \
             --backfill-days ${{ github.event.inputs.backfill_days || '365' }}
 
-      # Fill the ~50 munis that LUMA never publishes per-incident data for
-      # by splitting region-level customer-out hours from
-      # `luma_outage_snapshots` across each region's constituent munis.
-      # Runs SECOND so real per-muni data (above) wins; the splitter skips
-      # any (muni, day) that already has a row.
+      # split region-level hours across the ~50 munis LUMA has no per-incident
+      # data for. Runs second and skips (muni, day) rows that already exist.
       - name: Region-split fill-in (silent munis)
         working-directory: ingestion
         env:

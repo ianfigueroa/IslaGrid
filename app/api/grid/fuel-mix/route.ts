@@ -40,7 +40,7 @@ export async function GET() {
   }
   try {
     const supabase = getServerSupabase();
-    // 30-min lookback is plenty — Genera updates every ~5 min, and if a
+    // 30-min lookback is plenty - Genera updates every ~5 min, and if a
     // plant hasn't reported in 30 min we'd rather omit it than smear a stale
     // value into the live mix.
     const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();

@@ -1,10 +1,10 @@
-# IslaGrid — Complete setup guide
+# IslaGrid setup
 
-_From an empty laptop to a live, production-deployed IslaGrid AI._
+_From an empty laptop to a deployed IslaGrid._
 
-This is the master setup doc. It covers every service, every credential, every command you need to run, in order.
+This covers each service, credential, and command you need, in order.
 
-There are seven stages:
+There are nine stages:
 
 1. [Local prerequisites](#1-local-prerequisites)
 2. [Supabase project](#2-supabase-project)
@@ -75,7 +75,7 @@ Database → Extensions → search for **postgis** → toggle it on. We use it f
 
 ### 2.4 Apply migrations
 
-There are 18 migrations under `supabase/migrations/`. Apply them in order — the file names are numbered.
+There are 18 migrations under `supabase/migrations/`. Apply them in order - the file names are numbered.
 
 **Easiest path (Supabase CLI):**
 
@@ -84,7 +84,7 @@ supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
-**Manual path** (no CLI): open Supabase → SQL Editor, paste each `supabase/migrations/00NN_*.sql` file in order, run it. Yes, this is tedious for 18 files — use the CLI if at all possible.
+**Manual path** (no CLI): open Supabase → SQL Editor, paste each `supabase/migrations/00NN_*.sql` file in order, run it. This is tedious for 32 files, so use the CLI if you can.
 
 After they all run, you should have these tables (rough order they appear):
 
@@ -132,7 +132,7 @@ values (
 );
 ```
 
-The bearer string you give to API clients is the **raw key** (`ig_<prefix>_<secret>`) — we never store that, only its hash.
+The bearer string you give to API clients is the **raw key** (`ig_<prefix>_<secret>`) - we never store that, only its hash.
 
 ---
 
@@ -194,7 +194,7 @@ UPSTASH_REDIS_REST_TOKEN=<token>
 
 ## 5. Third-party API keys
 
-### 5.1 NREL (PVWatts — solar tool)
+### 5.1 NREL (PVWatts - solar tool)
 
 Free, instant.
 
@@ -208,12 +208,12 @@ Already targets the post-2026-05-29 host (`developer.nlr.gov`) by default. No ne
 
 No signup. Just respect the [usage policy](https://operations.osmfoundation.org/policies/nominatim/):
 
-- Max 1 req/sec — we cache aggressively in `geocode_cache`
-- Always send a real `User-Agent` with a real contact email — set `GEOCODER_UA`
+- Max 1 req/sec - we cache aggressively in `geocode_cache`
+- Always send a real `User-Agent` with a real contact email - set `GEOCODER_UA`
 
 ### 5.3 NWS, USGS, NHC
 
-All public domain, no key. NWS asks for an identifying `User-Agent` — `NWS_USER_AGENT`.
+All public domain, no key. NWS asks for an identifying `User-Agent` - `NWS_USER_AGENT`.
 
 ### 5.4 DOE EAGLE-I (historical outages)
 
@@ -232,7 +232,7 @@ For the ML training backfill (Block 6). One-shot ingest.
 npm run dev
 ```
 
-Open http://localhost:3000. You should see the map (even with an empty database — the API routes return honest empty payloads, not synthetic).
+Open http://localhost:3000. You should see the map (even with an empty database, the API routes return empty payloads with a `reason` field).
 
 Run a single ingest job locally to populate the DB:
 
@@ -248,7 +248,7 @@ python -m src.sources.nhc_hurdat             # only useful during storm season
 python -m src.pipeline.risk_features         # rolls everything up
 ```
 
-Refresh the browser — you should see real numbers.
+Refresh the browser - you should see real numbers.
 
 ### Type-check + build
 
@@ -314,24 +314,24 @@ Once secrets are in place, workflows fire on their cron schedules.
 
 After first deploy:
 
-- Visit your production URL — map renders
-- `GET /api/grid/status` — returns `{snapshot: ..., reason: "ingest_pending"|null}`
-- `GET /api/public/openapi.json` — returns OpenAPI 3.1 doc
-- `GET /api/public/grid-status` (without API key) — should return data within anon rate limits OR 503 if Upstash isn't configured
-- Hit any public route from a foreign Origin — should be allowed for `/api/public/**`, blocked for `/api/reports`
+- Visit your production URL - map renders
+- `GET /api/grid/status` - returns `{snapshot: ..., reason: "ingest_pending"|null}`
+- `GET /api/public/openapi.json` - returns OpenAPI 3.1 doc
+- `GET /api/public/grid-status` (without API key) - should return data within anon rate limits OR 503 if Upstash isn't configured
+- Hit any public route from a foreign Origin - should be allowed for `/api/public/**`, blocked for `/api/reports`
 
 ---
 
 ## 8. Backfill + train the ML model
 
-_Optional, but the heuristic gets meaningfully sharper once a calibrated model lands. Run this in any week — it doesn't block any other feature._
+_Optional, but the heuristic gets meaningfully sharper once a calibrated model lands. Run this in any week - it doesn't block any other feature._
 
 ### 8.1 One-shot backfill
 
 ```bash
 cd ingestion
 
-# DOE EAGLE-I — multi-GB, ~30 min download + upsert
+# DOE EAGLE-I - multi-GB, ~30 min download + upsert
 python -m src.sources.eagle_i_history
 
 # Wayback Machine snapshots of LUMA's outage page
@@ -376,7 +376,7 @@ Test fold: AUC=0.79 Brier=0.018 ECE=0.032
 Wrote bundle: ./out/outage_risk-v1.joblib
 ```
 
-If ECE > 5%, the bundle is flagged `calibration_warning=True` and the runtime falls back to the heuristic. That's intentional — a miscalibrated model is worse than honest rules.
+If ECE > 5%, the bundle is flagged `calibration_warning=True` and the runtime falls back to the heuristic. A miscalibrated model is worse than the plain rules.
 
 ### 8.4 Deploy the model
 
@@ -389,9 +389,9 @@ Easiest path: have your production ingest pull the bundle from R2 on a daily cro
 ### 9.1 Daily checks
 
 - Vercel → Deployments → last deploy is green
-- Supabase → Database → Logs — no rate-limit errors
+- Supabase → Database → Logs - no rate-limit errors
 - GitHub Actions → all workflows green
-- Visit `/attribution` — every source's freshness chip says "fresh"
+- Visit `/attribution` - every source's freshness chip says "fresh"
 
 ### 9.2 When something goes stale
 
@@ -417,7 +417,7 @@ Easiest path: have your production ingest pull the bundle from R2 on a daily cro
 - Train the ML model on data with random splits (use temporal only)
 - Mark anything as official that came from a third-party scraper (LumaTrack)
 - Push to main without `npx tsc --noEmit` clean
-- Commit `.env.local`, `ingestion/.env`, or anything matching `.env*` (the .gitignore already covers this — keep it that way)
+- Commit `.env.local`, `ingestion/.env`, or anything matching `.env*` (the .gitignore already covers this - keep it that way)
 
 ---
 

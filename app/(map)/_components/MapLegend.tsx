@@ -49,7 +49,7 @@ export function MapLegend({ active }: Props) {
   const [open, setOpen] = useState(false);
 
   // First visit: auto-open the legend so the colors aren't a mystery. After
-  // any dismissal we remember the choice — repeat visitors don't need a
+  // any dismissal we remember the choice - repeat visitors don't need a
   // popover yelling at them every page load.
   useEffect(() => {
     try {
@@ -58,7 +58,7 @@ export function MapLegend({ active }: Props) {
       const t = window.setTimeout(() => setOpen(true), 800);
       return () => window.clearTimeout(t);
     } catch {
-      /* localStorage blocked (private mode) — leave the legend closed. */
+      /* localStorage blocked (private mode) - leave the legend closed. */
     }
   }, []);
 

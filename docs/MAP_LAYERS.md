@@ -1,8 +1,8 @@
-# Map layers — what ships now vs. follow-ups
+# Map layers - what ships now vs. follow-ups
 
 _Last updated: 2026-05-15_
 
-The map is built on **MapLibre GL JS** with a self-hosted **Protomaps** vector basemap (one `pr.pmtiles` file at `public/map/pr.pmtiles`, ~24 MB, OSM+Natural Earth, zoom 0–14). The style is generated from `@protomaps/basemaps` with a custom flavor — warm cream land + muted teal ocean in light, deep navy in dark. Every layer below traces to a real upstream source — no synthetic data.
+The map is built on **MapLibre GL JS** with a self-hosted **Protomaps** vector basemap (one `pr.pmtiles` file at `public/map/pr.pmtiles`, ~24 MB, OSM+Natural Earth, zoom 0-14). The style is generated from `@protomaps/basemaps` with a custom flavor - warm cream land + muted teal ocean in light, deep navy in dark. Every layer below comes from a real upstream source.
 
 ## Layers shipped today
 
@@ -22,11 +22,11 @@ The map is built on **MapLibre GL JS** with a self-hosted **Protomaps** vector b
 
 ## Custom animations
 
-- **Outage pulses** — DOM markers with two staggered `sonar-ping` rings (CSS keyframes `islagrid-sonar`). Respect `prefers-reduced-motion: reduce`.
-- **Hurricane cone breath** — `cone-breath` keyframe; available for the cone stroke if we want to enable later.
-- **Critical-status pulse** — pre-existing `pulse-critical` keyframe on telemetry chips.
+- **Outage pulses** - DOM markers with two staggered `sonar-ping` rings (CSS keyframes `islagrid-sonar`). Respect `prefers-reduced-motion: reduce`.
+- **Hurricane cone breath** - `cone-breath` keyframe; available for the cone stroke if we want to enable later.
+- **Critical-status pulse** - pre-existing `pulse-critical` keyframe on telemetry chips.
 
-All animations are CSS, not WebGL — cheaper to maintain, no jank on low-end mobile.
+All animations are CSS, not WebGL - cheaper to maintain, no jank on low-end mobile.
 
 ## Filter rail
 
@@ -49,7 +49,7 @@ All animations are CSS, not WebGL — cheaper to maintain, no jank on low-end mo
 | Plant glow effect (radial gradient by output) | Pure cosmetic; current circles already encode capacity via radius | A custom MapLibre layer with a `circle-blur` paint + dynamic radius interpolated on `current_mw` |
 | Cone-coverage % feature | Currently binary in/out; ML model would prefer % | Geopandas at runtime OR ray-stab sampling client-side |
 
-Anything deferred above is in the [round-3 plan](../plans/i-want-you-to-whimsical-squirrel.md) — they were scoped out of this PR to keep it landable.
+Anything deferred above is in the [round-3 plan](../plans/i-want-you-to-whimsical-squirrel.md) - they were scoped out of this PR to keep it landable.
 
 ## How to verify
 

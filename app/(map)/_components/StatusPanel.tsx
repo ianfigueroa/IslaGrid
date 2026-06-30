@@ -46,7 +46,7 @@ const STATUS_META: Record<string, { label: string; sub: string; tone: string }> 
 };
 
 function fmt(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "-";
   return Math.round(n).toLocaleString();
 }
 
@@ -123,7 +123,7 @@ export function StatusPanel({ open, onClose, snapshot, updates }: Props) {
             <Metric label="Peak fcst" value={fmt(snapshot?.peak_demand_forecast_mw)} unit="MW" sub />
           </section>
 
-          {/* Fuel mix — populated when plant_snapshots has fresh data. */}
+          {/* Fuel mix - populated when plant_snapshots has fresh data. */}
           <FuelMixBar />
 
           {/* Reasons */}
@@ -224,7 +224,7 @@ export function StatusPanel({ open, onClose, snapshot, updates }: Props) {
                       <p className="mt-1 leading-snug text-text">{item.text}</p>
                       {item.source === "unverified" ? (
                         <p className="mt-1 text-[10.5px] text-text-3">
-                          Unverified social post — not confirmed by an operator.
+                          Unverified social post - not confirmed by an operator.
                         </p>
                       ) : null}
                       {item.url ? (
@@ -247,7 +247,7 @@ export function StatusPanel({ open, onClose, snapshot, updates }: Props) {
 
           <footer className="flex items-center justify-between gap-2 border-t border-line px-5 py-2.5 text-[10.5px] text-text-3">
             <span>Source: {snapshot?.source ?? "LUMA"}</span>
-            <span>{snapshot?.ts ? formatAge(snapshot.ts) : "—"}</span>
+            <span>{snapshot?.ts ? formatAge(snapshot.ts) : "-"}</span>
           </footer>
         </motion.aside>
       ) : null}

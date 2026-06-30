@@ -2,13 +2,13 @@
 
 *Last updated: 2026-05-11*
 
-By using IslaGrid AI you agree to these terms. If you do not agree, do not use the service.
+By using IslaGrid you agree to these terms. If you do not agree, do not use the service.
 
-## What IslaGrid AI is
+## What IslaGrid is
 
-IslaGrid AI is an informational dashboard about Puerto Rico's electric grid. It aggregates and visualizes public data from official sources (LUMA, Genera PR, datos.pr.gov, the National Weather Service, the Puerto Rico Energy Bureau, OpenStreetMap, NREL) and community-submitted reports.
+IslaGrid is an informational dashboard about Puerto Rico's electric grid. It aggregates and visualizes public data from official sources (LUMA, Genera PR, datos.pr.gov, the National Weather Service, the Puerto Rico Energy Bureau, OpenStreetMap, NREL) and community-submitted reports.
 
-## What IslaGrid AI is not
+## What IslaGrid is not
 
 - **Not an official utility service.** We are independent of LUMA, Genera PR, PREPA, and the Government of Puerto Rico.
 - **Not for operational decisions.** Numbers, predictions, and risk scores on this site must not be used to operate equipment, dispatch crews, make safety-of-life decisions, or substitute for official outage reporting. Always call your utility directly for emergencies and outages.

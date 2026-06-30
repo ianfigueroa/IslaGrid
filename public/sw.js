@@ -6,7 +6,7 @@
 //  - /api/public/grid-status + planned-work: network-first with cache fallback
 //
 // We deliberately keep this tiny. PWA features beyond offline survive across
-// cell-network outages — the whole point of disaster mode.
+// cell-network outages - the whole point of disaster mode.
 
 const SHELL_CACHE = "islagrid-shell-v1";
 const TILES_CACHE = "islagrid-tiles-v1";
@@ -53,7 +53,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Disaster-mode data endpoints — network first, fall back to last good copy.
+  // Disaster-mode data endpoints - network first, fall back to last good copy.
   // The list intentionally includes the live weather / hurricane / quake
   // endpoints so the disaster page stays useful when the network drops
   // mid-event. networkFirst returns a 503 JSON body if nothing is cached.

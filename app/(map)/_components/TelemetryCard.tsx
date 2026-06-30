@@ -23,7 +23,7 @@ const TONE: Record<NonNullable<Props["tone"]>, string> = {
 };
 
 function formatMw(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
+  if (n == null || Number.isNaN(n)) return "-";
   return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 

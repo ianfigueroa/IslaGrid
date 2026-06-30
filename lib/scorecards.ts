@@ -2,7 +2,7 @@
  * Server-only data loader for /m/[id] scorecard pages.
  *
  * Aggregates everything we know about a municipality from real ingested data.
- * When Supabase is unconfigured or empty, fields are null — the UI renders
+ * When Supabase is unconfigured or empty, fields are null - the UI renders
  * "no data yet" rather than fabricating numbers.
  */
 

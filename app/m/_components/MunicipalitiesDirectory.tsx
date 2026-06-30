@@ -39,7 +39,7 @@ function stripAccents(s: string): string {
 }
 
 function fmtHours(h: number): string {
-  if (h <= 0) return "—";
+  if (h <= 0) return "-";
   if (h < 1) return `${h.toFixed(1)} h`;
   return `${Math.round(h).toLocaleString()} h`;
 }
@@ -100,7 +100,7 @@ export function MunicipalitiesDirectory({ items }: { items: DirectoryItem[] }) {
               )}
             >
               {k === "name"
-                ? "A–Z"
+                ? "A-Z"
                 : k === "band"
                   ? "Risk"
                   : k === "hours"

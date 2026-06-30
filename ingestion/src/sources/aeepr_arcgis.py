@@ -4,17 +4,17 @@ Ingest AEE/PREPA's Manual Load Shedding FeatureServer.
 Source dashboard:
   https://aeepr.maps.arcgis.com/apps/dashboards/1995c773fceb468db8b7f7d34899df94
 
-Backing FeatureServer (discovered by walking the dashboard's WebMap config —
+Backing FeatureServer (discovered by walking the dashboard's WebMap config -
 both "Alimentadores sin Servicio" and "Relevo de Carga Proyectado" point at
 this same layer; the dashboard filters on STATUS and `predicted`):
   services3.arcgis.com/0n3sEGhALDkUSwc5/arcgis/rest/services/Manual_Load_Shedding/FeatureServer/0
 
 This is the most granular *official* electrical outage geometry published for
-Puerto Rico — per-feeder polygons with customer counts and MW load. ~12k
+Puerto Rico - per-feeder polygons with customer counts and MW load. ~12k
 feeders island-wide, ~50-500 active during a normal day.
 
 We pull only:
-  - STATUS = 'SI'      (active interruption — red on the dashboard)
+  - STATUS = 'SI'      (active interruption - red on the dashboard)
   - predicted = 'SI'   (projected load shed)
 Pagination is via `resultOffset` because the layer caps each response at 1000
 features. We keep the full polygon geometry as GeoJSON in the DB so the API
@@ -163,7 +163,7 @@ def run() -> int:
             try:
                 feats, raw = _fetch_all(client, url, where)
             except Exception as exc:
-                log.warning("aeepr_arcgis: fetch failed for %s — %s", where, exc)
+                log.warning("aeepr_arcgis: fetch failed for %s - %s", where, exc)
                 continue
             raw_key = save_raw(SOURCE, raw, ext="json", content_type="application/json")
             rows: list[dict[str, Any]] = []
@@ -175,10 +175,10 @@ def run() -> int:
                 row["raw_key"] = raw_key
                 rows.append(row)
             if not rows:
-                log.info("aeepr_arcgis: %s — 0 rows (raw archived %s)", where, raw_key)
+                log.info("aeepr_arcgis: %s - 0 rows (raw archived %s)", where, raw_key)
                 continue
             supabase().table("aeepr_feeder_snapshots").insert(rows).execute()
-            log.info("aeepr_arcgis: %s — inserted %d rows", where, len(rows))
+            log.info("aeepr_arcgis: %s - inserted %d rows", where, len(rows))
             total += len(rows)
     return total
 

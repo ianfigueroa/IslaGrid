@@ -12,7 +12,7 @@ same Playwright pattern as luma_service_updates.
 
 Each entry is upserted into `official_updates` with category
 ``notable-outage`` so the UI feed can filter on it independently of avisos.
-A dedup id is derived from a stable hash of the entry text — re-running
+A dedup id is derived from a stable hash of the entry text - re-running
 within a short window is a no-op.
 """
 

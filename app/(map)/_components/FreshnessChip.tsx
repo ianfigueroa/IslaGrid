@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * Load-bearing component: every public number renders one of these.
+ * Every public number renders one of these.
  * Ticks once a minute so the age stays current without re-fetching.
  */
 export function FreshnessChip({ asOf, source, className }: Props) {

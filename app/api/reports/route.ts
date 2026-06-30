@@ -17,7 +17,7 @@ const HOURLY_LIMIT_PER_IP = 30;
  */
 function isAllowedOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
-  // A missing Origin header is only acceptable in local dev — production
+  // A missing Origin header is only acceptable in local dev - production
   // browsers always emit it on cross-origin requests, and a stripped header
   // is the easiest way for an attacker to bypass a same-origin check.
   if (!origin) return process.env.NODE_ENV !== "production";
@@ -30,7 +30,7 @@ function isAllowedOrigin(req: Request): boolean {
   return allowed.has(origin);
 }
 
-// Strict shape — note/comment/free-text fields are intentionally absent so
+// Strict shape - note/comment/free-text fields are intentionally absent so
 // nothing user-supplied reaches the DOM as HTML. If freeform notes are
 // ever wanted, they must arrive with length caps + HTML stripping.
 interface SubmitBody {
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   const h3 = pointToCell(body.lat, body.lon);
   // Resolve the municipality once at insert time so per-muni aggregates don't
   // need a spatial join later. Null when the point is outside every polygon
-  // (offshore, in coastal-water cells, etc.) — those still aggregate by H3.
+  // (offshore, in coastal-water cells, etc.) - those still aggregate by H3.
   const municipalityId = await locateMunicipality(body.lat, body.lon);
   const ip = clientIp(req);
   const ipHash = hashIp(ip);
@@ -104,8 +104,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Insert. The schema deliberately does NOT have a column for exact lat/lon —
-  // only the H3 cell — so we cannot accidentally leak coords later.
+  // Insert. The schema deliberately does NOT have a column for exact lat/lon -
+  // only the H3 cell - so we cannot accidentally leak coords later.
   const { error } = await supa.from("community_reports").insert({
     type,
     h3,

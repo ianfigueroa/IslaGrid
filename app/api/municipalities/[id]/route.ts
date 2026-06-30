@@ -121,7 +121,7 @@ export async function GET(
     source_url: r.source_url,
   }));
 
-  // Planned-work load is the primary status signal — lots of crews dispatched
+  // Planned-work load is the primary status signal - lots of crews dispatched
   // to one muni reads as strained. When no planned work is on file, fall back
   // to the heuristic risk band so we don't display a bare "Unknown" while
   // the risk model has a real opinion.

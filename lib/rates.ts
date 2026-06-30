@@ -33,7 +33,7 @@ interface RateRow {
 }
 
 // Hard-coded mirror of migration 0003 so the bill calculator works offline.
-// Keep in sync — the migration is the canonical source.
+// Keep in sync - the migration is the canonical source.
 const FALLBACK_ROWS: RateRow[] = [
   { effective_date: "2026-01-01", rate_category: "residential_base",          rate_per_kwh: 0.13520, source_url: "https://lumapr.com/current-rates-for-electric-service-in-puerto-rico/?lang=en" },
   { effective_date: "2026-01-01", rate_category: "residential_fuel_adj",      rate_per_kwh: 0.07410, source_url: "https://energia.pr.gov/en/current-rate/" },
@@ -102,7 +102,7 @@ export const fallbackRate = seedRate;
 
 /**
  * Pick the active breakdown from a database row set. Returns null when no row
- * is effective at `at` — caller should fall back to `fallbackRate`.
+ * is effective at `at` - caller should fall back to `fallbackRate`.
  */
 export function pickActiveRate(
   rows: RateRow[],

@@ -3,7 +3,7 @@ Scrape LUMA's "Resumen del Sistema" page for demand, reserves, and peaks.
 
 The page is JS-rendered; we use Playwright to wait for the MW elements before
 reading the DOM. When LUMA's back-end is in maintenance the same page renders
-empty MW slots with a maintenance disclaimer — we detect this and mark the
+empty MW slots with a maintenance disclaimer - we detect this and mark the
 snapshot `source_stale=True` instead of pretending we got numbers.
 """
 
@@ -31,7 +31,7 @@ SOURCE = _HOST
 
 # LUMA's Resumen page renders each metric as a JS gauge. The numeric value
 # is NOT in the static HTML's <p class="mw-text"> (that stays literally "MW")
-# — it lives in a `data-value` attribute on the enclosing `.gauge-container`
+# - it lives in a `data-value` attribute on the enclosing `.gauge-container`
 # div, set by JS after load. We match each gauge by its <h3 class="label">
 # text. The two "Pico" values are plain text rather than gauges.
 GAUGE_LABELS = {
@@ -122,7 +122,7 @@ def run() -> int:
     peak_r = parsed["peak_reserve"]
     # The "podría no estar actualizada" disclaimer is on the page chronically,
     # even when the MW values are fresh. Only treat the snapshot as stale when
-    # the banner is present AND every core number is missing — that's the
+    # the banner is present AND every core number is missing - that's the
     # actual "blank slots + maintenance" state the comment up top describes.
     is_stale = has_maintenance_banner and demand is None and reserve is None
 

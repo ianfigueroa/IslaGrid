@@ -10,7 +10,7 @@ interface Props {
 
 /**
  * Small floating note shown when there's no `grid_snapshot` row yet.
- * Honest about *why* there's no data, not a generic "loading…" lie.
+ * Says *why* there's no data instead of a generic "loading…".
  */
 export function EmptyStateNote({ visible }: Props) {
   const [dismissed, setDismissed] = useState(false);
@@ -34,7 +34,7 @@ export function EmptyStateNote({ visible }: Props) {
                 <span className="text-text">No live grid snapshot yet.</span>{" "}
                 As of 2026-05-11 the PR government data backend is in maintenance and
                 LUMA's page is showing blank MW values. Ingestion still runs every
-                few minutes and saves raw snapshots — numbers will populate as
+                few minutes and saves raw snapshots - numbers will populate as
                 soon as a source returns data.
               </p>
               <p className="mt-1 text-xs text-text-3">

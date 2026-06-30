@@ -9,7 +9,7 @@ interface Props {
 
 /**
  * Body rendered inside the intelligence panel when the user opens grid
- * status details. Honest about the heuristic and shows the input numbers
+ * status details. Explains the heuristic and shows the input numbers
  * used by `risk.classify()`.
  */
 export function GridStatusDetails({ snapshot }: Props) {
@@ -58,7 +58,7 @@ export function GridStatusDetails({ snapshot }: Props) {
                 {r.label}
               </dt>
               <dd className="font-mono text-base tabular-nums text-text">
-                {r.value == null ? "—" : r.value.toLocaleString("en-US")}
+                {r.value == null ? "-" : r.value.toLocaleString("en-US")}
                 {r.value != null ? (
                   <span className="ml-1 text-[10px] text-text-3">{r.unit}</span>
                 ) : null}
@@ -81,7 +81,7 @@ export function GridStatusDetails({ snapshot }: Props) {
         </div>
         {snapshot.source_stale ? (
           <p className="mt-2 text-warn">
-            Source reports its backend is in maintenance — numbers above may
+            Source reports its backend is in maintenance - numbers above may
             be stale.
           </p>
         ) : null}

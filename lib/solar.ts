@@ -1,5 +1,5 @@
 /**
- * Pure functions for the Solar Lens. No network here — the API route does the
+ * Pure functions for the Solar Lens. No network here - the API route does the
  * NREL PVWatts call and feeds the numbers in.
  *
  * Every assumption used by these helpers is exported via `SOLAR_ASSUMPTIONS`
@@ -26,8 +26,8 @@ export interface SolarAssumptions {
 }
 
 export const SOLAR_ASSUMPTIONS: SolarAssumptions = {
-  // PR market data: average residential install costs ran $3.00–$3.50/W in
-  // 2024–2025 per LBNL Tracking the Sun PR cohort. Use $3.20 as midpoint.
+  // PR market data: average residential install costs ran $3.00-$3.50/W in
+  // 2024-2025 per LBNL Tracking the Sun PR cohort. Use $3.20 as midpoint.
   installCostPerWatt: 3.2,
   batteryCostPerKwh: 950,
   degradationPerYear: 0.005,
@@ -123,7 +123,7 @@ export function scoreAssessment(
     const outage = inputs.outageHoursPerMonth ?? 6;
     resilience = clamp(15 + outage, 5, 35);
     if (outage > 12) {
-      reasons.push("High outage hours — battery strongly recommended");
+      reasons.push("High outage hours - battery strongly recommended");
     } else {
       reasons.push("No battery: production stops during grid outages");
     }
@@ -136,7 +136,7 @@ export function scoreAssessment(
     20,
   );
 
-  // Weighted overall — financial dominates because PR rates are high and
+  // Weighted overall - financial dominates because PR rates are high and
   // payback is what most owners care about.
   const score = Math.round(
     clamp(financial * 0.6 + resilience * 0.3 + coverageBonus, 0, 100),
@@ -154,15 +154,15 @@ export function scoreAssessment(
  * degradation and a (configurable) utility rate escalator. Returns one row
  * per year so the UI can show a table or chart.
  *
- * Discount rate defaults to 6% — roughly the cost of capital for a typical
- * PR homeowner who'd otherwise pay down a 6–7% mortgage with the cash.
+ * Discount rate defaults to 6% - roughly the cost of capital for a typical
+ * PR homeowner who'd otherwise pay down a 6-7% mortgage with the cash.
  */
 export interface CashFlowOptions {
   installCost: number;
   /** Year-1 production in kWh. */
   annualKwhYear1: number;
   effectiveRatePerKwh: number;
-  /** Annual utility-rate escalator (e.g., 0.02 for 2%/yr). PR has averaged 3–4%. */
+  /** Annual utility-rate escalator (e.g., 0.02 for 2%/yr). PR has averaged 3-4%. */
   rateEscalator?: number;
   /** Discount rate (e.g., 0.06 for 6%). */
   discountRate?: number;
@@ -250,7 +250,7 @@ export function projectCashFlow(opts: CashFlowOptions): CashFlowProjection {
  * cover the install up front; lease and PPA replace upfront cost with
  * monthly payments to a third-party owner.
  *
- * These are simplified models — actual deals depend on tax credits, the
+ * These are simplified models - actual deals depend on tax credits, the
  * specific PPA escalator, and resale impact on the home. The numbers are
  * directional, not contract-grade.
  */
@@ -265,7 +265,7 @@ export interface FinancingInputs {
   loanTermYears?: number;
   /** Monthly lease payment, in USD. */
   leaseMonthlyPayment?: number;
-  /** PPA $/kWh — what the homeowner pays for solar production under a PPA. */
+  /** PPA $/kWh - what the homeowner pays for solar production under a PPA. */
   ppaPricePerKwh?: number;
   /** Year-1 production for PPA accounting. */
   annualKwhYear1?: number;

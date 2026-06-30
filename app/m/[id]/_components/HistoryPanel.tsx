@@ -35,7 +35,7 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
   const [data, setData] = useState<MunicipalityHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Monotonic counter — discards responses for windows the user already
+  // Monotonic counter - discards responses for windows the user already
   // moved past so out-of-order fetches don't paint stale data.
   const requestSeq = useRef(0);
 
@@ -53,7 +53,7 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
         const json = (await res.json()) as HistoryResponse;
         if (seq !== requestSeq.current) return;
         if (json.reason === "supabase_unconfigured") {
-          setError("Historical data unavailable — Supabase not configured.");
+          setError("Historical data unavailable - Supabase not configured.");
           setData(null);
         } else if (json.history) {
           setData(json.history);
@@ -132,7 +132,7 @@ export function HistoryPanel({ municipalityId, municipalityName }: Props) {
 
           {data.source_path === "live_aggregate" ? (
             <p className="text-[10.5px] text-text-3">
-              Live aggregate from outage events — pre-computed rollup not yet
+              Live aggregate from outage events - pre-computed rollup not yet
               populated for this municipality.
             </p>
           ) : data.source_path === "empty" ? (

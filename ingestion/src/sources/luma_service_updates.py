@@ -1,8 +1,8 @@
 """
-Ingest LUMA's "Avisos" page — Spanish-language service notices. These are
+Ingest LUMA's "Avisos" page - Spanish-language service notices. These are
 short announcements, often outage-related, that LUMA publishes outside their
 structured planned-work table. Each entry becomes an `official_updates`
-row and feeds the Phase 8 outage-events NER.
+row and feeds the outage-events extractor.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def _safe_href(href: str | None) -> str:
     would be clickable stored-XSS. Accept only http(s) and site-relative
     paths; anything else falls back to the source URL itself.
 
-    Mirror of the same helper in `luma_averias.py` — kept inline here for
+    Mirror of the same helper in `luma_averias.py` - kept inline here for
     surgical scope; the cleanup commit consolidates both into a shared lib.
     """
     if not href:

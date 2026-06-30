@@ -42,7 +42,7 @@ const NOMINATIM_TIMEOUT_MS = 8000;
 const NOMINATIM_MIN_GAP_MS = 1100; // Nominatim's published policy: <=1 req/s.
 
 // Per-process throttle so repeated cache misses can't burst-call Nominatim.
-// Each instance maintains its own clock — fine because the IP-rate-limit at
+// Each instance maintains its own clock - fine because the IP-rate-limit at
 // the route layer (30/h per requester) caps the upper bound anyway. A
 // distributed throttle would need Redis; not worth it for the volume.
 let lastNominatimAt = 0;
@@ -93,7 +93,7 @@ export async function geocode(query: string): Promise<Geocoded | null> {
   if (!trimmed) return null;
 
   // Cache lookup. Per the 2026-05 PII migration (0027) we no longer store
-  // the raw `query` or upstream `display_name` — those columns were a
+  // the raw `query` or upstream `display_name` - those columns were a
   // re-identification surface when joined with solar_assessments. On a cache
   // hit we fall back to the user's input as the display string.
   if (isSupabaseConfigured()) {

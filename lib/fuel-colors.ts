@@ -1,9 +1,9 @@
 /**
  * Canonical fuel-type palette + labels shared by the map, fuel-mix bar,
- * and plant tables. Single source of truth — adding a new fuel only
+ * and plant tables. Single source of truth - adding a new fuel only
  * requires updating this file.
  *
- * Tone: soft, warm — no AI-tech cyan. Chosen so multiple fuels can stack
+ * Tone: soft, warm, no neon cyan. Chosen so multiple fuels can stack
  * in a horizontal bar without any one slice dominating.
  */
 export const FUEL_COLOR: Record<string, string> = {

@@ -25,7 +25,7 @@ Field priority (first non-null wins):
   peak_demand_forecast_mw lumapr.com  > genera-pr.com
   peak_reserve_forecast_mw lumapr.com > genera-pr.com
 
-A merged row is only "stale" when EVERY contributing source was stale — one
+A merged row is only "stale" when EVERY contributing source was stale - one
 healthy source is enough to give the public a real number.
 """
 
@@ -40,13 +40,13 @@ from .risk import GridInputs, classify
 from .supabase_client import supabase
 
 MERGED_SOURCE = "islagrid-merged"
-# Sources we merge, newest-first lookup. Order here does not imply priority —
+# Sources we merge, newest-first lookup. Order here does not imply priority -
 # priority is per-field, see FIELD_PRIORITY below.
 COMPONENT_SOURCES = ("lumapr.com", "genera-pr.com")
 
 # When a source is in maintenance it keeps publishing FRESH rows that are full
 # of NULLs (source_stale=True). A real reading from a few hours ago is more
-# useful to the public than that — so we'll fall back to the most recent
+# useful to the public than that - so we'll fall back to the most recent
 # non-stale row within this window. Past it, the source is genuinely dark.
 _MAX_FALLBACK_AGE = timedelta(hours=6)
 
@@ -73,7 +73,7 @@ def _latest_per_source() -> dict[str, dict[str, Any]]:
     full of NULLs, and merging those would erase a perfectly good reading from
     an hour ago. So we take the freshest NON-stale row within
     `_MAX_FALLBACK_AGE`, and only fall back to the newest (possibly stale) row
-    when there's nothing better — that keeps the all-stale detection honest.
+    when there's nothing better, so the all-stale detection stays correct.
     """
     out: dict[str, dict[str, Any]] = {}
     cutoff = (datetime.now(UTC) - _MAX_FALLBACK_AGE).isoformat()
@@ -117,7 +117,7 @@ def _pick(field: str, by_source: dict[str, dict[str, Any]]) -> tuple[float | Non
 def run() -> int:
     by_source = _latest_per_source()
     if not by_source:
-        log.warning("merge_grid: no component snapshots found — nothing to merge")
+        log.warning("merge_grid: no component snapshots found - nothing to merge")
         return 0
 
     merged: dict[str, float | None] = {}

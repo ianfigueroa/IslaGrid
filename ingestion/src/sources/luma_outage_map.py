@@ -1,5 +1,5 @@
 """
-LUMA outage map ingest — region-level customer counts.
+LUMA outage map ingest - region-level customer counts.
 
 Real source (discovered via the MiLUMA portal's XHR traffic):
   https://api.miluma.lumapr.com/miluma-outage-api/outage/regionsWithoutService
@@ -29,7 +29,7 @@ existing UI freshness chips / region rollups keep working unchanged. The
 fields are folded into `outage_count` as a coarse "anything not normal"
 counter; the raw JSON in R2 retains the full structure for re-parsing.
 
-There is no headless browser dependency — the JSON endpoint is public and
+There is no headless browser dependency - the JSON endpoint is public and
 unauthenticated as of 2026-05. If LUMA closes it, the next-best path is to
 fall back to Playwright on https://miluma.lumapr.com/outages (their page is a
 thin client over this same API).
@@ -85,7 +85,7 @@ def _parse_timestamp(raw: str | None) -> str | None:
     if not raw:
         return None
     try:
-        # No timezone in the source — assume Atlantic Standard Time (no DST).
+        # No timezone in the source - assume Atlantic Standard Time (no DST).
         # Attach AST explicitly rather than relying on the runner's local tz:
         # astimezone() on a naive datetime treats it as system-local, which is
         # only correct on a UTC runner and silently wrong everywhere else.
@@ -140,7 +140,7 @@ def run() -> int:
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
-        log.error("luma_outage_map: invalid JSON from %s — %s; raw archived %s", url, exc, raw_key)
+        log.error("luma_outage_map: invalid JSON from %s - %s; raw archived %s", url, exc, raw_key)
         return 0
     rows = _to_rows(payload, raw_key)
     if not rows:

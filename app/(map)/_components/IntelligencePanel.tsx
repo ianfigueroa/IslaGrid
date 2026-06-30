@@ -80,7 +80,7 @@ export function IntelligencePanel({ selection, onClose }: Props) {
           <div className="flex-1 overflow-y-auto px-4 py-4 text-sm text-text-2">
             {selection.body ?? (
               <p className="text-text-3">
-                No details yet for this selection. Data layers ship in upcoming phases.
+                No details yet for this selection.
               </p>
             )}
           </div>

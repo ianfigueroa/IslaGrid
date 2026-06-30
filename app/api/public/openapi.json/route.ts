@@ -11,11 +11,11 @@ const spec = {
       "Public, source-labeled, read-only data about Puerto Rico's electric grid. " +
       "Free for research and journalism. See /docs/api for rate limits, key " +
       "requests, and the privacy policy. Every field is sourced from a real " +
-      "ingested record or labeled as a heuristic estimate — IslaGrid does not " +
+      "ingested record or labeled as a heuristic estimate - IslaGrid does not " +
       "fabricate data.",
     contact: { email: "contact@islagrid.app" },
     license: {
-      name: "Data attribution applies — see /attribution",
+      name: "Data attribution applies - see /attribution",
       url: "/attribution",
     },
   },

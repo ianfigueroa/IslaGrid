@@ -27,8 +27,8 @@ const STORAGE_KEY = "islagrid-notif-prefs-v1";
 
 /**
  * Stub UI: collects opt-in prefs and saves them locally. SMS sending is
- * gated server-side on TWILIO_* envs that aren't set yet — when the user
- * hits "save" we display the honest "stored locally; not sending until ops
+ * gated server-side on TWILIO_* envs that aren't set yet - when the user
+ * hits "save" we display a "stored locally; not sending until ops
  * provisions Twilio" state instead of pretending we wired it up.
  */
 export function NotificationsClient() {

@@ -17,16 +17,7 @@ import {
   alertFillFor,
 } from "./map-layers/palette";
 
-// Re-export shared types so existing imports from "./GridMap" keep working.
 export type { Basemap };
-
-// Fuel palette lives in lib/fuel-colors.ts; other map palettes live in
-// ./map-layers/palette.ts so per-layer loaders can be split into their own
-// modules without cyclically importing GridMap. Imported above.
-
-// Defined in ./map-layers/visibility.ts so the visibility rules and the type
-// stay in lockstep. Re-exported so existing `import { ActiveLayerKey } from
-// "./GridMap"` call sites continue to compile without churn.
 export type ActiveLayerKey = ActiveLayerKeyShared;
 
 interface Props {
@@ -93,7 +84,7 @@ export function GridMap({
       // viewport with the floating chrome around it. Earlier 6.9/7.4 values
       // still felt cramped against the pills + panels.
       zoom: 6.5,
-      // pr.pmtiles covers PR + USVI at zoom 0–14; MapLibre over-zooms
+      // pr.pmtiles covers PR + USVI at zoom 0-14; MapLibre over-zooms
       // (stretches) z14 tiles up to 16 so we stay crisp at street level
       // without shipping building-detail tiles. Lower bound keeps the user
       // from zooming out to ocean-only views.
@@ -131,9 +122,9 @@ export function GridMap({
           }
         }
       } catch {
-        /* style not ready yet — no-op */
+        /* style not ready yet - no-op */
       }
-      // Await data layers BEFORE applying visibility / loading overlays —
+      // Await data layers BEFORE applying visibility / loading overlays -
       // the risk + demand overlays depend on the `municipalities` source
       // existing. Without the await, on first load they no-op and the user
       // sees an empty layer until they toggle it off/on.
@@ -194,7 +185,7 @@ export function GridMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Theme swap — setStyle wipes our sources/layers; style.load handler
+  // Theme swap - setStyle wipes our sources/layers; style.load handler
   // re-attaches everything from the cache.
   useEffect(() => {
     const map = mapRef.current;
@@ -236,9 +227,7 @@ export function GridMap({
     outageMarkersRef.current = [];
   }
 
-  // Thin closure over the shared function so existing call sites within
-  // GridMap don't have to thread `activeLayers` through. Activelayers comes
-  // from the component scope and stays in sync via the parent.
+  // closes over activeLayers so callers below don't have to pass it
   function applyLayerVisibility(map: MlMap) {
     applyLayerVisibilityShared(map, activeLayers);
   }
@@ -258,7 +247,7 @@ export function GridMap({
     /** Each layer is added in order. `before` is the existing layer id to
      *  insert beneath (matches MapLibre's `addLayer(layer, beforeId)` API). */
     layers: Array<{ layer: maplibregl.LayerSpecification; before?: string }>;
-    /** Called once per new source — useful for click/hover binding. */
+    /** Called once per new source - useful for click/hover binding. */
     onAttach?: (map: MlMap) => void;
     warnOnly?: boolean;
   }): Promise<GeoJSON.FeatureCollection | null> {
@@ -489,7 +478,7 @@ export function GridMap({
       errorMsg: "AEE/PREPA feeder outages failed to load.",
       layers: [
         {
-          // Active outage feeders — red. Tucked above the muni outline so they
+          // Active outage feeders - red. Tucked above the muni outline so they
           // don't blow out the choropleth, but still under labels.
           layer: {
             id: "feeders-outage-fill",
@@ -511,7 +500,7 @@ export function GridMap({
           before: "municipalities-outline",
         },
         {
-          // Projected load-shed feeders — amber dashed.
+          // Projected load-shed feeders - amber dashed.
           layer: {
             id: "feeders-loadshed-fill",
             type: "fill",
@@ -546,7 +535,7 @@ export function GridMap({
 
   /**
    * Region-level outage overlay. Draws affected munis as red translucent
-   * polygons when AEEPR feeders are empty (the common case). Honest about
+   * polygons when AEEPR feeders are empty (the common case). Note the
    * granularity: each muni's tint reflects its REGION's count, not a per-
    * muni measurement.
    */
@@ -593,7 +582,7 @@ export function GridMap({
       ],
     });
     // Visibility tracks the outages-live toggle, but we only paint when the
-    // AEEPR layer was empty — if AEEPR has data, those polygons are strictly
+    // AEEPR layer was empty - if AEEPR has data, those polygons are strictly
     // better and we hide the smear.
     const vis =
       showWhenLoaded && activeLayersRef.current.has("outages-live") ? "visible" : "none";
@@ -635,7 +624,7 @@ export function GridMap({
         return;
       }
       // Resolve muni centroids from the cached municipalities GeoJSON
-      // (populated by addDataLayers) — never MapLibre's private internals.
+      // (populated by addDataLayers) - never MapLibre's private internals.
       const data = cacheRef.current.munis;
       if (!data?.features) return;
       const centroidById = new Map<string, [number, number]>();
@@ -866,7 +855,7 @@ export function GridMap({
     if (map.getSource("municipalities")) return;
     map.addSource("municipalities", { type: "geojson", data: fc, promoteId: "id" });
 
-    // Invisible hit layer — always present so clicks register regardless of
+    // Invisible hit layer - always present so clicks register regardless of
     // which paint layer (status/risk/demand) is currently visible. Opacity 0
     // still receives pointer events in MapLibre.
     map.addLayer({
@@ -876,7 +865,7 @@ export function GridMap({
       paint: { "fill-color": "#000000", "fill-opacity": 0 },
     });
 
-    // Status fill — kept VERY subtle so the Protomaps land/water rendering
+    // Status fill - kept VERY subtle so the Protomaps land/water rendering
     // shows through. Only colors strongly when status ≠ unknown/normal.
     map.addLayer({
       id: "municipalities-fill",
@@ -945,7 +934,7 @@ export function GridMap({
       },
     });
 
-    // Hover state — bound to the always-on hit layer so hover works even when
+    // Hover state - bound to the always-on hit layer so hover works even when
     // status/risk/demand fills are toggled off.
     let hoveredId: string | number | null = null;
     map.on("mousemove", "municipalities-hit", (e) => {
@@ -1002,7 +991,7 @@ export function GridMap({
       },
     });
 
-    // Plant glow — soft halo behind each plant marker. Fuel-tinted so renewables
+    // Plant glow - soft halo behind each plant marker. Fuel-tinted so renewables
     // read green/teal, fossils warm. Sized 2.5× the marker so it bleeds out like
     // a lit node rather than a flat dot.
     const FUEL_MATCH = [

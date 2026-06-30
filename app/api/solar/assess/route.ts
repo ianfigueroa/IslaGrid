@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       ? body.systemKw
       : recommendSystemSize(monthlyKwh);
 
-  // Live PVWatts call — null when NREL_API_KEY is missing or the API errored.
+  // Live PVWatts call - null when NREL_API_KEY is missing or the API errored.
   const pv = await pvwatts({ lat, lon, systemKw });
   if (!pv) {
     return NextResponse.json({
@@ -143,8 +143,8 @@ export async function POST(req: Request) {
 
   // Pull the rolling 12-month outage hours for the closest municipality so
   // resilience scoring reflects this specific site, not a flat 6 h/mo
-  // island-wide default. If anything fails — no centroids, no daily rollup,
-  // RPC missing — we silently fall back to the default inside assess().
+  // island-wide default. If anything fails - no centroids, no daily rollup,
+  // RPC missing - we silently fall back to the default inside assess().
   let outageHoursPerMonth: number | undefined;
   let nearestMuniId: string | null = null;
   if (isSupabaseConfigured()) {
@@ -155,7 +155,7 @@ export async function POST(req: Request) {
       if (arr.length > 0) {
         // Cheap O(n) nearest centroid on 78 munis. Equirectangular
         // approximation is plenty accurate at PR latitudes for nearest
-        // neighbor on land — we're not measuring distance, just ranking.
+        // neighbor on land - we're not measuring distance, just ranking.
         nearestMuniId = arr.reduce<{ id: string; d2: number } | null>(
           (best, m) => {
             const dlat = m.lat - lat!;

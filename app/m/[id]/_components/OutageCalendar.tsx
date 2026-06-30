@@ -24,7 +24,7 @@ interface WeekColumn {
  * the exact date + hours in a floating tooltip.
  *
  * Previous version stacked all the month labels first then all 7×N day cells
- * inside the same CSS grid — with grid-flow-col the labels piled into the
+ * inside the same CSS grid - with grid-flow-col the labels piled into the
  * first columns and the day cells started rendering at whatever column the
  * labels finished on, which looked like the layout had imploded. Each column
  * is now its own little flex stack so labels and squares can't drift apart.

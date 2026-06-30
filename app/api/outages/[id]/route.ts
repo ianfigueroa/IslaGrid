@@ -46,7 +46,7 @@ interface Payload {
   outage: OutageRow | null;
   eta: {
     range_hours: [number, number];
-    /** Human-readable range string — always a range, never a fixed time. */
+    /** Human-readable range string - always a range, never a fixed time. */
     label: string;
     confidence: "low" | "medium" | "high";
     model_version: string;
@@ -68,7 +68,7 @@ interface Payload {
 function formatEtaLabel(low: number, high: number): string {
   if (low < 1 && high < 1) return `under 1 hour`;
   if (Math.round(low) === Math.round(high)) return `~${Math.round(low)} hours`;
-  return `${low.toFixed(1).replace(/\.0$/, "")}–${high
+  return `${low.toFixed(1).replace(/\.0$/, "")}-${high
     .toFixed(1)
     .replace(/\.0$/, "")} hours`;
 }
