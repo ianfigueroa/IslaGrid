@@ -46,14 +46,15 @@ jobs:
         working-directory: ingestion
         run: |
           pip install -e .
-          # Only fetch the browser binary on a cache miss. The --with-deps
-          # bit installs system libs which apt-caches on the runner already,
-          # so it's near-instant when the binary is cached.
-          if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
-            python -m playwright install --with-deps chromium
-          else
-            python -m playwright install-deps chromium
-          fi
+          # Always ensure the browser binary is present. `playwright install`
+          # is idempotent: it skips the download when the pinned chromium build
+          # is already cached, so a cache hit stays fast. But it self-heals a
+          # stale cache (e.g. after a Playwright bump changes the chromium build
+          # number) instead of leaving a missing executable, which is what the
+          # old cache-hit-only guard did. install-deps is the apt step, already
+          # cached on the runner, so it stays near-instant.
+          python -m playwright install-deps chromium
+          python -m playwright install chromium
 
       - name: System Overview
         timeout-minutes: 3
